@@ -1,0 +1,35 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CudaCompile Include="kernel.cu" />
+    <CudaCompile Include="old_kernel.cu" />
+    <CudaCompile Include="keeloq_generators.cu">
+      <Filter>keeloq</Filter>
+    </CudaCompile>
+    <CudaCompile Include="keeloq.cu">
+      <Filter>keeloq</Filter>
+    </CudaCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="keeloq_generators.cuh">
+      <Filter>keeloq</Filter>
+    </ClInclude>
+    <ClInclude Include="keeloq.cuh">
+      <Filter>keeloq</Filter>
+    </ClInclude>
+    <ClInclude Include="CUDA_check.cuh">
+      <Filter>CUDA</Filter>
+    </ClInclude>
+    <ClInclude Include="CUDA_helpers.cuh">
+      <Filter>CUDA</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="keeloq">
+      <UniqueIdentifier>{afe2570b-1691-4a25-9e8b-615c4d4013cf}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="CUDA">
+      <UniqueIdentifier>{829575b9-e9f3-4274-b335-f3069ce82e5f}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

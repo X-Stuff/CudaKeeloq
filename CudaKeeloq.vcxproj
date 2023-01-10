@@ -57,6 +57,8 @@
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>
       <CodeGeneration>%(CodeGeneration)</CodeGeneration>
+      <AdditionalCompilerOptions>
+      </AdditionalCompilerOptions>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -79,13 +81,16 @@
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <CudaCompile Include="keeloq.cu" />
+    <CudaCompile Include="keeloq_generators.cu" />
     <CudaCompile Include="kernel.cu" />
     <CudaCompile Include="old_kernel.cu" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CUDA_check.cuh" />
-    <ClInclude Include="CUDA_Vec.cuh" />
+    <ClInclude Include="CUDA_helpers.cuh" />
     <ClInclude Include="keeloq.cuh" />
+    <ClInclude Include="keeloq_generators.cuh" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

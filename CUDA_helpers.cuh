@@ -4,28 +4,57 @@
 
 #include "CUDA_check.cuh"
 
+#ifndef __device__
+#define __device__
+#endif
+
+#ifndef __global__
+#define __global__
+#endif
+
+#ifndef __host__
+#define __host__
+#endif
+
+
+#define GET_CUDA_CONTEXT() { \
+                gridDim.x * blockDim.x,                /* thread_max */ \
+                blockIdx.x * blockDim.x + threadIdx.x  /* thread_id  */ \
+};
+
+
+#define CUDA_FOR_THREAD_ID(ctx, i, count) for(uint32_t i = ctx.thread_id; i < count; i += ctx.thread_id)
+
+
+//
+struct CUDACtx
+{
+    uint32_t thread_max;
+    uint32_t thread_id;
+};
+
 
 template<typename T>
-struct CUDA_VEC
+struct CUDA_Array
 {
     T* CUDA_data;
     size_t num;
 
     void free()
     {
-        CUDA_VEC<T>::free(this);
+        CUDA_Array<T>::free(this);
     }
 
     size_t copy(std::vector<T>& target)
     {
-        return CUDA_VEC<T>::copy(this, target);
+        return CUDA_Array<T>::copy(this, target);
     }
 
-    static CUDA_VEC<T>* allocate(const std::vector<T>& source)
+    static CUDA_Array<T>* allocate(const std::vector<T>& source)
     {
         // Allocate memory of vector itself (ptr + size_t == 16 bytes)
-        CUDA_VEC<T>* result = nullptr;
-        uint32_t error = cudaMalloc(&result, sizeof(CUDA_VEC<T>));
+        CUDA_Array<T>* result = nullptr;
+        uint32_t error = cudaMalloc(&result, sizeof(CUDA_Array<T>));
         CUDA_CHECK(error);
 
         // Write size_t - size of the data
@@ -54,7 +83,7 @@ struct CUDA_VEC
         return result;
     }
 
-    static void free(CUDA_VEC<T>* vector)
+    static void free(CUDA_Array<T>* vector)
     {
         T* data_ptr = nullptr;
         uint32_t error = cudaMemcpy(&data_ptr, &vector->CUDA_data, sizeof(T*), cudaMemcpyDeviceToHost);
@@ -69,10 +98,10 @@ struct CUDA_VEC
         CUDA_CHECK(error);
     }
 
-    static size_t copy(const CUDA_VEC<T>* vector, std::vector<T>& target)
+    static size_t copy(const CUDA_Array<T>* vector, std::vector<T>& target)
     {
-        CUDA_VEC<T> device_vector;
-        uint32_t error = cudaMemcpy(&device_vector, vector, sizeof(CUDA_VEC<T>), cudaMemcpyDeviceToHost);
+        CUDA_Array<T> device_vector;
+        uint32_t error = cudaMemcpy(&device_vector, vector, sizeof(CUDA_Array<T>), cudaMemcpyDeviceToHost);
         CUDA_CHECK(error);
 
         if (device_vector.num > 0)
@@ -92,8 +121,11 @@ struct CUDA_VEC
 template<typename T>
 struct DOUBLE_ARRAY
 {
-    T* CUDA_mem;
-    T* HOST_mem;
+    using TCUDAPtr = T*;
+    using THOSTPtr = T*;
+
+    THOSTPtr* HOST_mem;
+    TCUDAPtr* CUDA_mem;
 
     size_t size;
 
@@ -139,7 +171,6 @@ struct DOUBLE_ARRAY
         uint32_t error = cudaMemcpy(HOST_mem, CUDA_mem, size, cudaMemcpyDeviceToHost);
         CUDA_CHECK(error);
     }
-
 };
 
 
@@ -190,4 +221,25 @@ struct GpuOobject
             CUDA_CHECK(error);
         }
     }
+};
+
+// Self owned GPU object
+template<typename T>
+struct TGenericGpuObject
+{
+    using TCudaPtr = T*;
+
+    TGenericGpuObject(T* Self) : SelfGpu(Self) {
+    }
+
+    TCudaPtr ptr() {
+        return SelfGpu.ptr();
+    }
+
+    void read() {
+        SelfGpu.read();
+    }
+
+private:
+    GpuOobject<T> SelfGpu;
 };
