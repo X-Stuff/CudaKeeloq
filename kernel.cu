@@ -20,7 +20,7 @@ struct SingleResult
 
     uint64_t ota;
 
-    int8_t match;
+    uint8_t match;
 };
 
 struct CUDACtx
@@ -38,13 +38,18 @@ struct Decryptor
     uint32_t seed;
 };
 
-struct CUDA_MAIN_Inputs
+struct KernelInput
 {
     CUDA_VEC<EncData>* encdata;
     CUDA_VEC<Decryptor>* decryptors;
 
     CUDA_VEC<SingleResult>* results;
     CUDA_VEC<MatchData>* matches;
+
+    GpuOobject<KernelInput> SelfGpu;
+
+    KernelInput() : SelfGpu(this) {
+    }
 
     void free()
     {
@@ -94,7 +99,7 @@ __device__ __host__ void run_keeloq_decryption(const CUDACtx& ctx, CUDA_VEC<EncD
 
             result.man = man;
             result.seed = seed;
-            result.match = -1;
+            result.match = KEELOQ_LEARNING_INVALID;
 
             result.ota = encrypted->CUDA_data[ota_index];
 
@@ -222,6 +227,47 @@ __device__ uint8_t analyze_results(const CUDACtx& ctx, const CUDA_VEC<SingleResu
     return num_matches;
 }
 
+__global__ void CUDA_main(KernelInput* CUDA_inputs, int* ret)
+{
+    CUDACtx ctx = {
+        gridDim.x * blockDim.x,                 // thread_max
+        blockIdx.x * blockDim.x + threadIdx.x   // thread_id
+    };
+
+    if (ctx.thread_id == 0) {
+
+        uint32_t pln_test = 0x11223344;
+        uint64_t key_test = 0xDEADBEEF00226688;
+        uint32_t enc_test = keeloq_common_encrypt(pln_test, key_test);
+        if (pln_test != keeloq_common_decrypt(enc_test, key_test))
+        {
+            ret[ctx.thread_id] = -42;
+            return;
+        }
+    }
+
+    run_keeloq_decryption(ctx, CUDA_inputs->encdata, CUDA_inputs->decryptors, CUDA_inputs->results);
+
+    uint8_t num_errors = find_matches(ctx, CUDA_inputs->results, CUDA_inputs->decryptors->num, CUDA_inputs->encdata->num);
+
+    ret[ctx.thread_id] += analyze_results(ctx, CUDA_inputs->results, CUDA_inputs->matches);
+}
+
+
+template<uint16_t ThreadBlocks, uint16_t ThreadsInBlock>
+int CUDA_main_wrapper(KernelInput& mainInputs)
+{
+    DOUBLE_ARRAY<int> kernel_result(ThreadBlocks * ThreadsInBlock);
+
+    CUDA_main<<<ThreadBlocks, ThreadsInBlock>>>(mainInputs.SelfGpu.ptr(), kernel_result.CUDA_mem);
+
+    kernel_result.read_GPU();
+
+    // accumulate 0,0,1,1,0...
+
+    return kernel_result.HOST_mem[0];
+}
+
 void print_decrypted_array(const DecryptedArray& array, uint8_t learning_match = KEELOQ_LEARNING_INVALID)
 {
     for (uint8_t i = 0; i < KEELOQ_LEARNING_LAST; ++i)
@@ -261,47 +307,6 @@ void test_keeloq()
     print_decrypted_array(all_dec);
 }
 
-
-__global__ void CUDA_main(CUDA_MAIN_Inputs* CUDA_inputs, int* ret)
-{
-    CUDACtx ctx = {
-        gridDim.x * blockDim.x,                 // thread_max
-        blockIdx.x * blockDim.x + threadIdx.x   // thread_id
-    };
-
-    if (ctx.thread_id == 0) {
-
-        uint32_t pln_test = 0x11223344;
-        uint64_t key_test = 0xDEADBEEF00226688;
-        uint32_t enc_test = keeloq_common_encrypt(pln_test, key_test);
-        if (pln_test != keeloq_common_decrypt(enc_test, key_test))
-        {
-            ret[ctx.thread_id] = -42;
-            return;
-        }
-    }
-
-    run_keeloq_decryption(ctx, CUDA_inputs->encdata, CUDA_inputs->decryptors, CUDA_inputs->results);
-
-    uint8_t num_errors = find_matches(ctx, CUDA_inputs->results, CUDA_inputs->decryptors->num, CUDA_inputs->encdata->num);
-
-
-    ret[ctx.thread_id] += analyze_results(ctx, CUDA_inputs->results, CUDA_inputs->matches);
-}
-
-
-template<uint16_t ThreadBlocks, uint16_t ThreadsInBlock>
-int CUDA_main_wrapper(CUDA_MAIN_Inputs& mainInputs)
-{
-    DOUBLE_ARRAY<int> kernel_result(ThreadBlocks * ThreadsInBlock);
-
-    CUDA_main<<<ThreadBlocks, ThreadsInBlock>>>(&mainInputs, kernel_result.CUDA_mem);
-
-    kernel_result.read_GPU();
-
-    return kernel_result.HOST_mem[0];
-}
-
 int main(int argc, char** argv)
 {
     //test_keeloq(); return;
@@ -323,28 +328,35 @@ int main(int argc, char** argv)
     std::vector<SingleResult> results(otas.size() * mans.size());
     std::vector<MatchData> matches(results.size());
 
-    CUDA_MAIN_Inputs MainKernelInputs = {0};
+    KernelInput MainKernelInputs = KernelInput();
+
     MainKernelInputs.encdata    = CUDA_VEC<EncData>::allocate(otas);
     MainKernelInputs.decryptors = CUDA_VEC<Decryptor>::allocate(mans);
     MainKernelInputs.results    = CUDA_VEC<SingleResult>::allocate(results);
     MainKernelInputs.matches    = CUDA_VEC<MatchData>:: allocate(matches);
 
-
-    int error = CUDA_main_wrapper<32,256>(MainKernelInputs);
-    if (error == 0)
+    int num_matches = CUDA_main_wrapper<32,256>(MainKernelInputs);
+    if (num_matches > 0)
     {
         MainKernelInputs.results->copy(results);
         MainKernelInputs.matches->copy(matches);
 
         for (const auto& match : matches)
         {
-            printf("------------------\n");
-            print_result(results[match]);
+            if (match)
+            {
+                printf("------------------\n");
+                print_result(results[match]);
+            }
         }
     }
-    else
+    else if (num_matches == 0)
     {
-        printf("Kernel returned error: %d\n", error);
+        printf("NO MATCHES\n");
+    }
+    else if (num_matches < 0)
+    {
+        printf("Kernel returned error: %d\n", num_matches);
     }
 
     cudaDeviceReset();

@@ -141,3 +141,53 @@ struct DOUBLE_ARRAY
     }
 
 };
+
+
+template<typename TTarget>
+struct GpuOobject
+{
+    TTarget* CUDA_Ptr;
+    TTarget* HOST_Ptr;
+
+    GpuOobject(TTarget* source)
+    {
+        CUDA_Ptr = nullptr;
+        HOST_Ptr = source;
+    }
+
+    ~GpuOobject()
+    {
+        if (CUDA_Ptr)
+        {
+            uint32_t error = cudaFree(CUDA_Ptr);
+            CUDA_CHECK(error);
+            CUDA_Ptr = nullptr;
+        }
+    }
+
+    TTarget* ptr(bool sync = true)
+    {
+        if (CUDA_Ptr == nullptr)
+        {
+            uint32_t error = cudaMalloc(&CUDA_Ptr, sizeof(TTarget));
+            CUDA_CHECK(error);
+        }
+
+        if (CUDA_Ptr && sync)
+        {
+            uint32_t error = cudaMemcpy(CUDA_Ptr, HOST_Ptr, sizeof(TTarget), cudaMemcpyHostToDevice);
+            CUDA_CHECK(error);
+        }
+
+        return CUDA_Ptr;
+    }
+
+    void read()
+    {
+        if (CUDA_Ptr)
+        {
+            uint32_t error = cudaMemcpy(HOST_Ptr, CUDA_Ptr, sizeof(TTarget), cudaMemcpyDeviceToHost);
+            CUDA_CHECK(error);
+        }
+    }
+};
