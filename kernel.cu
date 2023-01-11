@@ -1,140 +1,22 @@
 #include <vector>
+#include <chrono>
+#include <string>
 
 #include "stdio.h"
 #include "stdlib.h"
 
-#include "keeloq.cuh"
+#include "kernel.cuh"
+#include "keeloq_main.cuh"
 #include "keeloq_generators.cuh"
 
 #include "CUDA_helpers.cuh"
-#include "CUDA_check.cuh"
 
-constexpr int NUM_BLOCKS = 32;
-constexpr int NUM_THREAD = 256;
+
+constexpr int NUM_BLOCKS = 16;
+constexpr int NUM_THREAD = 128;
 
 // How much interation per one thread (basically for loop count)
-constexpr int NUM_DECRYPTORS_PER_THREAD = 512;
-
-
-struct CudaRunSetup
-{
-    // Bruteforce setup
-    CudaRunSetup(std::vector<EncData>&& data, const DectyptorGenerationConfig& gen, uint32_t blocks, uint32_t threads, uint32_t iterations)
-        : encrypted_data(std::move(data)), config(gen)
-    {
-        uint32_t num_decryptors_per_run = iterations * threads * blocks;
-
-        // allocated once. updated every run on GPU
-        decryptors = std::vector<Decryptor>(num_decryptors_per_run);
-
-        // allocated once. updated evert run on GPU. copied to CPU only if match found.
-        block_results = std::vector<SingleResult>(encrypted_data.size() * decryptors.size());
-
-        alloc();
-    }
-
-    // Dictionary setup
-    CudaRunSetup(std::vector<EncData>&& data, uint32_t blocks, uint32_t threads, uint32_t iterations)
-        : CudaRunSetup(std::move(data), DectyptorGenerationConfig(0, GeneratorType::Dictionary), blocks, threads, iterations)
-    {
-    }
-
-    ~CudaRunSetup()
-    {
-        free();
-    }
-
-    KernelInput CreateInputs(size_t batch_num, const std::vector<Decryptor>* dictionary = nullptr)
-    {
-        if (dictionary != nullptr)
-        {
-            size_t start_decryptor = batch_num * DecryptorsPerBatch();
-            size_t batch_decryptors_num = max(0ull, min(DecryptorsPerBatch(), dictionary->size() - start_decryptor));
-
-            CUDA_decryptors->write(&(*dictionary)[start_decryptor], batch_decryptors_num);
-        }
-
-        return KernelInput(CUDA_encrypted, CUDA_decryptors, CUDA_results, config);
-    }
-
-    const std::vector<SingleResult>& ReadResults()
-    {
-        CUDA_results->copy(block_results);
-        return block_results;
-    }
-
-    inline size_t DecryptorsPerBatch() const {
-        return decryptors.size();
-    }
-
-private:
-
-    void alloc()
-    {
-        //
-        assert(CUDA_encrypted == nullptr && "Encrypted data already allocated on GPU");
-        assert(CUDA_decryptors == nullptr && "Decryptors data already allocated on GPU");
-        assert(CUDA_results == nullptr && "Results data already allocated on GPU");
-
-        // ALLOCATE ON GPU
-        if (CUDA_encrypted == nullptr)
-        {
-            CUDA_encrypted  = CUDA_Array<EncData>::allocate(encrypted_data);
-        }
-
-        if (CUDA_decryptors == nullptr)
-        {
-            CUDA_decryptors = CUDA_Array<Decryptor>::allocate(decryptors);
-        }
-
-        if (CUDA_results == nullptr)
-        {
-            CUDA_results    = CUDA_Array<SingleResult>::allocate(block_results);
-        }
-    }
-
-    void free()
-    {
-        if (CUDA_encrypted != nullptr)
-        {
-            CUDA_encrypted->free();
-            CUDA_encrypted = nullptr;
-        }
-
-        if (CUDA_decryptors == nullptr)
-        {
-            CUDA_decryptors->free();
-            CUDA_decryptors = nullptr;
-        }
-
-        if (CUDA_results == nullptr)
-        {
-            CUDA_results->free();
-            CUDA_results = nullptr;
-        }
-
-        encrypted_data.clear();
-        decryptors.clear();
-        block_results.clear();
-    }
-
-private:
-
-    //
-    DectyptorGenerationConfig config;
-
-    // Constant per run
-    std::vector<EncData> encrypted_data;
-    CUDA_Array<EncData>* CUDA_encrypted = nullptr;
-
-    // could be pretty much data here
-    std::vector<Decryptor> decryptors;
-    CUDA_Array<Decryptor>* CUDA_decryptors = nullptr;
-
-    // could be pretty much data here
-    std::vector<SingleResult> block_results;
-    CUDA_Array<SingleResult>* CUDA_results = nullptr;
-};
+constexpr int NUM_DECRYPTORS_PER_THREAD = 32;
 
 
 void print_decrypted_data(uint32_t data, const char* name, bool ismatch)
@@ -237,7 +119,6 @@ bool process_block_results(const KernelResult& result, CudaRunSetup& run)
         return true;
     }
 
-    printf(".");
     return false;
 }
 
@@ -261,22 +142,57 @@ int main(int argc, char** argv)
 
     assert(CUDA_check_keeloq_works());
     {
-        CudaRunSetup setup(std::move(otas), NUM_BLOCKS, NUM_THREAD, NUM_DECRYPTORS_PER_THREAD);
+        DectyptorGenerationConfig dict_config(GeneratorType::Dictionary, dictionary.size());
+        DectyptorGenerationConfig brute_config(0xCEB6AE48B5000000,  GeneratorType::Brute, 0xFFFFFFFF);
 
-        size_t dict_size = dictionary.size();
-        size_t block_runs = dict_size / setup.DecryptorsPerBatch() + 1;
+        // keep them inside this {} scope, otherwise free() will cause errors because of cudaDeviceReset()
+        CudaRunSetup dict_setup(std::move(otas), dict_config,   NUM_BLOCKS, NUM_THREAD, NUM_DECRYPTORS_PER_THREAD);
+        CudaRunSetup brute_setup(std::move(otas), brute_config, NUM_BLOCKS, NUM_THREAD, NUM_DECRYPTORS_PER_THREAD);
 
-        for (size_t block = 0; block < block_runs; ++block)
+        CudaRunSetup& setup = brute_setup;// dict_setup; //
+        setup.Init();
+
+        printf("%s\n(1 KKey/s == %u Kkc (keeloq calcs) per second)\n",
+            setup.ToString().c_str(), KeeloqLearningType::LAST);
+
+        bool match = false;
+
+        size_t num_batches = setup.NumBatches();
+        size_t key_per_batch = setup.KeysCheckedInBatch();
+
+        for (size_t batch = 0; !match && batch < num_batches; ++batch)
         {
-            KernelInput MainKernelInputs = setup.CreateInputs(block, &dictionary);
+            auto start = std::chrono::high_resolution_clock::now();
 
-            auto kernel_result = run_block(MainKernelInputs);
-            if (process_block_results(kernel_result, setup))
-            {
-                break;
+            KernelInput& kernel_input = setup.Inputs();
+
+            if (setup.Type() == GeneratorType::Dictionary) {
+                kernel_input.WriteDecryptors(dictionary, batch * key_per_batch, key_per_batch);
             }
+            else {
+                kernel_input.UpdateInitialDecryptor();
+            }
+
+            auto kernel_result = run_block(kernel_input);
+            match = process_block_results(kernel_result, setup);
+
+            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::high_resolution_clock::now() - start);
+
+            auto kilo_result_per_second = duration.count() == 0 ? 0 : key_per_batch / duration.count();
+
+            printf("\r[%c]\t Elapsed: %llu(ms) Speed: %llu KKeys/s", WAIT_SPIN[batch % sizeof(WAIT_SPIN)],
+                duration.count(), kilo_result_per_second);
+        }
+
+        if (!match)
+        {
+            printf("\n\nAfter: %zd batches no results was found. Keys checked:%zd\n\n",
+                num_batches, num_batches * key_per_batch);
         }
 
     }
+
+    // this will free all memory aswell
     cudaDeviceReset();
 }

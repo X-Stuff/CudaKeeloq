@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 #include "stdint.h"
 
 #include "CUDA_helpers.cuh"
@@ -11,6 +13,9 @@
 #define bit(x, n) (((x) >> (n)) & 1)
 #define g5(x, a, b, c, d, e) \
     (bit(x, a) + bit(x, b) * 2 + bit(x, c) * 4 + bit(x, d) * 8 + bit(x, e) * 16)
+
+// Input encoded data (received over the air) - 16bytes
+typedef uint64_t EncData;
 
 enum KeeloqLearningType
 {
@@ -43,6 +48,21 @@ enum KeeloqLearningType
     INVALID = 0xffffffff,
 };
 
+enum class GeneratorType : uint8_t
+{
+    // Generation will be skipped
+    None = 0,
+    Dictionary = 0,
+
+    // Simple +1 generator
+    Brute,
+
+    // Excluding obvious patterns
+    Smart,
+
+    // Not for usage
+    LAST,
+};
 
 static const char* LearningNames[KeeloqLearningType::LAST] = {
     "KEELOQ_LEARNING_SIMPLE",
@@ -63,6 +83,11 @@ static const char* LearningNames[KeeloqLearningType::LAST] = {
     "KEELOQ_LEARNING_MAGIC_SERIAL_TYPE_3_REV",
 };
 
+static const char* GeneratorTypeName[(int)GeneratorType::LAST] = {
+    "Dictionary",
+    "Brute",
+    "Smart",
+};
 
 // fixed side array for every learning type
 struct DecryptedArray
@@ -83,21 +108,6 @@ struct SingleResult
     KeeloqLearningType match;
 };
 
-// Input encoded data (received over the air) - 16bytes
-typedef uint64_t EncData;
-
-enum class GeneratorType
-{
-    // Generation will be skipped
-    None = 0,
-    Dictionary = 0,
-
-    // Simple +1 generator
-    Brute,
-
-    // Excluding obvious patterns
-    Smart
-};
 
 // is test manufacture code with seed (default is 0)
 struct Decryptor
@@ -112,23 +122,65 @@ struct Decryptor
 
 struct DectyptorGenerationConfig
 {
+    // HOST SET. ONCE. How many generator rounds should be taken (in fact how many times cuda kernel will be called)
+    size_t size;
+
     // HOST SET. ONCE. Decryption will start from this
-    Decryptor initial;
+    Decryptor start;
 
     // HOST SET. ONCE. Which generator to use.
     GeneratorType type;
 
     // GPU SET. UPDATING. Last generated decryptor (will be initial for next block run)
-    Decryptor last;
+    Decryptor next;
 
     DectyptorGenerationConfig() :
-        DectyptorGenerationConfig(0, GeneratorType::None) {
+        DectyptorGenerationConfig(GeneratorType::None, 0) {
 
     }
 
-    DectyptorGenerationConfig(Decryptor start, GeneratorType gen) :
-        initial(start), type(gen), last(start)
+    DectyptorGenerationConfig(GeneratorType gen, size_t num) :
+        DectyptorGenerationConfig(0, gen, num)
     {
+        assert(gen == GeneratorType::Dictionary && "This constructor is available only for dictionary type");
+    }
+
+    DectyptorGenerationConfig(Decryptor start, GeneratorType gen, size_t num) :
+        start(start), type(gen), next(start), size(num)
+    {
+    }
+
+    uint64_t dict_size() const {
+        if (type == GeneratorType::Dictionary) {
+            return size;
+        }
+        return 0;
+    }
+
+    uint64_t brute_size() const {
+        if (type != GeneratorType::Dictionary) {
+            return size;
+        }
+        return 0;
+    }
+
+    void update_decryptor() {
+        if (type != GeneratorType::Dictionary) {
+            start = next;
+        }
+    }
+
+    std::string ToString() const
+    {
+        char tmp[128];
+        if (type == GeneratorType::Dictionary) {
+            sprintf_s(tmp, "Type: %s. size: %zd", GeneratorTypeName[(uint8_t)type % (uint8_t)GeneratorType::LAST], dict_size());
+        }
+        else {
+            sprintf_s(tmp, "Type: %s. Initial: 0x%llX (seed:%ul). Brute size: %zd",
+                GeneratorTypeName[(uint8_t)type % (uint8_t)GeneratorType::LAST], start.man, start.seed, brute_size());
+        }
+        return std::string(tmp);
     }
 };
 
@@ -166,6 +218,23 @@ struct KernelInput : TGenericGpuObject<KernelInput>
 
     KernelInput& operator=(KernelInput&& other) = delete;
     KernelInput& operator=(const KernelInput& other) = delete;
+
+    inline void WriteDecryptors(const std::vector<Decryptor>& source, size_t from, size_t num)
+    {
+        if (decryptors != nullptr)
+        {
+            generator.type = GeneratorType::Dictionary;
+
+            size_t copy_num = max(0ull, min(num, (source.size() - from)));
+            decryptors->write(&source[from], copy_num);
+        }
+    }
+
+    inline void UpdateInitialDecryptor()
+    {
+        assert(generator.type != GeneratorType::Dictionary);
+        generator.update_decryptor();
+    }
 };
 
 //

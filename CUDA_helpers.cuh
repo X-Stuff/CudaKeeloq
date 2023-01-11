@@ -40,11 +40,11 @@ struct CUDA_Array
     size_t num;
 
     __host__ __device__ inline T& operator[](uint32_t index) {
-        assert(index < num);
+        assert(index < num && "Index is out of range in CUDA_Array");
         return CUDA_data[index];
     }
     __host__ __device__ inline const T& operator[](uint32_t index) const {
-        assert(index < num);
+        assert(index < num && "Index is out of range in CUDA_Array");
         return CUDA_data[index];
     }
 

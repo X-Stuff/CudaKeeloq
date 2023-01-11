@@ -6,7 +6,7 @@
     <CudaCompile Include="keeloq_generators.cu">
       <Filter>keeloq</Filter>
     </CudaCompile>
-    <CudaCompile Include="keeloq.cu">
+    <CudaCompile Include="keeloq_main.cu">
       <Filter>keeloq</Filter>
     </CudaCompile>
   </ItemGroup>
@@ -14,7 +14,7 @@
     <ClInclude Include="keeloq_generators.cuh">
       <Filter>keeloq</Filter>
     </ClInclude>
-    <ClInclude Include="keeloq.cuh">
+    <ClInclude Include="keeloq_main.cuh">
       <Filter>keeloq</Filter>
     </ClInclude>
     <ClInclude Include="CUDA_check.cuh">
@@ -23,6 +23,7 @@
     <ClInclude Include="CUDA_helpers.cuh">
       <Filter>CUDA</Filter>
     </ClInclude>
+    <ClInclude Include="kernel.cuh" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="keeloq">

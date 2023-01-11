@@ -6,8 +6,8 @@ __global__ void CUDA_keeloq_generate_brute(KernelInput::TCudaPtr input, KernelRe
 
 	assert(input->generator.type == GeneratorType::Brute);
 
-	Decryptor& initial = input->generator.initial;
-	Decryptor& last = input->generator.last;
+	Decryptor& start = input->generator.start;
+	Decryptor& next = input->generator.next;
 
 	CUDA_Array<Decryptor>& decryptors = *input->decryptors;
 
@@ -15,11 +15,11 @@ __global__ void CUDA_keeloq_generate_brute(KernelInput::TCudaPtr input, KernelRe
 	{
 		Decryptor& decryptor = decryptors[decryptor_index];
 
-		decryptor.man = initial.man + decryptor_index;
+		decryptor.man = start.man + decryptor_index;
 	}
 
 	// every thread will do this. need to measure perf
-	last.man = decryptors[decryptors.num - 1].man;
+	next.man = decryptors[decryptors.num - 1].man;
 }
 
 __global__ void CUDA_keeloq_generate_smart(KernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls)

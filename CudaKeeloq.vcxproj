@@ -81,7 +81,7 @@
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <CudaCompile Include="keeloq.cu" />
+    <CudaCompile Include="keeloq_main.cu" />
     <CudaCompile Include="keeloq_generators.cu" />
     <CudaCompile Include="kernel.cu" />
     <CudaCompile Include="old_kernel.cu" />
@@ -89,8 +89,9 @@
   <ItemGroup>
     <ClInclude Include="CUDA_check.cuh" />
     <ClInclude Include="CUDA_helpers.cuh" />
-    <ClInclude Include="keeloq.cuh" />
+    <ClInclude Include="keeloq_main.cuh" />
     <ClInclude Include="keeloq_generators.cuh" />
+    <ClInclude Include="kernel.cuh" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "keeloq.cuh"
+#include "keeloq_main.cuh"
 
 __global__ void CUDA_keeloq_generate_brute(KernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls);
 

@@ -1,4 +1,4 @@
-#include "keeloq.cuh"
+#include "keeloq_main.cuh"
 
 #include "CUDA_helpers.cuh"
 
@@ -71,15 +71,15 @@ __device__ __host__ inline uint64_t keeloq_common_key_reverse(uint64_t key, uint
 
 __device__ uint8_t analyze_results_cnt(SingleResult* results, uint32_t num, KeeloqLearningType learning_type)
 {
-    uint8_t bit_tolerance = 7; //(1 << ceilf(__log2f(num))) - 1; // if num == 5, ceil(log2(5)) == 3, (1 << 3) - 1 == 7, 7 == 0b0111
+    uint8_t counter_maxdiff = num + 1;
 
-    uint32_t expected_btn = results[0].results.data[learning_type] >> 28;
+    uint32_t expected_cnt = results[0].results.data[learning_type] & 0x0000FFFF;
     uint32_t lrn_matches = 0;
 
     for (uint8_t item = 0; item < num; ++item)
     {
-        uint32_t btn = results[item].results.data[learning_type] >> 28;
-        lrn_matches += (btn ^ expected_btn) <= bit_tolerance;
+        uint32_t cnt = results[item].results.data[learning_type] & 0x0000FFFF;
+        lrn_matches += __usad(expected_cnt, cnt, 0) < counter_maxdiff;
     }
 
     return lrn_matches == num;
@@ -212,7 +212,7 @@ __device__ uint8_t keeloq_decryption_run(const CUDACtx& ctx, CUDA_Array<EncData>
         }
 
         // now check find matches in check decryptors
-        result_error += keeloq_find_matches(ctx, &results[decryptor_index * encrypted.num], encrypted.num);
+        // result_error += keeloq_find_matches(ctx, &results[decryptor_index * encrypted.num], encrypted.num);
     }
 
     return result_error;
