@@ -165,7 +165,7 @@ void print_decrypted_array(const DecryptedArray& array, KeeloqLearningType learn
 
 void print_result(const SingleResult& result, bool onlymatch = true)
 {
-    printf("Results(%d):\n\tOTA: 0x%llX\tMan key: 0x%llX\n\n", result.count, result.ota, result.man);
+    printf("Results:\n\tOTA: 0x%llX\tMan key: 0x%llX\n\n", result.ota, result.man);
 
     bool print_all = result.match == KeeloqLearningType::INVALID || !onlymatch;
     if (print_all)
@@ -227,12 +227,6 @@ bool process_block_results(const KernelResult& result, CudaRunSetup& run)
         {
             if (result.match == KeeloqLearningType::INVALID)
             {
-
-                if (result.count != 0)
-                {
-                    int b = 3;
-                    b++;
-                }
                 continue;
             }
 
@@ -265,6 +259,7 @@ int main(int argc, char** argv)
         { 0xCEB6AE48B5C63ED3, 0 },
     };
 
+    assert(CUDA_check_keeloq_works());
     {
         CudaRunSetup setup(std::move(otas), NUM_BLOCKS, NUM_THREAD, NUM_DECRYPTORS_PER_THREAD);
 

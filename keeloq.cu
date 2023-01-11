@@ -106,11 +106,13 @@ __device__ KeeloqLearningType analyze_results_srl(SingleResult* results, uint32_
 
     SingleResult& first = results[0];
 
+    // outer loop - over all learning types
     for (uint8_t lrn = 0; lrn < KeeloqLearningType::LAST; ++lrn)
     {
         uint32_t expected_srl = (first.results.data[lrn] >> 16) & 0x3ff;
         uint32_t lrn_matches = 1;
 
+        // inner loop for every result
         for (uint8_t i = 1; i < num; ++i)
         {
             SingleResult& item = results[i];
@@ -119,17 +121,14 @@ __device__ KeeloqLearningType analyze_results_srl(SingleResult* results, uint32_
             lrn_matches += srl == expected_srl && srl != 0;
         }
 
-        // ifs are bad
         bool has_match = lrn_matches == num;
 
         match_count += has_match;
         match_learning_type = (KeeloqLearningType)(has_match * lrn + !has_match * match_learning_type);
 
 #if !STRICT_ANALYSIS
-        if (match_count)
-        {
-            break;
-        }
+        // break imitation
+        lrn += has_match * KeeloqLearningType::LAST;
 #endif
     }
 
@@ -138,75 +137,85 @@ __device__ KeeloqLearningType analyze_results_srl(SingleResult* results, uint32_
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-__device__ uint8_t keeloq_find_matches(const CUDACtx& ctx, CUDA_Array<SingleResult>& results, uint32_t num_decryptors, uint32_t num_inputs)
+__device__ uint8_t keeloq_find_matches(const CUDACtx& ctx, SingleResult* results, uint32_t num)
 {
     uint8_t result_error = 0;
 
-    CUDA_FOR_THREAD_ID(ctx, decryptor_index, num_decryptors)
+    // ifs are bad
+    KeeloqLearningType learning_type = analyze_results_srl(results, num);
+    if (learning_type != KeeloqLearningType::INVALID)
     {
-        SingleResult* result_start = &results[decryptor_index * num_inputs];
-
-        // ifs are bad
-        KeeloqLearningType learning_type = analyze_results_srl(result_start, num_inputs);
-        if (learning_type != KeeloqLearningType::INVALID)
+        if (analyze_results_btn(results, num, learning_type) &&  // same button
+            analyze_results_cnt(results, num, learning_type))
         {
-            if (analyze_results_btn(result_start, num_inputs, learning_type) &&  // same button
-                analyze_results_cnt(result_start, num_inputs, learning_type))
+            for (int i = 0; i < num; ++i)
             {
-                for (int i = 0; i < num_inputs; ++i)
-                {
-                    result_start[i].match = learning_type;
-                }
+                results[i].match = learning_type;
             }
         }
+    }
 
 #if STRICT_ANALYSIS
-        uint64_t instance_man = results[decryptor_index * num_inputs].man;
-        for (int i = 0; i < num_inputs; ++i)
-        {
-            result_error += instance_man != result_start[i].man;
-        }
-#endif
+    uint64_t first_man = results[0].man;
+    for (int i = 0; i < num; ++i)
+    {
+        result_error += first_man != results[i].man;
     }
+#endif
 
     return result_error;
 }
 
-__device__ uint8_t keeloq_analyze_results(const CUDACtx& ctx, const CUDA_Array<SingleResult>& results)
+__device__ uint8_t keeloq_analyze_results(const CUDACtx& ctx, const CUDA_Array<SingleResult>& all_results, uint32_t num_decryptors, uint32_t num_inputs)
 {
     uint8_t num_matches = 0;
 
-    CUDA_FOR_THREAD_ID(ctx, r, results.num)
+    // outer loop for thread decryptor
+    CUDA_FOR_THREAD_ID(ctx, decryptor_index, num_decryptors)
     {
-        num_matches += (results[r].match != KeeloqLearningType::INVALID);
+        const SingleResult* decryptor_results = &all_results[decryptor_index * num_inputs];
+
+        // inner loop for each result of this decryptor
+        for (uint8_t r = 0; r < num_inputs; ++r)
+        {
+            num_matches += (decryptor_results[r].match != KeeloqLearningType::INVALID);
+        }
     }
 
     return num_matches;
 }
 
-__device__  void keeloq_decryption_run(const CUDACtx& ctx, CUDA_Array<EncData>& encrypted, CUDA_Array<Decryptor>& decryptors, CUDA_Array<SingleResult>& results)
+__device__ uint8_t keeloq_decryption_run(const CUDACtx& ctx, CUDA_Array<EncData>& encrypted, CUDA_Array<Decryptor>& decryptors, CUDA_Array<SingleResult>& results)
 {
+    uint8_t result_error = 0;
+
+    // outer loop for each thread's decryptor
     CUDA_FOR_THREAD_ID(ctx, decryptor_index, decryptors.num)
     {
         uint64_t man  = decryptors[decryptor_index].man;
         uint32_t seed = decryptors[decryptor_index].seed;
 
-        for (uint32_t ota_index = 0; ota_index < encrypted.num; ota_index++)
+        // inner loop for each input for decryptor - make decryption
+        for (uint32_t enc_index = 0; enc_index < encrypted.num; enc_index++)
         {
-            size_t result_index = decryptor_index * encrypted.num + ota_index;
+            size_t result_index = decryptor_index * encrypted.num + enc_index;
 
             SingleResult& result = results[result_index];
 
             result.man = man;
             result.seed = seed;
             result.match = KeeloqLearningType::INVALID;
-            result.count = 0;
 
-            result.ota = encrypted[ota_index];
+            result.ota = encrypted[enc_index];
 
             result.results = keeloq_decrypt(result.ota, result.man, result.seed);
         }
+
+        // now check find matches in check decryptors
+        result_error += keeloq_find_matches(ctx, &results[decryptor_index * encrypted.num], encrypted.num);
     }
+
+    return result_error;
 }
 
 __device__ __host__ struct DecryptedArray keeloq_decrypt_all(uint32_t data, uint32_t fix, const uint64_t key, const uint32_t seed) {
@@ -311,7 +320,7 @@ __device__ __host__ struct DecryptedArray keeloq_decrypt(uint64_t ota, uint64_t 
 }
 
 
-__global__ void CUDA_keeloq_main(KernelInput* CUDA_inputs, KernelResult::TCudaResultPtr ret)
+__global__ void CUDA_keeloq_test(KernelResult::TCudaPtr ret)
 {
     CUDACtx ctx = GET_CUDA_CONTEXT();
 
@@ -322,19 +331,27 @@ __global__ void CUDA_keeloq_main(KernelInput* CUDA_inputs, KernelResult::TCudaRe
         uint32_t enc_test = keeloq_common_encrypt(pln_test, key_test);
         if (pln_test != keeloq_common_decrypt(enc_test, key_test))
         {
-            ret->error = -1;
+            ret->error = 1;
             return;
         }
+        else
+        {
+            ret->value = 1;
+        }
     }
+}
+
+__global__ void CUDA_keeloq_main(KernelInput::TCudaPtr CUDA_inputs, KernelResult::TCudaPtr ret)
+{
+    CUDACtx ctx = GET_CUDA_CONTEXT();
+
 
     auto& encoded_data = *CUDA_inputs->encdata;
     auto& decryptors = *CUDA_inputs->decryptors;
     auto& results = *CUDA_inputs->results;
 
-    keeloq_decryption_run(ctx, encoded_data, decryptors, results);
-
-    uint8_t num_errors = keeloq_find_matches(ctx, results, decryptors.num, encoded_data.num);
-    uint8_t num_matches = keeloq_analyze_results(ctx, results);
+    uint8_t num_errors = keeloq_decryption_run(ctx, encoded_data, decryptors, results);
+    uint8_t num_matches = keeloq_analyze_results(ctx, results, decryptors.num, encoded_data.num);
 
     atomicAdd(&ret->error,  num_errors);
     atomicAdd(&ret->value, num_matches);

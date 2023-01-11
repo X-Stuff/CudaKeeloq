@@ -172,8 +172,6 @@ struct KernelInput : TGenericGpuObject<KernelInput>
 //
 struct KernelResult : TGenericGpuObject<KernelResult>
 {
-    using TCudaResultPtr = KernelResult*;
-
     // num errors. negative are kernel errors. positive - number of threads error
     int error = 0;
 
@@ -213,16 +211,28 @@ __device__ __host__ struct DecryptedArray keeloq_decrypt_all(uint32_t data, uint
 __device__ __host__ struct DecryptedArray keeloq_decrypt(uint64_t ota, uint64_t man, uint32_t seed = 0);
 
 
-__device__ uint8_t keeloq_find_matches(const CUDACtx& ctx, CUDA_Array<SingleResult>& results, uint32_t num_decryptors, uint32_t num_inputs);
+// run decryption parallel per thread and find matches
+__device__ uint8_t keeloq_decryption_run(const CUDACtx& ctx, CUDA_Array<EncData>* encrypted, CUDA_Array<Decryptor>* decryptors, CUDA_Array<SingleResult>* results);
 
-__device__ uint8_t keeloq_analyze_results(const CUDACtx& ctx, const CUDA_Array<SingleResult>& results);
+// run from result[0] to result[num] tries to detect if there is a match (man key valid)
+__device__ uint8_t keeloq_find_matches(const CUDACtx& ctx, SingleResult* results, uint32_t num);
 
-__device__ void keeloq_decryption_run(const CUDACtx& ctx, CUDA_Array<EncData>* encrypted, CUDA_Array<Decryptor>* decryptors, CUDA_Array<SingleResult>* results);
-
+// aggregate matches into count
+__device__ uint8_t keeloq_analyze_results(const CUDACtx& ctx, const CUDA_Array<SingleResult>& results, uint32_t num_decryptors, uint32_t num_inputs);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+__global__ void CUDA_keeloq_test(KernelResult::TCudaPtr ret);
 
-__global__ void CUDA_keeloq_main(KernelInput* CUDA_inputs, KernelResult::TCudaResultPtr ret);
+__global__ void CUDA_keeloq_main(KernelInput::TCudaPtr CUDA_inputs, KernelResult::TCudaPtr ret);
+
+inline bool CUDA_check_keeloq_works()
+{
+    KernelResult kernel_results;
+    CUDA_keeloq_test<<<1, 1>>>(kernel_results.ptr());
+    kernel_results.read();
+
+    return kernel_results.error == 0 && kernel_results.value != 0;
+}
 
 
 template<uint16_t ThreadBlocks, uint16_t ThreadsInBlock>
