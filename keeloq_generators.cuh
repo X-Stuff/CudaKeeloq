@@ -10,9 +10,9 @@ __global__ void CUDA_keeloq_generate_smart(KernelInput::TCudaPtr input, KernelRe
 template<uint16_t ThreadBlocks, uint16_t ThreadsInBlock>
 int CUDA_generator_wrapper(KernelInput& mainInputs)
 {
-    KernelResult generator_results = KernelResult();
+    KernelResult generator_results;
 
-    switch (mainInputs.generation.type)
+    switch (mainInputs.generator.type)
     {
 
     case GeneratorType::Brute:
@@ -27,6 +27,7 @@ int CUDA_generator_wrapper(KernelInput& mainInputs)
         break;
     }
 
+    mainInputs.read(); // it will not cause underneath arrays copy
     generator_results.read();
 
     return generator_results.error;

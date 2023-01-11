@@ -23,8 +23,7 @@
 };
 
 
-#define CUDA_FOR_THREAD_ID(ctx, i, count) for(uint32_t i = ctx.thread_id; i < count; i += ctx.thread_id)
-
+#define CUDA_FOR_THREAD_ID(ctx, i, count) for(uint32_t i = ctx.thread_id; i < count; i += ctx.thread_max)
 
 //
 struct CUDACtx
@@ -40,9 +39,23 @@ struct CUDA_Array
     T* CUDA_data;
     size_t num;
 
+    __host__ __device__ inline T& operator[](uint32_t index) {
+        assert(index < num);
+        return CUDA_data[index];
+    }
+    __host__ __device__ inline const T& operator[](uint32_t index) const {
+        assert(index < num);
+        return CUDA_data[index];
+    }
+
     void free()
     {
         CUDA_Array<T>::free(this);
+    }
+
+    void write(const T* source, size_t num)
+    {
+        CUDA_Array<T>::write(this, source, num);
     }
 
     size_t copy(std::vector<T>& target)
@@ -59,7 +72,7 @@ struct CUDA_Array
 
         // Write size_t - size of the data
         size_t source_size = source.size();
-        error = cudaMemcpy(&result->num, &source_size, source_size, cudaMemcpyHostToDevice);
+        error = cudaMemcpy(&result->num, &source_size, sizeof(size_t), cudaMemcpyHostToDevice);
         CUDA_CHECK(error);
 
         // Device pointer of data (if available)
@@ -83,37 +96,58 @@ struct CUDA_Array
         return result;
     }
 
-    static void free(CUDA_Array<T>* vector)
+    static CUDA_Array<T> host(const CUDA_Array<T>* device)
     {
-        T* data_ptr = nullptr;
-        uint32_t error = cudaMemcpy(&data_ptr, &vector->CUDA_data, sizeof(T*), cudaMemcpyDeviceToHost);
+        assert(device && "Invalida CUDA pointer");
+        CUDA_Array<T> HOST_dest = {0};
+
+        auto error = cudaMemcpy(&HOST_dest, device, sizeof(CUDA_Array<T>), cudaMemcpyDeviceToHost);
         CUDA_CHECK(error);
 
-        if (data_ptr)
+        return HOST_dest;
+    }
+
+    static void free(CUDA_Array<T>* array)
+    {
+        CUDA_Array<T> HOST_array = host(array);
+
+        if (HOST_array.CUDA_data)
         {
-            error = cudaFree(data_ptr);
+            auto error = cudaFree(HOST_array.CUDA_data);
             CUDA_CHECK(error);
         }
-        error = cudaFree(vector);
+
+        auto error = cudaFree(array);
         CUDA_CHECK(error);
     }
 
-    static size_t copy(const CUDA_Array<T>* vector, std::vector<T>& target)
+    static size_t copy(const CUDA_Array<T>* array, std::vector<T>& target)
     {
-        CUDA_Array<T> device_vector;
-        uint32_t error = cudaMemcpy(&device_vector, vector, sizeof(CUDA_Array<T>), cudaMemcpyDeviceToHost);
-        CUDA_CHECK(error);
-
-        if (device_vector.num > 0)
+        CUDA_Array<T> HOST_array = host(array);
+        if (HOST_array.num > 0)
         {
-            size_t allocated_bytes = device_vector.num * sizeof(T);
-            target.reserve(allocated_bytes);
+            size_t allocated_bytes = HOST_array.num * sizeof(T);
+            target.reserve(HOST_array.num);
 
-            error = cudaMemcpy((T*)target.data(), device_vector.CUDA_data, allocated_bytes, cudaMemcpyDeviceToHost);
+            auto error = cudaMemcpy((T*)target.data(), HOST_array.CUDA_data, allocated_bytes, cudaMemcpyDeviceToHost);
             CUDA_CHECK(error);
         }
 
-        return device_vector.num;
+        return HOST_array.num;
+    }
+
+    static void write(CUDA_Array<T>* dest, const T* source, size_t num)
+    {
+        CUDA_Array<T> HOST_dest = host(dest);
+
+        assert(HOST_dest.CUDA_data && "CUDA Data wasn't allocated");
+        if (HOST_dest.CUDA_data)
+        {
+            auto copy_bytes = sizeof(T) * min(num, HOST_dest.num);
+
+            auto error = cudaMemcpy(HOST_dest.CUDA_data, source, copy_bytes, cudaMemcpyHostToDevice);
+            CUDA_CHECK(error);
+        }
     }
 };
 
@@ -185,6 +219,10 @@ struct GpuOobject
         CUDA_Ptr = nullptr;
         HOST_Ptr = source;
     }
+    GpuOobject(GpuOobject<TTarget>&& other) = delete;
+
+    GpuOobject(const GpuOobject<TTarget>& other) = delete;
+    GpuOobject<TTarget>& operator =(const GpuOobject<TTarget>& other) = delete;
 
     ~GpuOobject()
     {
@@ -194,10 +232,18 @@ struct GpuOobject
             CUDA_CHECK(error);
             CUDA_Ptr = nullptr;
         }
+
+        HOST_Ptr = nullptr;
     }
 
     TTarget* ptr(bool sync = true)
     {
+        if (HOST_Ptr == nullptr)
+        {
+            assert(false && "OBJECT IS NO LONGER CAN BE USED IN GPU");
+            return nullptr;
+        }
+
         if (CUDA_Ptr == nullptr)
         {
             uint32_t error = cudaMalloc(&CUDA_Ptr, sizeof(TTarget));
@@ -215,6 +261,12 @@ struct GpuOobject
 
     void read()
     {
+        if (HOST_Ptr == nullptr)
+        {
+            assert(false && "OBJECT IS NO LONGER CAN BE USED IN GPU");
+            return;
+        }
+
         if (CUDA_Ptr)
         {
             uint32_t error = cudaMemcpy(HOST_Ptr, CUDA_Ptr, sizeof(TTarget), cudaMemcpyDeviceToHost);
@@ -231,6 +283,9 @@ struct TGenericGpuObject
 
     TGenericGpuObject(T* Self) : SelfGpu(Self) {
     }
+
+    TGenericGpuObject(const TGenericGpuObject<T>& other) = delete;
+    TGenericGpuObject<T>& operator =(const TGenericGpuObject<T>& other) = delete;
 
     TCudaPtr ptr() {
         return SelfGpu.ptr();

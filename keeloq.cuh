@@ -4,42 +4,47 @@
 
 #include "CUDA_helpers.cuh"
 
-
+#define STRICT_ANALYSIS 1
 #define NLF_LOOKUP_CONSTANT 0x3a5c742e
+
 
 #define bit(x, n) (((x) >> (n)) & 1)
 #define g5(x, a, b, c, d, e) \
     (bit(x, a) + bit(x, b) * 2 + bit(x, c) * 4 + bit(x, d) * 8 + bit(x, e) * 16)
 
-#define KEELOQ_LEARNING_SIMPLE 0u
-#define KEELOQ_LEARNING_SIMPLE_REV KEELOQ_LEARNING_SIMPLE + 1u
+enum KeeloqLearningType
+{
+    Simple = 0,
+    Simple_Rev,
 
-#define KEELOQ_LEARNING_NORMAL KEELOQ_LEARNING_SIMPLE_REV + 1u
-#define KEELOQ_LEARNING_NORMAL_REV KEELOQ_LEARNING_NORMAL + 1u
+    Normal,
+    Normal_Rev,
 
-#define KEELOQ_LEARNING_SECURE KEELOQ_LEARNING_NORMAL_REV + 1u
-#define KEELOQ_LEARNING_SECURE_REV KEELOQ_LEARNING_SECURE + 1u
+    Secure,
+    Secure_Rev,
 
-#define KEELOQ_LEARNING_MAGIC_XOR_TYPE_1 KEELOQ_LEARNING_SECURE_REV + 1u
-#define KEELOQ_LEARNING_MAGIC_XOR_TYPE_1_REV KEELOQ_LEARNING_MAGIC_XOR_TYPE_1 + 1u
+    Xor,
+    Xor_Rev,
 
-#define KEELOQ_LEARNING_FAAC KEELOQ_LEARNING_MAGIC_XOR_TYPE_1_REV + 1u
-#define KEELOQ_LEARNING_FAAC_REV KEELOQ_LEARNING_FAAC + 1u
+    Faac,
+    Faac_Rev,
 
-#define KEELOQ_LEARNING_MAGIC_SERIAL_TYPE_1 KEELOQ_LEARNING_FAAC_REV + 1u
-#define KEELOQ_LEARNING_MAGIC_SERIAL_TYPE_1_REV KEELOQ_LEARNING_MAGIC_SERIAL_TYPE_1 + 1u
+    Serial1,
+    Serial1_Rev,
 
-#define KEELOQ_LEARNING_MAGIC_SERIAL_TYPE_2 KEELOQ_LEARNING_MAGIC_SERIAL_TYPE_1_REV + 1u
-#define KEELOQ_LEARNING_MAGIC_SERIAL_TYPE_2_REV KEELOQ_LEARNING_MAGIC_SERIAL_TYPE_2 + 1u
+    Serial2,
+    Serial2_Rev,
 
-#define KEELOQ_LEARNING_MAGIC_SERIAL_TYPE_3 KEELOQ_LEARNING_MAGIC_SERIAL_TYPE_2_REV + 1u
-#define KEELOQ_LEARNING_MAGIC_SERIAL_TYPE_3_REV KEELOQ_LEARNING_MAGIC_SERIAL_TYPE_3 + 1u
+    Serial3,
+    Serial3_Rev,
+
+    LAST,
+
+    INVALID = 0xffffffff,
+};
 
 
-#define KEELOQ_LEARNING_LAST KEELOQ_LEARNING_MAGIC_SERIAL_TYPE_3_REV + 1u
-#define KEELOQ_LEARNING_INVALID 0xff
-
-static const char* LearningNames[KEELOQ_LEARNING_LAST] = {
+static const char* LearningNames[KeeloqLearningType::LAST] = {
     "KEELOQ_LEARNING_SIMPLE",
     "KEELOQ_LEARNING_SIMPLE_REV",
     "KEELOQ_LEARNING_NORMAL",
@@ -62,7 +67,7 @@ static const char* LearningNames[KEELOQ_LEARNING_LAST] = {
 // fixed side array for every learning type
 struct DecryptedArray
 {
-    uint32_t data[KEELOQ_LEARNING_LAST];
+    uint32_t data[KeeloqLearningType::LAST];
 };
 
 
@@ -75,26 +80,17 @@ struct SingleResult
 
     uint64_t ota;
 
-    uint8_t match;
+    KeeloqLearningType match;
 };
 
 // Input encoded data (received over the air) - 16bytes
 typedef uint64_t EncData;
 
-// now just index in results vector. negative index - no match
-typedef int32_t MatchData;
-
-// is test manufacture code with seed (default is 0)
-struct Decryptor
-{
-    uint64_t man;
-    uint32_t seed;
-};
-
 enum class GeneratorType
 {
     // Generation will be skipped
-    None,
+    None = 0,
+    Dictionary = 0,
 
     // Simple +1 generator
     Brute,
@@ -103,11 +99,37 @@ enum class GeneratorType
     Smart
 };
 
+// is test manufacture code with seed (default is 0)
+struct Decryptor
+{
+    uint64_t man;
+    uint32_t seed;
+
+    Decryptor() = default;
+    Decryptor(uint64_t key, uint32_t s = 0) :
+        man(key), seed(s) {}
+};
+
 struct DectyptorGenerationConfig
 {
+    // HOST SET. ONCE. Decryption will start from this
     Decryptor initial;
 
+    // HOST SET. ONCE. Which generator to use.
     GeneratorType type;
+
+    // GPU SET. UPDATING. Last generated decryptor (will be initial for next block run)
+    Decryptor last;
+
+    DectyptorGenerationConfig() :
+        DectyptorGenerationConfig(0, GeneratorType::None) {
+
+    }
+
+    DectyptorGenerationConfig(Decryptor start, GeneratorType gen) :
+        initial(start), type(gen), last(start)
+    {
+    }
 };
 
 
@@ -122,42 +144,29 @@ struct KernelInput : TGenericGpuObject<KernelInput>
 
     // Single-run results
     CUDA_Array<SingleResult>* results;
-    CUDA_Array<MatchData>* matches;
 
     // from this dectryptor generation will start
-    DectyptorGenerationConfig generation;
+    DectyptorGenerationConfig generator;
 
-    KernelInput() : TGenericGpuObject<KernelInput>(this) {
-    }
-
-    void free()
+    KernelInput() : KernelInput(nullptr, nullptr, nullptr, DectyptorGenerationConfig())
     {
-        if (encdata)
-        {
-            encdata->free();
-            encdata = nullptr;
-        }
-
-        if (decryptors)
-        {
-            decryptors->free();
-            decryptors = nullptr;
-        }
-
-        if (matches)
-        {
-            matches->free();
-            matches = nullptr;
-        }
-
-        if (results)
-        {
-            results->free();
-            results = nullptr;
-        }
     }
-};
 
+    KernelInput(CUDA_Array<EncData>* enc, CUDA_Array<Decryptor>* dec, CUDA_Array<SingleResult>* res, const DectyptorGenerationConfig& config)
+        : TGenericGpuObject<KernelInput>(this), encdata(enc), decryptors(dec), results(res), generator(config)
+    {
+    }
+
+    KernelInput(KernelInput&& other) : TGenericGpuObject<KernelInput>(this) {
+        encdata = other.encdata;
+        decryptors = other.decryptors;
+        results = other.results;
+        generator = other.generator;
+    }
+
+    KernelInput& operator=(KernelInput&& other) = delete;
+    KernelInput& operator=(const KernelInput& other) = delete;
+};
 
 //
 //
@@ -169,9 +178,14 @@ struct KernelResult : TGenericGpuObject<KernelResult>
     int error = 0;
 
     // overall result
-    int result = 0;
+    int value = 0;
 
     KernelResult() : TGenericGpuObject<KernelResult>(this) {
+    }
+
+    KernelResult(KernelResult&& other) : TGenericGpuObject<KernelResult>(this) {
+        error = other.error;
+        value = other.value;
     }
 };
 
@@ -199,9 +213,9 @@ __device__ __host__ struct DecryptedArray keeloq_decrypt_all(uint32_t data, uint
 __device__ __host__ struct DecryptedArray keeloq_decrypt(uint64_t ota, uint64_t man, uint32_t seed = 0);
 
 
-__device__ uint8_t keeloq_find_matches(const CUDACtx& ctx, CUDA_Array<SingleResult>* results, uint32_t num_decryptors, uint32_t num_inputs);
+__device__ uint8_t keeloq_find_matches(const CUDACtx& ctx, CUDA_Array<SingleResult>& results, uint32_t num_decryptors, uint32_t num_inputs);
 
-__device__ uint8_t keeloq_analyze_results(const CUDACtx& ctx, const CUDA_Array<SingleResult>* results, CUDA_Array<MatchData>* matches);
+__device__ uint8_t keeloq_analyze_results(const CUDACtx& ctx, const CUDA_Array<SingleResult>& results);
 
 __device__ void keeloq_decryption_run(const CUDACtx& ctx, CUDA_Array<EncData>* encrypted, CUDA_Array<Decryptor>* decryptors, CUDA_Array<SingleResult>* results);
 
@@ -212,15 +226,14 @@ __global__ void CUDA_keeloq_main(KernelInput* CUDA_inputs, KernelResult::TCudaRe
 
 
 template<uint16_t ThreadBlocks, uint16_t ThreadsInBlock>
-void CUDA_keeloq_main_wrapper(KernelInput& mainInputs, int&result, int& errors)
+KernelResult CUDA_keeloq_main_wrapper(KernelInput& mainInputs, int&result, int& errors)
 {
-    KernelResult kernel_results = KernelResult();
+    KernelResult kernel_results;
 
     CUDA_keeloq_main<<<ThreadBlocks, ThreadsInBlock>>>(mainInputs.ptr(), kernel_results.ptr());
 
     mainInputs.read();
     kernel_results.read();
 
-    result = kernel_results.result;
-    errors = kernel_results.error;
+    return kernel_results;
 }
