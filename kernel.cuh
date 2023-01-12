@@ -9,10 +9,12 @@
 
 constexpr char WAIT_SPIN[] = "|/-\\";
 
+#define WAIT_CHAR(i) (WAIT_SPIN[i % (sizeof(WAIT_SPIN) - 1)])
+
 struct CudaRunSetup
 {
-    CudaRunSetup(std::vector<EncData>&& data, const DectyptorGenerationConfig& gen, uint32_t blocks, uint32_t threads, uint32_t iterations)
-        : encrypted_data(std::move(data))
+    CudaRunSetup(const std::vector<EncData>& data, const DectyptorGenerationConfig& gen, uint32_t blocks, uint32_t threads, uint32_t iterations)
+        : encrypted_data(data)
     {
         num_decryptors_per_batch = iterations * threads * blocks;
 

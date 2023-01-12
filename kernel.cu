@@ -11,9 +11,12 @@
 
 #include "CUDA_helpers.cuh"
 
+#define console_clear() printf("\033[H\033[J")
+#define console_set_cursor(x,y) printf("\033[%d;%dH", (y), (x))
+
 
 constexpr int NUM_BLOCKS = 16;
-constexpr int NUM_THREAD = 128;
+constexpr int NUM_THREAD = 256;
 
 // How much interation per one thread (basically for loop count)
 constexpr int NUM_DECRYPTORS_PER_THREAD = 32;
@@ -143,11 +146,11 @@ int main(int argc, char** argv)
     assert(CUDA_check_keeloq_works());
     {
         DectyptorGenerationConfig dict_config(GeneratorType::Dictionary, dictionary.size());
-        DectyptorGenerationConfig brute_config(0xCEB6AE48B5000000,  GeneratorType::Brute, 0xFFFFFFFF);
+        DectyptorGenerationConfig brute_config(0xCEB6AE48B5000000,  GeneratorType::Brute, 0x00FFFFFF);
 
         // keep them inside this {} scope, otherwise free() will cause errors because of cudaDeviceReset()
-        CudaRunSetup dict_setup(std::move(otas), dict_config,   NUM_BLOCKS, NUM_THREAD, NUM_DECRYPTORS_PER_THREAD);
-        CudaRunSetup brute_setup(std::move(otas), brute_config, NUM_BLOCKS, NUM_THREAD, NUM_DECRYPTORS_PER_THREAD);
+        CudaRunSetup dict_setup(otas, dict_config,   NUM_BLOCKS, NUM_THREAD, NUM_DECRYPTORS_PER_THREAD);
+        CudaRunSetup brute_setup(otas, brute_config, NUM_BLOCKS, NUM_THREAD, NUM_DECRYPTORS_PER_THREAD);
 
         CudaRunSetup& setup = brute_setup;// dict_setup; //
         setup.Init();
@@ -181,8 +184,9 @@ int main(int argc, char** argv)
 
             auto kilo_result_per_second = duration.count() == 0 ? 0 : key_per_batch / duration.count();
 
-            printf("\r[%c]\t Elapsed: %llu(ms) Speed: %llu KKeys/s", WAIT_SPIN[batch % sizeof(WAIT_SPIN)],
-                duration.count(), kilo_result_per_second);
+            printf("\r[%c]\t Elapsed: %llu(ms) Completed: %d%% Speed: %llu KKeys/s", WAIT_CHAR(batch),
+                duration.count(), (int)(((double)(batch + 1)/ num_batches) * 100),
+                kilo_result_per_second);
         }
 
         if (!match)
