@@ -305,7 +305,7 @@ inline bool CUDA_check_keeloq_works()
 
 
 template<uint16_t ThreadBlocks, uint16_t ThreadsInBlock>
-KernelResult CUDA_keeloq_main_wrapper(KernelInput& mainInputs, int&result, int& errors)
+KernelResult CUDA_keeloq_main_wrapper(KernelInput& mainInputs)
 {
     KernelResult kernel_results;
 

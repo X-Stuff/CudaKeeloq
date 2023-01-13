@@ -32,6 +32,12 @@ struct CudaRunSetup
         return block_results;
     }
 
+    const std::vector<Decryptor>& ReadDecryptors()
+    {
+        kernel_inputs.decryptors->copy(decryptors);
+        return decryptors;
+    }
+
     // Allocates memory
     inline void Init()
     {

@@ -22,9 +22,9 @@ int CUDA_generator_wrapper(KernelInput& mainInputs)
         CUDA_keeloq_generate_smart<<<ThreadBlocks, ThreadsInBlock>>>(mainInputs.ptr(), generator_results.ptr());
         break;
 
-    case GeneratorType::None:
+    case GeneratorType::Dictionary:
     default:
-        break;
+        return 0;
     }
 
     mainInputs.read(); // it will not cause underneath arrays copy

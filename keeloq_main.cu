@@ -212,7 +212,7 @@ __device__ uint8_t keeloq_decryption_run(const CUDACtx& ctx, CUDA_Array<EncData>
         }
 
         // now check find matches in check decryptors
-        // result_error += keeloq_find_matches(ctx, &results[decryptor_index * encrypted.num], encrypted.num);
+        result_error += keeloq_find_matches(ctx, &results[decryptor_index * encrypted.num], encrypted.num);
     }
 
     return result_error;

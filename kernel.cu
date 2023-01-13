@@ -1,9 +1,9 @@
 #include <vector>
 #include <chrono>
 #include <string>
-
-#include "stdio.h"
-#include "stdlib.h"
+#include <conio.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #include "kernel.cuh"
 #include "keeloq_main.cuh"
@@ -12,14 +12,21 @@
 #include "CUDA_helpers.cuh"
 
 #define console_clear() printf("\033[H\033[J")
+
+#define console_cursor_up(lines) printf("\033[%dA", (lines))
+
+#define console_cursor_ret_up() printf("\033[F")
 #define console_set_cursor(x,y) printf("\033[%d;%dH", (y), (x))
 
+#define save_cursor_pos() printf("\033[s")
+#define load_cursor_pos() printf("\033[u")
 
-constexpr int NUM_BLOCKS = 16;
+
+constexpr int NUM_BLOCKS = 32;
 constexpr int NUM_THREAD = 256;
 
 // How much interation per one thread (basically for loop count)
-constexpr int NUM_DECRYPTORS_PER_THREAD = 32;
+constexpr int NUM_DECRYPTORS_PER_THREAD = 128;
 
 
 void print_decrypted_data(uint32_t data, const char* name, bool ismatch)
@@ -78,13 +85,10 @@ void test_keeloq()
 
 KernelResult run_block(KernelInput& input)
 {
-    int num_matches = 0;
-    int num_errors = 0;
-
     int error = CUDA_generator_wrapper<NUM_BLOCKS, NUM_THREAD>(input);
     assert(error == 0);
 
-    return CUDA_keeloq_main_wrapper<NUM_BLOCKS, NUM_THREAD>(input, num_matches, num_errors);
+    return CUDA_keeloq_main_wrapper<NUM_BLOCKS, NUM_THREAD>(input);
 }
 
 bool process_block_results(const KernelResult& result, CudaRunSetup& run)
@@ -125,6 +129,23 @@ bool process_block_results(const KernelResult& result, CudaRunSetup& run)
     return false;
 }
 
+void progress_bar(double percent, const std::chrono::seconds& elapsed)
+{
+    constexpr auto progress_width = 80;
+    static char progress_fill[progress_width] = {0};
+    static char progress_none[progress_width] = {0};
+    if (progress_fill[0] == 0)
+    {
+        memset(progress_fill, '=', sizeof(progress_fill));
+        memset(progress_none, '-', sizeof(progress_none));
+    }
+
+    printf("[%.*s>", (int)(progress_width * percent), progress_fill);
+    printf("%.*s]", (int)(progress_width * (1 - percent)), progress_none);
+    printf("%d%%  %02lld:%02lld:%02lld   \n", (int)(percent * 100),
+        elapsed.count() / 3600, (elapsed.count() / 60) % 60, elapsed.count() % 60);
+}
+
 int main(int argc, char** argv)
 {
     //test_keeloq(); return;
@@ -135,6 +156,7 @@ int main(int argc, char** argv)
     std::vector<uint64_t> otas = {
         0xC65D52A0A81FD504,
         0xCCA9B335A81FD504,
+        0xE0DA7372A81FD504
     };
 
     std::vector<Decryptor> dictionary = {
@@ -146,13 +168,13 @@ int main(int argc, char** argv)
     assert(CUDA_check_keeloq_works());
     {
         DectyptorGenerationConfig dict_config(GeneratorType::Dictionary, dictionary.size());
-        DectyptorGenerationConfig brute_config(0xCEB6AE48B5000000,  GeneratorType::Brute, 0x00FFFFFF);
+        DectyptorGenerationConfig brute_config(0xCEB6AE4800000000,  GeneratorType::Brute, 0xFFFFFFFF);
 
         // keep them inside this {} scope, otherwise free() will cause errors because of cudaDeviceReset()
         CudaRunSetup dict_setup(otas, dict_config,   NUM_BLOCKS, NUM_THREAD, NUM_DECRYPTORS_PER_THREAD);
         CudaRunSetup brute_setup(otas, brute_config, NUM_BLOCKS, NUM_THREAD, NUM_DECRYPTORS_PER_THREAD);
 
-        CudaRunSetup& setup = brute_setup;// dict_setup; //
+        CudaRunSetup& setup = brute_setup;//dict_setup; //
         setup.Init();
 
         printf("%s\n(1 KKey/s == %u Kkc (keeloq calcs) per second)\n",
@@ -163,9 +185,11 @@ int main(int argc, char** argv)
         size_t num_batches = setup.NumBatches();
         size_t key_per_batch = setup.KeysCheckedInBatch();
 
+        auto dec_start = std::chrono::system_clock::now();
+
         for (size_t batch = 0; !match && batch < num_batches; ++batch)
         {
-            auto start = std::chrono::high_resolution_clock::now();
+            auto batch_start = std::chrono::high_resolution_clock::now();
 
             KernelInput& kernel_input = setup.Inputs();
 
@@ -180,13 +204,26 @@ int main(int argc, char** argv)
             match = process_block_results(kernel_result, setup);
 
             auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
-                std::chrono::high_resolution_clock::now() - start);
+                std::chrono::high_resolution_clock::now() - batch_start);
+
+            if (batch == 0 || match)
+            {
+                printf("\n");
+                save_cursor_pos();
+            }
 
             auto kilo_result_per_second = duration.count() == 0 ? 0 : key_per_batch / duration.count();
+            auto progress_percent = (double)(batch + 1)/ num_batches;
 
-            printf("\r[%c]\t Elapsed: %llu(ms) Completed: %d%% Speed: %llu KKeys/s", WAIT_CHAR(batch),
-                duration.count(), (int)(((double)(batch + 1)/ num_batches) * 100),
+            load_cursor_pos();
+            printf("[%c][%zd/%zd]\t %llu(ms)/batch Speed: %llu KKeys/s\n", WAIT_CHAR(batch),
+                batch, num_batches, duration.count(),
                 kilo_result_per_second);
+
+            auto overall = std::chrono::duration_cast<std::chrono::seconds>(
+                std::chrono::system_clock::now() - dec_start);
+
+            progress_bar(progress_percent, overall);
         }
 
         if (!match)
