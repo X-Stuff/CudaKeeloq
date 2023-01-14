@@ -13,7 +13,7 @@ constexpr char WAIT_SPIN[] = "|/-\\";
 
 struct CudaRunSetup
 {
-    CudaRunSetup(const std::vector<EncData>& data, const DectyptorGenerationConfig& gen, uint32_t blocks, uint32_t threads, uint32_t iterations)
+    CudaRunSetup(const std::vector<EncData>& data, const BruteforceConfig& gen, uint32_t blocks, uint32_t threads, uint32_t iterations)
         : encrypted_data(data)
     {
         num_decryptors_per_batch = iterations * threads * blocks;
@@ -55,15 +55,15 @@ struct CudaRunSetup
         }
     }
 
-    inline const DectyptorGenerationConfig& Config() const { assert(inited); return kernel_inputs.generator; }
+    inline const BruteforceConfig& Config() const { assert(inited); return kernel_inputs.generator; }
 
-    inline GeneratorType Type() { assert(inited); return Config().type; }
+    inline BruteforceConfig::Type Type() { assert(inited); return Config().type; }
 
     inline KernelInput& Inputs() { assert(inited); return kernel_inputs; }
 
     inline size_t NumBatches() {
         assert(inited);
-        if (Type() == GeneratorType::Dictionary) {
+        if (Type() == BruteforceConfig::Type::Dictionary) {
             uint8_t non_align = Config().dict_size() % KeysCheckedInBatch() == 0 ? 0 : 1;
             return Config().dict_size() / KeysCheckedInBatch() + non_align;
         }

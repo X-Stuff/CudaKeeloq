@@ -23,6 +23,9 @@
       <Filter>CUDA</Filter>
     </ClInclude>
     <ClInclude Include="kernel.cuh" />
+    <ClInclude Include="keeloq_types.cuh">
+      <Filter>keeloq</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="keeloq">

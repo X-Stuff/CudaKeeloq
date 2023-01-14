@@ -90,6 +90,7 @@
     <ClInclude Include="CUDA_helpers.cuh" />
     <ClInclude Include="keeloq_main.cuh" />
     <ClInclude Include="keeloq_generators.cuh" />
+    <ClInclude Include="keeloq_types.cuh" />
     <ClInclude Include="kernel.cuh" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

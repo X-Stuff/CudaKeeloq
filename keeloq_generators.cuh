@@ -1,6 +1,6 @@
 #pragma once
 
-#include "keeloq_main.cuh"
+#include "keeloq_types.cuh"
 
 
 struct FiltersTestinput
@@ -17,6 +17,8 @@ __global__ void CUDA_keeloq_generate_brute(KernelInput::TCudaPtr input, KernelRe
 
 __global__ void CUDA_keeloq_generate_filtered(KernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls);
 
+__global__ void CUDA_keeloq_generate_alphabet(KernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls);
+
 __global__ void CUDA_generators_test(FiltersTestinput* tests, uint8_t num);
 
 
@@ -28,14 +30,17 @@ int CUDA_generator_wrapper(KernelInput& mainInputs)
     switch (mainInputs.generator.type)
     {
 
-    case GeneratorType::Brute:
+    case BruteforceConfig::Type::Simple:
         CUDA_keeloq_generate_brute<<<ThreadBlocks, ThreadsInBlock>>>(mainInputs.ptr(), generator_results.ptr());
         break;
-    case GeneratorType::Filtered:
+    case BruteforceConfig::Type::Filtered:
         CUDA_keeloq_generate_filtered<<<ThreadBlocks, ThreadsInBlock>>>(mainInputs.ptr(), generator_results.ptr());
         break;
+    case BruteforceConfig::Type::Alphabet:
+        CUDA_keeloq_generate_alphabet<<<ThreadBlocks, ThreadsInBlock>>>(mainInputs.ptr(), generator_results.ptr());
+        break;
 
-    case GeneratorType::Dictionary:
+    case BruteforceConfig::Type::Dictionary:
     default:
         return 0;
     }
@@ -72,6 +77,7 @@ inline int CUDA_test_generator_filters()
 
         { 0x0022222222556677, SmartFilterFlags::BytesRepeat4, true },
         { 0x0022222222226677, SmartFilterFlags::BytesRepeat4, true },
+        { 0x00Abcdef11111111, SmartFilterFlags::BytesRepeat4, true },
         { 0x0011222222556677, SmartFilterFlags::BytesRepeat4, false },
         { 0x0011223344556677, SmartFilterFlags::BytesRepeat4, false },
 
@@ -99,9 +105,9 @@ inline int CUDA_test_generator_filters()
     constexpr auto NumThreads = 32;
 
 
-    DectyptorGenerationConfig testConfig( 0xAbcdef12345678, GeneratorType::Filtered, 0xFFFFFFFF);
+    BruteforceConfig testConfig( 0xAbcdef11111100, BruteforceConfig::Type::Filtered, 0xFFFFFFFF);
     testConfig.filters.include = SmartFilterFlags::All;//SmartFilterFlags::AsciiAny; //
-    testConfig.filters.exclude = SmartFilterFlags::Max6OnesInARow; //SmartFilterFlags::None;///
+    testConfig.filters.exclude = SmartFilterFlags::None;///SmartFilterFlags::BytesRepeat4; //
 
 
     std::vector<Decryptor> decryptors(NumBlocks * NumThreads);
@@ -112,11 +118,6 @@ inline int CUDA_test_generator_filters()
 
     generatorInputs.read();
     generatorInputs.decryptors->copy(decryptors);
-
-    for (int i = 0; i < decryptors.size(); ++i)
-    {
-
-    }
 
     result.read();
 

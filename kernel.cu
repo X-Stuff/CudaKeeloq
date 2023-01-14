@@ -171,8 +171,8 @@ int main(int argc, char** argv)
 
     assert(CUDA_check_keeloq_works());
     {
-        DectyptorGenerationConfig dict_config(GeneratorType::Dictionary, dictionary.size());
-        DectyptorGenerationConfig brute_config(0xCEB6AE4800000000,  GeneratorType::Brute, 0xFFFFFFFF);
+        BruteforceConfig dict_config(BruteforceConfig::Type::Dictionary, dictionary.size());
+        BruteforceConfig brute_config(0xCEB6AE4800000000,  BruteforceConfig::Type::Simple, 0xFFFFFFFF);
 
         // keep them inside this {} scope, otherwise free() will cause errors because of cudaDeviceReset()
         CudaRunSetup dict_setup(otas, dict_config,   NUM_BLOCKS, NUM_THREAD, NUM_DECRYPTORS_PER_THREAD);
@@ -197,7 +197,7 @@ int main(int argc, char** argv)
 
             KernelInput& kernel_input = setup.Inputs();
 
-            if (setup.Type() == GeneratorType::Dictionary) {
+            if (setup.Type() == BruteforceConfig::Type::Dictionary) {
                 kernel_input.WriteDecryptors(dictionary, batch * key_per_batch, key_per_batch);
             }
             else {

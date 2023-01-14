@@ -1,7 +1,5 @@
 #include "keeloq_main.cuh"
 
-#include "CUDA_helpers.cuh"
-
 
 __device__ __host__ inline uint64_t keeloq_common_secure_learning(uint32_t data, uint32_t seed, const uint64_t key) {
     uint32_t k1, k2;

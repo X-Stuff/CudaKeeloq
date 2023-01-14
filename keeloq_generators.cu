@@ -226,7 +226,7 @@ __global__ void CUDA_keeloq_generate_brute(KernelInput::TCudaPtr input, KernelRe
 {
 	CUDACtx ctx = GET_CUDA_CONTEXT();
 
-	assert(input->generator.type == GeneratorType::Brute);
+	assert(input->generator.type == BruteforceConfig::Type::Simple);
 
 	Decryptor& start = input->generator.start;
 	Decryptor& next = input->generator.next;
@@ -246,7 +246,7 @@ __global__ void CUDA_keeloq_generate_brute(KernelInput::TCudaPtr input, KernelRe
 
 __global__ void CUDA_keeloq_generate_filtered(KernelInput::TCudaPtr input, KernelResult::TCudaPtr results)
 {
-	assert(input->generator.type == GeneratorType::Filtered);
+	assert(input->generator.type == BruteforceConfig::Type::Filtered);
 
 	assert(input->generator.start.man > 0x100000000000 && "Starting key should be big enough to start bruteforcing. Consider pattern brute.");
 
@@ -322,6 +322,51 @@ __global__ void CUDA_keeloq_generate_filtered(KernelInput::TCudaPtr input, Kerne
 				decryptor.seed = 0; // right now we don't do it
 			}
 		}
+	}
+}
+
+__global__ void CUDA_keeloq_generate_alphabet(KernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls)
+{
+	CUDACtx ctx = GET_CUDA_CONTEXT();
+
+	assert(input->generator.type == BruteforceConfig::Type::Alphabet);
+
+	BruteforceConfig::Alphabet& alphabet = input->generator.alphabet;
+	assert(alphabet.num > 0);
+
+	Decryptor& start = input->generator.start;
+	Decryptor& next = input->generator.next;
+
+	CUDA_Array<Decryptor>& decryptors = *input->decryptors;
+
+	// Imagine alphabet as rotating rings with letters on it
+	// we have 8-bytes key so there will be 8 rings
+	// indexes are per-byte and shows how much ring is rotated
+	// and what 'letter' it should have.
+	// Or also it can be cosidered as 8-digit N-based number
+	uint64_t start_indexer = 0;
+
+	uint8_t* start_key = (uint8_t*)& start.man;
+	uint8_t* pIndexer = (uint8_t*)&start_indexer;
+
+	// Get start indexer (rings) values from last start man key (reverse lookup)
+	#pragma unroll
+	for (uint8_t i = 0; i < sizeof(uint64_t); ++i)
+	{
+		// Valid or 0 (first letter in alphabet)
+		pIndexer[i] = alphabet.is_valid_index(start_key[i]) * alphabet.lookup(start_key[i]);
+	}
+
+	CUDA_FOR_THREAD_ID(ctx, decryptor_index, decryptors.num)
+	{
+		// Set curr indexer to initial value first
+		uint8_t curr_indexer[8];
+		*(uint64_t*)curr_indexer = start_indexer;
+
+		// Get new indexer value (rotate rings) depending on what decryptor we now producing (basically add 10-base number to N-base number)
+		alphabet.add(curr_indexer, decryptor_index);
+
+		// produce key by indexes from curr_indexer
 	}
 }
 
