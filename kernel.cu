@@ -150,6 +150,10 @@ int main(int argc, char** argv)
 {
     //test_keeloq(); return;
 
+    CUDA_test_generator_filters();
+    return;
+
+
     cudaDeviceProp prop;
     cudaGetDeviceProperties(&prop, 0);
 

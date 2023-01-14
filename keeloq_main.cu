@@ -332,7 +332,6 @@ __global__ void CUDA_keeloq_test(KernelResult::TCudaPtr ret)
         if (pln_test != keeloq_common_decrypt(enc_test, key_test))
         {
             ret->error = 1;
-            return;
         }
         else
         {

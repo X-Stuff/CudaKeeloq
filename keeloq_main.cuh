@@ -48,6 +48,46 @@ enum KeeloqLearningType
     INVALID = 0xffffffff,
 };
 
+enum class SmartFilterFlags : uint64_t
+{
+    //
+    None = 0,
+
+
+    // filter fuction return true if key has more than 6 consecutive 0 bits
+    Max6ZerosInARow         = (1 << 0),
+
+    // filter fuction return true if key has more than 6 consecutive 1 bits
+    Max6OnesInARow          = (1 << 1),
+
+
+    // filter fuction return true if key has patterns like 11:22:33:44.. or FF:EE:DD:CC
+    BytesIncremental   = (1 << 5),
+
+    // filter fuction return true if key has repeating patterns like xx11:11:11:11xx or xxAA:AA:AA:AAxx
+    Same4Bytes         = (1 << 6),
+
+    // filter fuction return true if key consist from only ascii numbers
+    AsciiNumbers       = (1 << 11),
+
+    // filter fuction return true if key consist from only letters 'a'-'z' 'A'-'Z'
+    AsciiAlpha         = (1 << 12),
+
+    // filter fuction return true if key consist from ascii letters and numbers
+    AsciiAlphaNum      = AsciiAlpha | AsciiNumbers,
+
+    // filter fuction return true if key consist from only ASCII special symbols like '^%#&*
+    AsciiSpecial       = (1 << 13),
+
+    // filter fuction return true if key consist from only ASCII typed characters
+    AsciiAnySymbol     = AsciiAlphaNum | AsciiSpecial,
+
+    //
+    All = (uint64_t)-1,
+};
+
+
+// CUDA bruteforce generator
 enum class GeneratorType : uint8_t
 {
     // Generation will be skipped
@@ -59,6 +99,9 @@ enum class GeneratorType : uint8_t
 
     // Excluding obvious patterns
     Smart,
+
+    // ASCII pattern
+    Pattern,
 
     // Not for usage
     LAST,
