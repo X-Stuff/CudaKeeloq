@@ -4,6 +4,8 @@ namespace SmartFilter
 {
 	constexpr uint8_t KeySizeBytes = sizeof(uint64_t);
 
+	constexpr uint8_t KeySizeBits = sizeof(uint64_t)  * 8;
+
 	template<uint8_t value_min, uint8_t value_max>
 	__host__ __device__ inline bool all_min_max(uint64_t key)
 	{
@@ -11,7 +13,9 @@ namespace SmartFilter
 		bool result = true;
 		uint8_t* bPtrKey    = (uint8_t*)&key;
 
+#ifdef __CUDA_ARCH__
 		#pragma unroll
+#endif
 		for (uint8_t i = 0; i < KeySizeBytes; ++i)
 		{
 			// TODO: Some vector instruction here
@@ -44,7 +48,9 @@ namespace SmartFilter
 		bool result = true;
 		uint8_t* bPtrKey    = (uint8_t*)&key;
 
+#ifdef __CUDA_ARCH__
 		#pragma unroll
+#endif
 		for (uint8_t i = 0; i < KeySizeBytes; ++i)
 		{
 			result &= (bPtrKey[i] >= 'a' && bPtrKey[i] <= 'z') || (bPtrKey[i] >= 'A' && bPtrKey[i] <= 'Z');
@@ -59,7 +65,9 @@ namespace SmartFilter
 		bool result = true;
 		uint8_t* bPtrKey = (uint8_t*)&key;
 
+#ifdef __CUDA_ARCH__
 		#pragma unroll
+#endif
 		for (uint8_t i = 0; i < KeySizeBytes; ++i)
 		{
 			result &=
@@ -81,8 +89,10 @@ namespace SmartFilter
 
 		key = bit ? key : ~key;
 
+#ifdef __CUDA_ARCH__
 		#pragma unroll
-		for (uint8_t i = 0; i < sizeof(uint64_t) * 8; ++i)
+#endif
+		for (uint8_t i = 0; i < KeySizeBits; ++i)
 		{
 			// inverse - filter pass if no consecutive bits
 			result |= (key & mask) == mask;
@@ -91,7 +101,62 @@ namespace SmartFilter
 
 		return result;
 	}
+
+	template<uint8_t MaxCount = 4>
+	__host__ __device__ inline bool has_consecutive_bytes(uint64_t key)
+	{
+		// for logical OR start should be with false
+		bool result = false;
+
+		uint8_t index = 0;
+		uint8_t* bPtrKey = (uint8_t*)&key;
+
+#ifdef __CUDA_ARCH__
+		#pragma unroll
+#endif
+		for (uint8_t i = 1; i < KeySizeBytes; ++i)
+		{
+			bool equal = bPtrKey[i] == bPtrKey[index];
+			index = equal * index + (1 - equal) * i;
+
+			result |= (i - index) >= (MaxCount - 1);
+		}
+
+		return result;
+	}
+
+	template<uint8_t MaxCount = 6>
+	__host__ __device__ inline bool has_incremental_pattern(uint64_t key)
+	{
+		// for logical OR start should be with false
+		bool result = false;
+
+		uint8_t index = 0;
+		uint8_t* bPtrKey = (uint8_t*)&key;
+
+#ifdef __CUDA_ARCH__
+		#pragma unroll
+#endif
+		for (uint8_t i = 1; i < KeySizeBytes; ++i)
+		{
+			uint8_t deltaIndex = (i - index);
+#ifdef __CUDA_ARCH__
+			uint8_t asbDeltaValue = __sad(bPtrKey[i], bPtrKey[index], 0);
+#else
+			uint8_t asbDeltaValue = abs(bPtrKey[i] - bPtrKey[index]);
+#endif
+
+			bool match = asbDeltaValue == (0x11 * deltaIndex);
+
+			index = match * index + (1 - match) * i;
+
+			result |= deltaIndex >= (MaxCount - 1);
+		}
+
+		return result;
+	}
 }
+
 namespace
 {
 __host__ __device__ inline bool operator&(SmartFilterFlags a, SmartFilterFlags b)
@@ -113,7 +178,7 @@ __host__ __device__ bool check_filters(uint64_t key, SmartFilterFlags filter)
 	bool key_has_any = false;
 
 	// fastest should go first
-	if (!key_has_any && all_flags(filter, SmartFilterFlags::AsciiAnySymbol))
+	if (!key_has_any && all_flags(filter, SmartFilterFlags::AsciiAny))
 	{
 		key_has_any |= SmartFilter::all_any_ascii(key);
 	}
@@ -144,14 +209,14 @@ __host__ __device__ bool check_filters(uint64_t key, SmartFilterFlags filter)
 		key_has_any |= SmartFilter::has_consecutive_bits<0>(key);
 	}
 
-	if (key_has_any && any_flag(filter, SmartFilterFlags::BytesIncremental))
+	if (!key_has_any && any_flag(filter, SmartFilterFlags::BytesRepeat4))
 	{
-		assert(false && "Not implemented");
+		key_has_any |= SmartFilter::has_consecutive_bytes(key);
 	}
 
-	if (key_has_any && any_flag(filter, SmartFilterFlags::Same4Bytes))
+	if (!key_has_any && any_flag(filter, SmartFilterFlags::BytesIncremental))
 	{
-		assert(false && "Not implemented");
+		key_has_any |= SmartFilter::has_incremental_pattern(key);
 	}
 
 	return key_has_any;
@@ -179,23 +244,32 @@ __global__ void CUDA_keeloq_generate_brute(KernelInput::TCudaPtr input, KernelRe
 	next.man = decryptors[decryptors.num - 1].man;
 }
 
-__global__ void CUDA_keeloq_generate_smart(KernelInput::TCudaPtr input, KernelResult::TCudaPtr results)
+__global__ void CUDA_keeloq_generate_filtered(KernelInput::TCudaPtr input, KernelResult::TCudaPtr results)
 {
-	assert(input->generator.type == GeneratorType::Smart);
+	assert(input->generator.type == GeneratorType::Filtered);
+
+	assert(input->generator.start.man > 0x100000000000 && "Starting key should be big enough to start bruteforcing. Consider pattern brute.");
+
+	assert(input->generator.filters.include != SmartFilterFlags::None && "Include filter None is invalid - will lead to infinite loop!");
+	assert(input->generator.filters.exclude != SmartFilterFlags::All && "Exclude filter All is invalid - will lead to infinite loop!");
 
 	CUDACtx ctx = GET_CUDA_CONTEXT();
 
-	size_t num_decryptors = input->decryptors->num;
-	assert(num_decryptors % ctx.thread_max == 0 && "Number of decryptors is not aligned with number of threads!");
+	CUDA_Array<Decryptor>& decryptors = *input->decryptors;
+	size_t num_decryptors = decryptors.num;
+
+
+	// if we need to generate 24 keys, and we have 64 threads, 40 last should do nothinf
+	uint8_t at_least_one = num_decryptors >= ctx.thread_id;
+
+	// if we have to genrate 75 keys with 64 threads, 11 threads should do +1 key generation
+	uint8_t additional_this_thread = (num_decryptors % ctx.thread_max) > ctx.thread_id;
 
 	// decremental value how many keys should be generated by this thread
-	uint32_t num_to_generate = num_decryptors / ctx.thread_max + 1;
+	uint32_t num_to_generate = at_least_one * (num_decryptors / ctx.thread_max + additional_this_thread);
 
 	// constant value - shows how many keys will be generated. used for correct write memomry access. |-------x*********x-------|
 	const uint32_t thread_generate = num_to_generate;
-
-	Decryptor& next = input->generator.next;
-	CUDA_Array<Decryptor>& decryptors = *input->decryptors;
 
 	while (num_to_generate > 0)
 	{
@@ -212,13 +286,31 @@ __global__ void CUDA_keeloq_generate_smart(KernelInput::TCudaPtr input, KernelRe
 		//   thread 1 adds 12 to `next.man` and get previous value
 		//   so now it starts check 12 keys from 6383 to 6395
 		//
+		Decryptor& next = input->generator.next;
 		uint64_t man_begin = atomicAdd(&next.man, num_to_generate);
 
 		for (uint32_t iteration = 0; iteration < num_to_generate; ++iteration)
 		{
 			uint64_t key = man_begin + iteration; // even if overflow - ok, but put in for loop - infinite hang
 
-			if (key % 2 == 0) // test if pass all smart filters
+			bool canUse = true;
+
+			if (input->generator.filters.include != SmartFilterFlags::All &&
+				input->generator.filters.include != SmartFilterFlags::None)
+			{
+				// Include keys match patterns
+				canUse &= check_filters(key, input->generator.filters.include);
+			}
+
+
+			if (input->generator.filters.exclude != SmartFilterFlags::None &&
+				input->generator.filters.exclude != SmartFilterFlags::All)
+			{
+				// Exlude keys  which match patterns
+				canUse &= !check_filters(key, input->generator.filters.exclude);
+			}
+
+			if (canUse)
 			{
 				// we fill memory region from last to 0
 				--num_to_generate;
@@ -233,8 +325,13 @@ __global__ void CUDA_keeloq_generate_smart(KernelInput::TCudaPtr input, KernelRe
 	}
 }
 
-__global__ void CUDA_generators_test(KernelResult::TCudaPtr ki)
+__global__ void CUDA_generators_test(FiltersTestinput* tests, uint8_t num)
 {
-	ki->value = check_filters(0x11003344aabbccee,
-		SmartFilterFlags::Max6ZerosInARow);
+	for (int i = 0; i < num; ++i)
+	{
+		bool value = check_filters(tests[i].value, tests[i].flags);
+		assert(value == tests[i].result);
+
+		tests[i].value = 0;// just to check if kernel worked well
+	}
 }

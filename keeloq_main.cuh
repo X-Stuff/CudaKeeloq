@@ -53,7 +53,6 @@ enum class SmartFilterFlags : uint64_t
     //
     None = 0,
 
-
     // filter fuction return true if key has more than 6 consecutive 0 bits
     Max6ZerosInARow         = (1 << 0),
 
@@ -62,25 +61,26 @@ enum class SmartFilterFlags : uint64_t
 
 
     // filter fuction return true if key has patterns like 11:22:33:44.. or FF:EE:DD:CC
-    BytesIncremental   = (1 << 5),
+    // 6 bytes by default
+    BytesIncremental    = (1 << 5),
 
     // filter fuction return true if key has repeating patterns like xx11:11:11:11xx or xxAA:AA:AA:AAxx
-    Same4Bytes         = (1 << 6),
+    BytesRepeat4        = (1 << 6),
 
     // filter fuction return true if key consist from only ascii numbers
-    AsciiNumbers       = (1 << 11),
+    AsciiNumbers        = (1 << 11),
 
     // filter fuction return true if key consist from only letters 'a'-'z' 'A'-'Z'
-    AsciiAlpha         = (1 << 12),
+    AsciiAlpha          = (1 << 12),
 
     // filter fuction return true if key consist from ascii letters and numbers
-    AsciiAlphaNum      = AsciiAlpha | AsciiNumbers,
+    AsciiAlphaNum       = AsciiAlpha | AsciiNumbers,
 
     // filter fuction return true if key consist from only ASCII special symbols like '^%#&*
-    AsciiSpecial       = (1 << 13),
+    AsciiSpecial        = (1 << 13),
 
     // filter fuction return true if key consist from only ASCII typed characters
-    AsciiAnySymbol     = AsciiAlphaNum | AsciiSpecial,
+    AsciiAny      = AsciiAlphaNum | AsciiSpecial,
 
     //
     All = (uint64_t)-1,
@@ -98,9 +98,12 @@ enum class GeneratorType : uint8_t
     Brute,
 
     // Excluding obvious patterns
-    Smart,
+    Filtered,
 
-    // ASCII pattern
+    // Specify alphabet and brute over it
+    Alphabet,
+
+    // ASCII pattern like ss:01:??:3?:*
     Pattern,
 
     // Not for usage
@@ -129,7 +132,9 @@ static const char* LearningNames[KeeloqLearningType::LAST] = {
 static const char* GeneratorTypeName[(int)GeneratorType::LAST] = {
     "Dictionary",
     "Brute",
-    "Smart",
+    "Filtered",
+    "Alphabet",
+    "Pattern"
 };
 
 // fixed side array for every learning type
@@ -163,6 +168,22 @@ struct Decryptor
         man(key), seed(s) {}
 };
 
+struct BruteforceFilters
+{
+    // Filter for keys to include.
+    // WARNINGL:
+    //  Could be executed INFINITELY LONG TIME
+    //  e.g. start: 0x00000000001 filter SmartFilterFlags::AsciiAny
+    //  it will took around trillions and trillions operations just to get to the first valid with simple +1
+    //  In case of specific input - use dictionary, pattern or alphabet
+    SmartFilterFlags include = SmartFilterFlags::All;
+
+    // Filter for keys to exclude
+    SmartFilterFlags exclude = SmartFilterFlags::None;
+};
+
+// Generator config - is setup for bruteforce
+// In case of dictionary attack - does nothing
 struct DectyptorGenerationConfig
 {
     // HOST SET. ONCE. How many generator rounds should be taken (in fact how many times cuda kernel will be called)
@@ -173,6 +194,9 @@ struct DectyptorGenerationConfig
 
     // HOST SET. ONCE. Which generator to use.
     GeneratorType type;
+
+    // HOST SET. ONCE. for smart brute type.
+    BruteforceFilters filters;
 
     // GPU SET. UPDATING. Last generated decryptor (will be initial for next block run)
     Decryptor next;

@@ -2,7 +2,6 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <CudaCompile Include="kernel.cu" />
-    <CudaCompile Include="old_kernel.cu" />
     <CudaCompile Include="keeloq_generators.cu">
       <Filter>keeloq</Filter>
     </CudaCompile>

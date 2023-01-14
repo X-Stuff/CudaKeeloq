@@ -84,7 +84,6 @@
     <CudaCompile Include="keeloq_main.cu" />
     <CudaCompile Include="keeloq_generators.cu" />
     <CudaCompile Include="kernel.cu" />
-    <CudaCompile Include="old_kernel.cu" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CUDA_check.cuh" />

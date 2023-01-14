@@ -158,15 +158,15 @@ struct DOUBLE_ARRAY
     using TCUDAPtr = T*;
     using THOSTPtr = T*;
 
-    THOSTPtr* HOST_mem;
-    TCUDAPtr* CUDA_mem;
+    THOSTPtr HOST_mem;
+    TCUDAPtr CUDA_mem;
 
     size_t size;
 
     DOUBLE_ARRAY(size_t num, bool zeros = true)
+        : hostOwner(true)
     {
         size = sizeof(T) * num;
-
         HOST_mem = (T*)malloc(size);
 
         uint32_t error = cudaMalloc(&CUDA_mem, size);
@@ -179,6 +179,19 @@ struct DOUBLE_ARRAY
         }
     }
 
+    DOUBLE_ARRAY(THOSTPtr array, size_t num)
+        : hostOwner(false)
+    {
+        HOST_mem = array;
+        size = sizeof(T) * num;
+
+        uint32_t error = cudaMalloc(&CUDA_mem, size);
+        CUDA_CHECK(error);
+
+        error = cudaMemcpy(CUDA_mem, HOST_mem, size, cudaMemcpyHostToDevice);
+        CUDA_CHECK(error);
+    }
+
     ~DOUBLE_ARRAY()
     {
         if (CUDA_mem)
@@ -187,7 +200,7 @@ struct DOUBLE_ARRAY
             CUDA_mem = nullptr;
         }
 
-        if (HOST_mem)
+        if (HOST_mem && hostOwner)
         {
             free(HOST_mem);
             HOST_mem = nullptr;
@@ -205,6 +218,9 @@ struct DOUBLE_ARRAY
         uint32_t error = cudaMemcpy(HOST_mem, CUDA_mem, size, cudaMemcpyDeviceToHost);
         CUDA_CHECK(error);
     }
+
+private:
+    bool hostOwner;
 };
 
 

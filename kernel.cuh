@@ -64,10 +64,12 @@ struct CudaRunSetup
     inline size_t NumBatches() {
         assert(inited);
         if (Type() == GeneratorType::Dictionary) {
-            return Config().dict_size() / KeysCheckedInBatch() + 1;
+            uint8_t non_align = Config().dict_size() % KeysCheckedInBatch() == 0 ? 0 : 1;
+            return Config().dict_size() / KeysCheckedInBatch() + non_align;
         }
         else {
-            return Config().brute_size() / KeysCheckedInBatch() + 1;
+            uint8_t non_align = Config().dict_size() % KeysCheckedInBatch() == 0 ? 0 : 1;
+            return Config().brute_size() / KeysCheckedInBatch() + non_align;
         }
     }
 
