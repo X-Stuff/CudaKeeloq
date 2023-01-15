@@ -81,15 +81,14 @@ enum class SmartFilterFlags : uint64_t
 };
 
 
-// fixed side array for every learning type
-struct DecryptedArray
-{
-    uint32_t data[KeeloqLearningType::LAST];
-};
-
-
 struct SingleResult
 {
+    struct DecryptedArray
+    {
+        // fixed side array for every learning type
+        uint32_t data[KeeloqLearningType::LAST];
+    };
+
     DecryptedArray results;
 
     uint64_t man;
@@ -157,20 +156,17 @@ struct BruteforceConfig
             num = (uint8_t)min(alphabet.size(), (size_t)Size);
             memcpy(alp, alphabet.data(), num * sizeof(uint8_t));
 
-            memset(lut, 0xFF, num * sizeof(uint8_t));
             for (uint8_t i = 0; i < num; ++i)
             {
                 lut[alp[i]] = i;
             }
         }
 
-        const uint8_t* alphabet() { return alp; }
-
-
-
         __host__ __device__ inline bool add(uint8_t number[sizeof(uint64_t)], uint64_t value)
         {
+#ifdef __CUDA_ARCH__
             #pragma unroll
+#endif
             for (int i = 0; i < sizeof(uint64_t); ++i)
             {
                 uint8_t digit = value % num;                // 17 % 6 = 5
@@ -179,16 +175,12 @@ struct BruteforceConfig
 
                 value /= num;                               // 17 / 6 = 2
 
-                uint8_t carry = addition > num;             // 10 > 6
+                uint8_t carry = addition >= num;            // 10 > 6
                 value += carry;                             // 2 + 1 = 3
             }
         }
 
-        __host__ __device__ inline bool is_valid_index(uint8_t index) {
-            return num == Alphabet::Size || lut[index] < num;
-        }
-
-        // return index of value
+        // return index of value (cannot fail - if value not in a LUT - always return 0 index)
         __host__ __device__ inline uint8_t lookup(uint8_t value) {
             return lut[value];
         }
@@ -200,10 +192,10 @@ struct BruteforceConfig
 
     private:
         // The alphabet itself (256 bytes max)
-        uint8_t alp[Size];
+        uint8_t alp[Size] = {0};
 
         // The alphabet lookup table
-        uint8_t lut[Size];
+        uint8_t lut[Size] = {0};
 
     };
 
@@ -386,3 +378,9 @@ static const char* GeneratorTypeName[(int)BruteforceConfig::Type::LAST] = {
     "Alphabet",
     "Pattern"
 };
+
+
+inline std::vector<uint8_t> operator "" _b(const char* ascii, size_t num)
+{
+    return std::vector<uint8_t>(ascii, ascii + num);
+}

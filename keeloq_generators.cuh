@@ -19,7 +19,7 @@ __global__ void CUDA_keeloq_generate_filtered(KernelInput::TCudaPtr input, Kerne
 
 __global__ void CUDA_keeloq_generate_alphabet(KernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls);
 
-__global__ void CUDA_generators_test(FiltersTestinput* tests, uint8_t num);
+__global__ void CUDA_generators_filters_test(FiltersTestinput* tests, uint8_t num);
 
 
 template<uint16_t ThreadBlocks, uint16_t ThreadsInBlock>
@@ -45,8 +45,12 @@ int CUDA_generator_wrapper(KernelInput& mainInputs)
         return 0;
     }
 
-    mainInputs.read(); // it will not cause underneath arrays copy
+    mainInputs.read();          // it will not cause underneath arrays copy
     generator_results.read();
+
+    // last generated decryptor - is first on next batch
+    //  Warning: In case of non-aligned calculations "real" last decryptor may be somewhere in the middle of array
+    mainInputs.generator.next = (*mainInputs.decryptors)[mainInputs.decryptors->num - 1].man;
 
     return generator_results.error;
 }
@@ -97,24 +101,46 @@ inline int CUDA_test_generator_filters()
 
     // GPU tests
     DOUBLE_ARRAY<FiltersTestinput> testInputs(test_cases, NumTests);
-    CUDA_generators_test<<<1,1>>>(testInputs.CUDA_mem, NumTests);
+    CUDA_generators_filters_test<<<1,1>>>(testInputs.CUDA_mem, NumTests);
     testInputs.read_GPU(); // for asserts
 
     // Filtered generator test itself
     constexpr auto NumBlocks = 16;
     constexpr auto NumThreads = 32;
 
-
     BruteforceConfig testConfig( 0xAbcdef11111100, BruteforceConfig::Type::Filtered, 0xFFFFFFFF);
     testConfig.filters.include = SmartFilterFlags::All;//SmartFilterFlags::AsciiAny; //
     testConfig.filters.exclude = SmartFilterFlags::None;///SmartFilterFlags::BytesRepeat4; //
-
 
     std::vector<Decryptor> decryptors(NumBlocks * NumThreads);
     KernelInput generatorInputs(nullptr, CUDA_Array<Decryptor>::allocate(decryptors), nullptr, testConfig);
     KernelResult result;
 
     CUDA_keeloq_generate_filtered<<<NumBlocks,NumThreads>>>(generatorInputs.ptr(), result.ptr());
+
+    generatorInputs.read();
+    generatorInputs.decryptors->copy(decryptors);
+
+    result.read();
+
+    return 0;
+}
+
+inline int CUDA_test_generator_alphabet()
+{
+    // Filtered generator test itself
+    constexpr auto NumBlocks = 16;
+    constexpr auto NumThreads = 32;
+
+
+    BruteforceConfig testConfig( 0x6262626262626262, BruteforceConfig::Type::Alphabet, 0xFFFFFFFF);
+    testConfig.alphabet = BruteforceConfig::Alphabet("abcd"_b);
+
+    std::vector<Decryptor> decryptors(NumBlocks * NumThreads);
+    KernelInput generatorInputs(nullptr, CUDA_Array<Decryptor>::allocate(decryptors), nullptr, testConfig);
+    KernelResult result;
+
+    CUDA_keeloq_generate_alphabet<<<NumBlocks,NumThreads>>>(generatorInputs.ptr(), result.ptr());
 
     generatorInputs.read();
     generatorInputs.decryptors->copy(decryptors);

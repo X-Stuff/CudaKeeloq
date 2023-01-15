@@ -229,7 +229,6 @@ __global__ void CUDA_keeloq_generate_brute(KernelInput::TCudaPtr input, KernelRe
 	assert(input->generator.type == BruteforceConfig::Type::Simple);
 
 	Decryptor& start = input->generator.start;
-	Decryptor& next = input->generator.next;
 
 	CUDA_Array<Decryptor>& decryptors = *input->decryptors;
 
@@ -239,9 +238,6 @@ __global__ void CUDA_keeloq_generate_brute(KernelInput::TCudaPtr input, KernelRe
 
 		decryptor.man = start.man + decryptor_index;
 	}
-
-	// every thread will do this. need to measure perf
-	next.man = decryptors[decryptors.num - 1].man;
 }
 
 __global__ void CUDA_keeloq_generate_filtered(KernelInput::TCudaPtr input, KernelResult::TCudaPtr results)
@@ -312,10 +308,10 @@ __global__ void CUDA_keeloq_generate_filtered(KernelInput::TCudaPtr input, Kerne
 
 			if (canUse)
 			{
-				// we fill memory region from last to 0
-				--num_to_generate;
+				// Want to keep write index incremented and have acutally last generated key at the last position in decryptors array
+				uint64_t write_index = ctx.thread_id * thread_generate + (thread_generate - num_to_generate);
 
-				uint64_t write_index = ctx.thread_id * thread_generate + num_to_generate;
+				--num_to_generate;
 
 				Decryptor& decryptor = decryptors[write_index];
 				decryptor.man = key;
@@ -335,7 +331,6 @@ __global__ void CUDA_keeloq_generate_alphabet(KernelInput::TCudaPtr input, Kerne
 	assert(alphabet.num > 0);
 
 	Decryptor& start = input->generator.start;
-	Decryptor& next = input->generator.next;
 
 	CUDA_Array<Decryptor>& decryptors = *input->decryptors;
 
@@ -354,23 +349,35 @@ __global__ void CUDA_keeloq_generate_alphabet(KernelInput::TCudaPtr input, Kerne
 	for (uint8_t i = 0; i < sizeof(uint64_t); ++i)
 	{
 		// Valid or 0 (first letter in alphabet)
-		pIndexer[i] = alphabet.is_valid_index(start_key[i]) * alphabet.lookup(start_key[i]);
+		pIndexer[i] = alphabet.lookup(start_key[i]);
 	}
+
+	// decomposed uint64 indexer for inner loop
+	uint8_t curr_indexer[8];
 
 	CUDA_FOR_THREAD_ID(ctx, decryptor_index, decryptors.num)
 	{
 		// Set curr indexer to initial value first
-		uint8_t curr_indexer[8];
+
 		*(uint64_t*)curr_indexer = start_indexer;
 
 		// Get new indexer value (rotate rings) depending on what decryptor we now producing (basically add 10-base number to N-base number)
 		alphabet.add(curr_indexer, decryptor_index);
 
+		Decryptor& current = decryptors[decryptor_index];
+		uint8_t* pCurrentKey = (uint8_t*)& current.man;
+
 		// produce key by indexes from curr_indexer
+		#pragma unroll
+		for (uint8_t i = 0; i < sizeof(uint64_t); ++i)
+		{
+			pCurrentKey[i] = alphabet[curr_indexer[i]];
+		}
 	}
+
 }
 
-__global__ void CUDA_generators_test(FiltersTestinput* tests, uint8_t num)
+__global__ void CUDA_generators_filters_test(FiltersTestinput* tests, uint8_t num)
 {
 	for (int i = 0; i < num; ++i)
 	{

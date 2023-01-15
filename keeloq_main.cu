@@ -216,9 +216,9 @@ __device__ uint8_t keeloq_decryption_run(const CUDACtx& ctx, CUDA_Array<EncData>
     return result_error;
 }
 
-__device__ __host__ struct DecryptedArray keeloq_decrypt_all(uint32_t data, uint32_t fix, const uint64_t key, const uint32_t seed) {
+__device__ __host__ SingleResult::DecryptedArray keeloq_decrypt_all(uint32_t data, uint32_t fix, const uint64_t key, const uint32_t seed) {
 
-    struct DecryptedArray decrypted = {0};
+    SingleResult::DecryptedArray decrypted = {0};
 
     // Check for mirrored man
     uint64_t key_rev = 0;
@@ -306,7 +306,7 @@ __device__ __host__ struct DecryptedArray keeloq_decrypt_all(uint32_t data, uint
     return decrypted;
 }
 
-__device__ __host__ struct DecryptedArray keeloq_decrypt(uint64_t ota, uint64_t man, uint32_t seed) {
+__device__ __host__ SingleResult::DecryptedArray keeloq_decrypt(uint64_t ota, uint64_t man, uint32_t seed) {
 
     uint64_t key = keeloq_common_key_reverse(ota, sizeof(ota) * 8);
 

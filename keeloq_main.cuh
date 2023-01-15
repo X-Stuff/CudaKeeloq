@@ -33,9 +33,9 @@ __device__ __host__ inline uint32_t keeloq_common_encrypt(const uint32_t data, c
     return x;
 }
 
-__device__ __host__ struct DecryptedArray keeloq_decrypt_all(uint32_t data, uint32_t fix, const uint64_t key, const uint32_t seed);
+__device__ __host__ SingleResult::DecryptedArray keeloq_decrypt_all(uint32_t data, uint32_t fix, const uint64_t key, const uint32_t seed);
 
-__device__ __host__ struct DecryptedArray keeloq_decrypt(uint64_t ota, uint64_t man, uint32_t seed = 0);
+__device__ __host__ SingleResult::DecryptedArray keeloq_decrypt(uint64_t ota, uint64_t man, uint32_t seed = 0);
 
 
 // run decryption parallel per thread and find matches

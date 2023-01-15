@@ -46,7 +46,7 @@ void print_decrypted_data(uint32_t data, const char* name, bool ismatch)
     }
 }
 
-void print_decrypted_array(const DecryptedArray& array, KeeloqLearningType learning_match = KeeloqLearningType::INVALID)
+void print_decrypted_array(const SingleResult::DecryptedArray& array, KeeloqLearningType learning_match = KeeloqLearningType::INVALID)
 {
     for (uint8_t i = 0; i < KeeloqLearningType::LAST; ++i)
     {
@@ -78,7 +78,7 @@ void test_keeloq()
     uint64_t man = 0xCEB6AE48B5C63ED2; // benica manuf
     uint64_t ota = 0xCCA9B335A81FD504; //
 
-    DecryptedArray all_dec = keeloq_decrypt(ota, man);
+    SingleResult::DecryptedArray all_dec = keeloq_decrypt(ota, man);
     print_decrypted_array(all_dec);
 }
 
@@ -150,9 +150,8 @@ int main(int argc, char** argv)
 {
     //test_keeloq(); return;
 
-    CUDA_test_generator_filters();
+    CUDA_test_generator_alphabet();
     return;
-
 
     cudaDeviceProp prop;
     cudaGetDeviceProperties(&prop, 0);
