@@ -86,6 +86,7 @@
     <CudaCompile Include="kernel.cu" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="console.cuh" />
     <ClInclude Include="CUDA_check.cuh" />
     <ClInclude Include="CUDA_helpers.cuh" />
     <ClInclude Include="keeloq_main.cuh" />

@@ -26,6 +26,7 @@
     <ClInclude Include="keeloq_types.cuh">
       <Filter>keeloq</Filter>
     </ClInclude>
+    <ClInclude Include="console.cuh" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="keeloq">

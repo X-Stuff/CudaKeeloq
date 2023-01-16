@@ -81,22 +81,62 @@ enum class SmartFilterFlags : uint64_t
 };
 
 
+//template<uint8_t ResultsCount = (uint8_t)KeeloqLearningType::LAST>
 struct SingleResult
 {
+    static constexpr uint8_t ResultsCount = (uint8_t)KeeloqLearningType::LAST;
+
     struct DecryptedArray
     {
         // fixed side array for every learning type
-        uint32_t data[KeeloqLearningType::LAST];
+        uint32_t data[ResultsCount];
+
+        inline void print(uint8_t element, bool ismatch) const
+        {
+            printf("[%-40s] Btn:0x%X\tSerial:0x%X\tCounter:0x%X\t%s\n", LearningNames[element],
+                (data[element] >> 28),              // Button
+                (data[element] >> 16) & 0x3ff,      // Serial
+                data[element] & 0xFFFF,             // Counter
+                (ismatch ? "(MATCH)" : ""));
+        }
+
+        inline void print() const {
+            for(uint8_t i = 0; i < ResultsCount; ++i ){
+                print(i, false);
+            }
+        }
     };
 
+    // Per each learning type
     DecryptedArray results;
 
+    // used manufactorer key and seed for this result
     uint64_t man;
     uint32_t seed;
 
+    // Input data
     uint64_t ota;
 
+    // Set by GPU after analysis if there was a match
     KeeloqLearningType match;
+
+    inline void print(bool onlymatch = true) const
+    {
+        printf("Results:\n\tOTA: 0x%llX\tMan key: 0x%llX\n\n", ota, man);
+
+        for (uint8_t i = 0; i < ResultsCount; ++i)
+        {
+            bool isMatch = (uint8_t)match == i;
+            if (!onlymatch)
+            {
+                results.print(i, isMatch);
+            }
+            else if (isMatch)
+            {
+                results.print(i, isMatch);
+            }
+        }
+    }
 };
 
 // is test manufacture code with seed (default is 0)
@@ -125,7 +165,7 @@ struct BruteforceConfig
         // Simple +1 generator (vert fast in terms of genration of decryptors candidates)
         Simple,
 
-        // Excluding obvious patterns
+        // Simple +1 bruteforce but with filters applied performance may degrage)
         Filtered,
 
         // Specify alphabet and brute over it
@@ -202,7 +242,7 @@ struct BruteforceConfig
     struct Filters
     {
         // Filter for keys to include.
-        // WARNINGL:
+        // WARNING:
         //  Could be executed INFINITELY LONG TIME
         //  e.g. start: 0x00000000001 filter SmartFilterFlags::AsciiAny
         //  it will took around trillions and trillions operations just to get to the first valid with simple +1

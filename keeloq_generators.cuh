@@ -39,6 +39,10 @@ int CUDA_generator_wrapper(KernelInput& mainInputs)
     case BruteforceConfig::Type::Alphabet:
         CUDA_keeloq_generate_alphabet<<<ThreadBlocks, ThreadsInBlock>>>(mainInputs.ptr(), generator_results.ptr());
         break;
+    case BruteforceConfig::Type::Pattern:
+        assert(false && "Not implemented");
+        return 1;
+        break;
 
     case BruteforceConfig::Type::Dictionary:
     default:

@@ -1,76 +1,20 @@
 #include <vector>
 #include <chrono>
 #include <string>
-#include <conio.h>
-#include <stdio.h>
 #include <stdlib.h>
 
+#include "console.cuh"
 #include "kernel.cuh"
 #include "keeloq_main.cuh"
 #include "keeloq_generators.cuh"
 
 #include "CUDA_helpers.cuh"
 
-#define console_clear() printf("\033[H\033[J")
-
-#define console_cursor_up(lines) printf("\033[%dA", (lines))
-
-#define console_cursor_ret_up() printf("\033[F")
-#define console_set_cursor(x,y) printf("\033[%d;%dH", (y), (x))
-
-#define save_cursor_pos() printf("\033[s")
-#define load_cursor_pos() printf("\033[u")
-
-
 constexpr int NUM_BLOCKS = 32;
 constexpr int NUM_THREAD = 256;
 
 // How much interation per one thread (basically for loop count)
 constexpr int NUM_DECRYPTORS_PER_THREAD = 128;
-
-
-void print_decrypted_data(uint32_t data, const char* name, bool ismatch)
-{
-    if (data != 0)
-    {
-        uint32_t btn = data >> 28;
-        uint32_t srl = (data >> 16) & 0x3ff;
-        uint32_t cnt = data & 0xFFFF;
-
-        printf("[%-40s] Btn:0x%X\tSerial:0x%X\tCounter:0x%X\t%s\n", name, btn, srl, cnt,
-            (ismatch ? "(MATCH)" : ""));
-    }
-    else
-    {
-        printf("[%-40s] SKIPPED\n", name);
-    }
-}
-
-void print_decrypted_array(const SingleResult::DecryptedArray& array, KeeloqLearningType learning_match = KeeloqLearningType::INVALID)
-{
-    for (uint8_t i = 0; i < KeeloqLearningType::LAST; ++i)
-    {
-        const char* name = LearningNames[i];
-        print_decrypted_data(array.data[i], name, learning_match);
-    }
-}
-
-void print_result(const SingleResult& result, bool onlymatch = true)
-{
-    printf("Results:\n\tOTA: 0x%llX\tMan key: 0x%llX\n\n", result.ota, result.man);
-
-    bool print_all = result.match == KeeloqLearningType::INVALID || !onlymatch;
-    if (print_all)
-    {
-        print_decrypted_array(result.results, result.match);
-    }
-    else
-    {
-        const char* name = LearningNames[result.match % KeeloqLearningType::LAST];
-        print_decrypted_data(result.results.data[result.match % KeeloqLearningType::LAST], name, true);
-    }
-
-}
 
 void test_keeloq()
 {
@@ -79,16 +23,7 @@ void test_keeloq()
     uint64_t ota = 0xCCA9B335A81FD504; //
 
     SingleResult::DecryptedArray all_dec = keeloq_decrypt(ota, man);
-    print_decrypted_array(all_dec);
-}
-
-
-KernelResult run_block(KernelInput& input)
-{
-    int error = CUDA_generator_wrapper<NUM_BLOCKS, NUM_THREAD>(input);
-    assert(error == 0);
-
-    return CUDA_keeloq_main_wrapper<NUM_BLOCKS, NUM_THREAD>(input);
+    all_dec.print();
 }
 
 bool process_block_results(const KernelResult& result, CudaRunSetup& run)
@@ -120,7 +55,7 @@ bool process_block_results(const KernelResult& result, CudaRunSetup& run)
             }
 
             printf("------------------\n");
-            print_result(result);
+            result.print();
         }
 
         return true;
@@ -129,29 +64,9 @@ bool process_block_results(const KernelResult& result, CudaRunSetup& run)
     return false;
 }
 
-void progress_bar(double percent, const std::chrono::seconds& elapsed)
-{
-    constexpr auto progress_width = 80;
-    static char progress_fill[progress_width] = {0};
-    static char progress_none[progress_width] = {0};
-    if (progress_fill[0] == 0)
-    {
-        memset(progress_fill, '=', sizeof(progress_fill));
-        memset(progress_none, '-', sizeof(progress_none));
-    }
-
-    printf("[%.*s>", (int)(progress_width * percent), progress_fill);
-    printf("%.*s]", (int)(progress_width * (1 - percent)), progress_none);
-    printf("%d%%  %02lld:%02lld:%02lld   \n", (int)(percent * 100),
-        elapsed.count() / 3600, (elapsed.count() / 60) % 60, elapsed.count() % 60);
-}
-
 int main(int argc, char** argv)
 {
     //test_keeloq(); return;
-
-    CUDA_test_generator_alphabet();
-    return;
 
     cudaDeviceProp prop;
     cudaGetDeviceProperties(&prop, 0);
@@ -203,7 +118,9 @@ int main(int argc, char** argv)
                 kernel_input.UpdateInitialDecryptor();
             }
 
-            auto kernel_result = run_block(kernel_input);
+            int error = CUDA_generator_wrapper<NUM_BLOCKS, NUM_THREAD>(kernel_input);
+            assert(error == 0);
+            auto kernel_result = CUDA_keeloq_main_wrapper<NUM_BLOCKS, NUM_THREAD>(kernel_input);
             match = process_block_results(kernel_result, setup);
 
             auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -226,7 +143,7 @@ int main(int argc, char** argv)
             auto overall = std::chrono::duration_cast<std::chrono::seconds>(
                 std::chrono::system_clock::now() - dec_start);
 
-            progress_bar(progress_percent, overall);
+            console::progress_bar(progress_percent, overall);
         }
 
         if (!match)
