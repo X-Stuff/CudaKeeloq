@@ -392,6 +392,38 @@ struct KernelResult : TGenericGpuObject<KernelResult>
     }
 };
 
+
+struct CommandLineArgs
+{
+    // Input recevied encrypted data
+    std::vector<uint64_t> inputs;
+
+    // How brute will be performed (may be several iterations)
+    std::vector<BruteforceConfig> brute_configs;
+
+    // whole dictionary (may be big, TODO: stream support)
+    std::vector<uint64_t> dictionary;
+
+    // Stop on forst match
+    bool match_stop;
+
+    uint16_t cuda_blocks;
+    uint16_t cuda_threads;
+    uint16_t cuda_loops;
+
+    inline void init_inputs(const std::vector<uint64_t> inp) {
+        inputs = inp;
+    }
+
+    inline void init_cuda(uint16_t b, uint16_t t, uint16_t l) {
+        cuda_blocks = b; cuda_threads = t; cuda_loops = l;
+    }
+
+    inline bool isValid() {
+        return inputs.size() > 0 || brute_configs.size() > 0;
+    }
+};
+
 static const char* LearningNames[KeeloqLearningType::LAST] = {
     "KEELOQ_LEARNING_SIMPLE",
     "KEELOQ_LEARNING_SIMPLE_REV",
