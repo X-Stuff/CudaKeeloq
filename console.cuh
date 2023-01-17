@@ -27,8 +27,8 @@
 #define ARG_MODE "mode"
 #define ARG_WORDDICT "word-dict"
 #define ARG_BINDICT "bin-dict"
-#define ARG_BRTSTART "brute-start"
-#define ARG_BRTCOUNT "brute-count"
+#define ARG_START "start"
+#define ARG_COUNT "count"
 #define ARG_ALPHABET "alphabet"
 #define ARG_PATTERN "pattern"
 #define ARG_IFILTER "include-filter"
@@ -106,7 +106,47 @@ inline void parse_dictionary_mode(CommandLineArgs& target, cxxopts::ParseResult&
         }
         else
         {
-            printf("Error: invalid param passed to '--%s' argument: '%s'. Cannot open file!\n", ARG_BINDICT, bin_file_path.c_str());
+            printf("Error: invalid param passed to '--%s' argument: '%s'. Cannot open file!\n",
+                ARG_BINDICT, bin_file_path.c_str());
+        }
+    }
+}
+
+inline void parse_alphabet_mode(CommandLineArgs& target, cxxopts::ParseResult& result)
+{
+    auto start_key = result[ARG_START].as<uint64_t>();
+    auto count_key = result[ARG_COUNT].as<size_t>();
+
+    if (result[ARG_ALPHABET].count() > 0)
+    {
+        std::string alphabet_arg = result[ARG_ALPHABET].as<std::string>();
+        if (FILE* alphabet_file = fopen(alphabet_arg.c_str(), "rb"))
+        {
+
+        }
+        else
+        {
+            std::replace(alphabet_arg.begin(), alphabet_arg.end(), ':',',');
+            std::vector<uint8_t> alphabet_bytes;
+            cxxopts::values::parse_value(alphabet_arg, alphabet_bytes);
+
+            if (alphabet_bytes.size() > 0)
+            {
+                if (alphabet_bytes.size() < 0xFF)
+                {
+                    target.brute_configs.push_back(BruteforceConfig::GetAlphabet(start_key, alphabet_bytes, count_key));
+                }
+                else
+                {
+                    printf("Error: Alphabet: '%s' is not valid hex string! Too many entries: %zd (should be less than 255)\n",
+                        result[ARG_ALPHABET].as<std::string>().c_str(), alphabet_bytes.size());
+                }
+            }
+            else
+            {
+                printf("Error: Alphabet: '%s' is not valid file, neither valid alphabet hex string (like: AA:11:b3...)!\n",
+                    result[ARG_ALPHABET].as<std::string>().c_str());
+            }
         }
     }
 }
@@ -150,13 +190,13 @@ inline CommandLineArgs parse_command_line(int argc, const char** argv)
 
         // Mode - what bruteforce type will be used
         (ARG_MODE,
-            "Bruteforce mode:"
+            "Bruteforce modes (comma separated):"
             "\n\t0: - Dictionary (default)."
             "\n\t1: - Simple +1."
             "\n\t2: - Simple +1 with filters."
             "\n\t3: - Alphabet. Bruteforce +1 using only specified bytes."
             "\n\t4: - Pattern. Bruteforce with bytes selected by specified pattern.",
-            cxxopts::value<uint8_t>())
+            cxxopts::value<std::vector<uint8_t>>())
 
         // Dictionaries files
         (ARG_WORDDICT, "Word dictionary file (or words themselves) - contains hexadecimal strings which will be used as keys. e.g: 0xaabb1122 FFbb9800121212",
@@ -165,9 +205,9 @@ inline CommandLineArgs parse_command_line(int argc, const char** argv)
             cxxopts::value<std::string>())
 
         // Bruteforce
-        (ARG_BRTSTART, "The first value which will be used for +1 increments. (default:0)",
+        (ARG_START, "The first key value which will be used for selected mode(s). (default:0)",
             cxxopts::value<std::uint64_t>()->default_value("0"))
-        (ARG_BRTCOUNT, "How many key brute should check. (default: -1, all)",
+        (ARG_COUNT, "How many keys selected mode(s) should check. (default: -1, all)",
             cxxopts::value<std::uint64_t>()->default_value("0xFFFFFFFFFFFFFFFF"))
 
         // Alphabet
@@ -208,22 +248,28 @@ inline CommandLineArgs parse_command_line(int argc, const char** argv)
     // CUDA
     args.init_cuda(result[ARG_BLOCKS].as<uint16_t>(),result[ARG_THREADS].as<uint16_t>(), result[ARG_LOOPS].as<uint16_t>());
 
-    switch (result[ARG_MODE].as<uint8_t>())
+    for (const auto& mode : result[ARG_MODE].as<std::vector<uint8_t>>())
     {
-    case (uint8_t)BruteforceConfig::Type::Dictionary:
-        parse_dictionary_mode(args, result);
-        break;
-    case (uint8_t)BruteforceConfig::Type::Simple:
-        break;
-    case (uint8_t)BruteforceConfig::Type::Filtered:
-        break;
-    case (uint8_t)BruteforceConfig::Type::Alphabet:
-        break;
-    case (uint8_t)BruteforceConfig::Type::Pattern:
-        break;
-    default:
-        break;
+        switch (mode)
+        {
+        case (uint8_t)BruteforceConfig::Type::Dictionary:
+            parse_dictionary_mode(args, result);
+            break;
+        case (uint8_t)BruteforceConfig::Type::Simple:
+            break;
+        case (uint8_t)BruteforceConfig::Type::Filtered:
+            break;
+        case (uint8_t)BruteforceConfig::Type::Alphabet:
+            parse_alphabet_mode(args, result);
+            break;
+        case (uint8_t)BruteforceConfig::Type::Pattern:
+            break;
+        default:
+            break;
+        }
+
     }
+
 
     return args;
 }
