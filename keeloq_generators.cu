@@ -339,18 +339,7 @@ __global__ void CUDA_keeloq_generate_alphabet(KernelInput::TCudaPtr input, Kerne
 	// indexes are per-byte and shows how much ring is rotated
 	// and what 'letter' it should have.
 	// Or also it can be cosidered as 8-digit N-based number
-	uint64_t start_indexer = 0;
-
-	uint8_t* start_key = (uint8_t*)& start.man;
-	uint8_t* pIndexer = (uint8_t*)&start_indexer;
-
-	// Get start indexer (rings) values from last start man key (reverse lookup)
-	#pragma unroll
-	for (uint8_t i = 0; i < sizeof(uint64_t); ++i)
-	{
-		// Valid or 0 (first letter in alphabet)
-		pIndexer[i] = alphabet.lookup(start_key[i]);
-	}
+	uint64_t start_indexer = alphabet.lookup(start.man);
 
 	// decomposed uint64 indexer for inner loop
 	uint8_t curr_indexer[8];

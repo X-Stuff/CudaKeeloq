@@ -6,6 +6,7 @@
 
 #include "keeloq_types.cuh"
 
+#define CXXOPTS_NO_EXCEPTIONS
 #include "cxxopts/include/cxxopts.hpp"
 
 #define console_clear() printf("\033[H\033[J")
@@ -36,8 +37,81 @@
 
 namespace console
 {
+namespace
+{
 
+inline void parse_dictionary_mode(CommandLineArgs& target, cxxopts::ParseResult& result)
+{
+    if (result[ARG_WORDDICT].count() > 0)
+    {
+        auto dict = result[ARG_WORDDICT].as<std::vector<std::string>>();
 
+        std::vector<Decryptor> decryptors;
+
+        for (const auto& dict_arg : dict)
+        {
+            if (FILE* file_dict = fopen(dict_arg.c_str(), "r"))
+            {
+                char line[32] = {0};
+                while (fgets(line, sizeof(line), file_dict))
+                {
+                    if (auto key = strtoull(dict_arg.c_str(), nullptr, 16))
+                    {
+                        decryptors.push_back(key);
+                    }
+                    else
+                    {
+                        printf("Error: invalid line: `%s` in file: '%s'\n", line, dict_arg.c_str());
+                    }
+                }
+
+                fclose(file_dict);
+            }
+            else if (auto key = strtoull(dict_arg.c_str(), nullptr, 16))
+            {
+                decryptors.push_back(key);
+            }
+            else
+            {
+                printf("Error: invalid param passed to '--%s' argument: '%s'\n", ARG_WORDDICT, dict_arg.c_str());
+            }
+        }
+
+        if (decryptors.size() > 0)
+        {
+            target.brute_configs.push_back(BruteforceConfig::GetDictionary(std::move(decryptors)));
+        }
+    }
+
+    if (result[ARG_BINDICT].count() > 0)
+    {
+        auto bin_file_path = result[ARG_BINDICT].as<std::string>();
+        if (FILE* bin_file = fopen(bin_file_path.c_str(), "rb"))
+        {
+            std::vector<Decryptor> decryptors;
+
+            uint8_t key[sizeof(uint64_t)] = {0};
+
+            while (fread_s(key, sizeof(key), sizeof(uint64_t), sizeof(uint8_t), bin_file))
+            {
+                decryptors.push_back(*(uint64_t*)key);
+            }
+
+            fclose(bin_file);
+
+            if (decryptors.size() > 0)
+            {
+                target.brute_configs.push_back(BruteforceConfig::GetDictionary(std::move(decryptors)));
+            }
+        }
+        else
+        {
+            printf("Error: invalid param passed to '--%s' argument: '%s'. Cannot open file!\n", ARG_BINDICT, bin_file_path.c_str());
+        }
+    }
+}
+
+}
 
 inline void progress_bar(double percent, const std::chrono::seconds& elapsed)
 {
@@ -56,8 +130,8 @@ inline void progress_bar(double percent, const std::chrono::seconds& elapsed)
         elapsed.count() / 3600, (elapsed.count() / 60) % 60, elapsed.count() % 60);
 }
 
-template<typename T = void>
-__host__ inline CommandLineArgs parse_command_line(int argc, const char** argv)
+
+inline CommandLineArgs parse_command_line(int argc, const char** argv)
 {
     cxxopts::Options options("CUDAKeeloq", "CUDA accelerated bruteforcer for keeloq.");
     options.add_options()
@@ -85,7 +159,7 @@ __host__ inline CommandLineArgs parse_command_line(int argc, const char** argv)
             cxxopts::value<uint8_t>())
 
         // Dictionaries files
-        (ARG_WORDDICT, "Word dictionary file (or words themselves) - contains hexadecimal strings which will be used as keys",
+        (ARG_WORDDICT, "Word dictionary file (or words themselves) - contains hexadecimal strings which will be used as keys. e.g: 0xaabb1122 FFbb9800121212",
             cxxopts::value<std::vector<std::string>>())
         (ARG_BINDICT, "Binary dictionary file - each 8 bytes of the file will be used as key (do not check duplicates or zeroes)",
             cxxopts::value<std::string>())
@@ -125,8 +199,33 @@ __host__ inline CommandLineArgs parse_command_line(int argc, const char** argv)
         return args;
     }
 
+    // Inputs
     args.init_inputs(result[ARG_INPUTS].as<std::vector<uint64_t>>());
+
+    // Stop if need
+    args.match_stop = result[ARG_FMATCH].as<bool>();
+
+    // CUDA
+    args.init_cuda(result[ARG_BLOCKS].as<uint16_t>(),result[ARG_THREADS].as<uint16_t>(), result[ARG_LOOPS].as<uint16_t>());
+
+    switch (result[ARG_MODE].as<uint8_t>())
+    {
+    case (uint8_t)BruteforceConfig::Type::Dictionary:
+        parse_dictionary_mode(args, result);
+        break;
+    case (uint8_t)BruteforceConfig::Type::Simple:
+        break;
+    case (uint8_t)BruteforceConfig::Type::Filtered:
+        break;
+    case (uint8_t)BruteforceConfig::Type::Alphabet:
+        break;
+    case (uint8_t)BruteforceConfig::Type::Pattern:
+        break;
+    default:
+        break;
+    }
 
     return args;
 }
+
 }

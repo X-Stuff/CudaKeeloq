@@ -112,9 +112,11 @@ inline int CUDA_test_generator_filters()
     constexpr auto NumBlocks = 16;
     constexpr auto NumThreads = 32;
 
-    BruteforceConfig testConfig( 0xAbcdef11111100, BruteforceConfig::Type::Filtered, 0xFFFFFFFF);
-    testConfig.filters.include = SmartFilterFlags::All;//SmartFilterFlags::AsciiAny; //
-    testConfig.filters.exclude = SmartFilterFlags::None;///SmartFilterFlags::BytesRepeat4; //
+    auto testConfig = BruteforceConfig::GetBruteforce(0xAbcdef11111100, 0xFFFFFFFF,
+        BruteforceConfig::Filters {
+            SmartFilterFlags::All,     // SmartFilterFlags::AsciiAny;       //
+            SmartFilterFlags::None,    // SmartFilterFlags::BytesRepeat4;   //
+        });
 
     std::vector<Decryptor> decryptors(NumBlocks * NumThreads);
     KernelInput generatorInputs(nullptr, CUDA_Array<Decryptor>::allocate(decryptors), nullptr, testConfig);
@@ -137,8 +139,7 @@ inline int CUDA_test_generator_alphabet()
     constexpr auto NumThreads = 32;
 
 
-    BruteforceConfig testConfig( 0x6262626262626262, BruteforceConfig::Type::Alphabet, 0xFFFFFFFF);
-    testConfig.alphabet = BruteforceConfig::Alphabet("abcd"_b);
+    auto testConfig = BruteforceConfig::GetAlphabet(0x6262626262626262, "abcd"_b, 0xFFFFFFFF);
 
     std::vector<Decryptor> decryptors(NumBlocks * NumThreads);
     KernelInput generatorInputs(nullptr, CUDA_Array<Decryptor>::allocate(decryptors), nullptr, testConfig);

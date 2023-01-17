@@ -180,8 +180,6 @@ struct BruteforceConfig
 
     struct Alphabet
     {
-        static const uint16_t Size = 0xFF + 1; // 256
-
         // Actual size of alphabet
         uint8_t num = 0;
 
@@ -221,8 +219,25 @@ struct BruteforceConfig
         }
 
         // return index of value (cannot fail - if value not in a LUT - always return 0 index)
-        __host__ __device__ inline uint8_t lookup(uint8_t value) {
+        __host__ __device__ inline uint8_t lookup(uint8_t value) const {
             return lut[value];
+        }
+
+        // lookup foreach byte
+        __host__ __device__ inline uint64_t lookup(uint64_t value) const
+        {
+            uint64_t result = 0;
+            uint8_t* pResult = (uint8_t*)&result;
+            uint8_t* pValue = (uint8_t*)&value;
+#ifdef __CUDA_ARCH__
+            #pragma unroll
+#endif
+            for (uint8_t i = 0; i < sizeof(uint64_t); ++i)
+            {
+                // Valid or 0 (first letter in alphabet)
+                pResult[i] = lookup(pValue[i]);
+            }
+            return result;
         }
 
         // return value by index
@@ -231,6 +246,8 @@ struct BruteforceConfig
         }
 
     private:
+        static const uint16_t Size = 0xFF + 1; // 256
+
         // The alphabet itself (256 bytes max)
         uint8_t alp[Size] = {0};
 
@@ -262,6 +279,8 @@ struct BruteforceConfig
     // HOST SET. ONCE. Which generator to use.
     Type type;
 
+    std::vector<Decryptor> decryptors;
+
     // HOST SET. ONCE. for filtered type.
     Filters filters;
 
@@ -271,20 +290,39 @@ struct BruteforceConfig
     // GPU SET. UPDATING. Last generated decryptor (will be initial for next block run)
     Decryptor next;
 
-    BruteforceConfig() :
-        BruteforceConfig(Type::None, 0) {
-
+    BruteforceConfig() : BruteforceConfig(0, Type::LAST, 0) {
     }
 
-    BruteforceConfig(Type gen, size_t num) :
-        BruteforceConfig(0, gen, num)
+    static BruteforceConfig GetDictionary(const std::vector<Decryptor>&& dictionary)
     {
-        assert(gen == Type::Dictionary && "This constructor is available only for dictionary type");
+        BruteforceConfig result(0, Type::Dictionary, dictionary.size());
+        result.decryptors = std::move(dictionary);
+        return result;
+    };
+
+    static BruteforceConfig GetBruteforce(Decryptor first, size_t size) { return BruteforceConfig(first, Type::Simple, size); }
+
+    static BruteforceConfig GetBruteforce(Decryptor first, size_t size, const Filters& filters)
+    {
+        BruteforceConfig result(first, Type::Filtered, size);
+        result.filters = filters;
+        return result;
     }
 
-    BruteforceConfig(Decryptor start, Type gen, size_t num) :
-        start(start), type(gen), next(start), size(num)
+    static BruteforceConfig GetAlphabet(Decryptor first, const Alphabet& alphabet, size_t num = (size_t)-1)
     {
+        // max operation take to check all keys with alphabet of size
+        num = min((uint64_t)pow(alphabet.num, sizeof(uint64_t)), num);
+
+        BruteforceConfig result(first, Type::Alphabet, num);
+        result.alphabet = alphabet;
+        return result;
+    }
+
+    static BruteforceConfig GetPattern()
+    {
+        // not implemented
+        return BruteforceConfig(0, Type::LAST, 0);
     }
 
     uint64_t dict_size() const {
@@ -318,6 +356,12 @@ struct BruteforceConfig
                 GeneratorTypeName[(uint8_t)type % (uint8_t)Type::LAST], start.man, start.seed, brute_size());
         }
         return std::string(tmp);
+    }
+
+private:
+    BruteforceConfig(Decryptor start, Type gen, size_t num) :
+        start(start), type(gen), next(start), size(num)
+    {
     }
 };
 
