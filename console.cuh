@@ -112,23 +112,57 @@ inline void parse_dictionary_mode(CommandLineArgs& target, cxxopts::ParseResult&
     }
 }
 
+inline void parse_bruteforce_mode(CommandLineArgs& target, cxxopts::ParseResult& result)
+{
+    auto start_key = result[ARG_START].as<uint64_t>();
+    auto count_key = result[ARG_COUNT].as<size_t>();
+
+    target.brute_configs.push_back(BruteforceConfig::GetBruteforce(start_key, count_key));
+}
+
+inline void parse_bruteforce_filtered_mode(CommandLineArgs& target, cxxopts::ParseResult& result)
+{
+    auto start_key = result[ARG_START].as<uint64_t>();
+    auto count_key = result[ARG_COUNT].as<size_t>();
+
+    auto include_filter = result[ARG_IFILTER].as<uint64_t>();
+    auto exclude_filter = result[ARG_EFILTER].as<uint64_t>();
+
+    BruteforceConfig::Filters filters
+    {
+        (SmartFilterFlags)include_filter,
+        (SmartFilterFlags)exclude_filter,
+    };
+
+    printf("Filters are: %s", filters.toString().c_str());
+    target.brute_configs.push_back(BruteforceConfig::GetBruteforce(start_key, count_key, filters));
+}
+
 inline void parse_alphabet_mode(CommandLineArgs& target, cxxopts::ParseResult& result)
 {
     auto start_key = result[ARG_START].as<uint64_t>();
     auto count_key = result[ARG_COUNT].as<size_t>();
 
-    if (result[ARG_ALPHABET].count() > 0)
+    const auto& alphabet_args = result[ARG_ALPHABET].as<std::vector<std::string>>();
+
+    for (const auto& alphabet_arg : alphabet_args)
     {
-        std::string alphabet_arg = result[ARG_ALPHABET].as<std::string>();
         if (FILE* alphabet_file = fopen(alphabet_arg.c_str(), "rb"))
         {
+            // alphabet with more than 255 bytes is impossible (oe just has duplicates)
+            uint8_t bytes[255];
+            size_t read_bytes = fread_s(bytes, sizeof(bytes), sizeof(uint8_t), sizeof(bytes), alphabet_file);
+            fclose(alphabet_file);
 
+            std::vector<uint8_t> alphabet_bytes(&bytes[0], &bytes[read_bytes]);
+            target.brute_configs.push_back(BruteforceConfig::GetAlphabet(start_key, alphabet_bytes, count_key));
         }
         else
         {
-            std::replace(alphabet_arg.begin(), alphabet_arg.end(), ':',',');
+            std::string alphabet_bytes_hex = alphabet_arg;
+            std::replace(alphabet_bytes_hex.begin(), alphabet_bytes_hex.end(), ':',',');
             std::vector<uint8_t> alphabet_bytes;
-            cxxopts::values::parse_value(alphabet_arg, alphabet_bytes);
+            cxxopts::values::parse_value(alphabet_bytes_hex, alphabet_bytes);
 
             if (alphabet_bytes.size() > 0)
             {
@@ -145,12 +179,17 @@ inline void parse_alphabet_mode(CommandLineArgs& target, cxxopts::ParseResult& r
             else
             {
                 printf("Error: Alphabet: '%s' is not valid file, neither valid alphabet hex string (like: AA:11:b3...)!\n",
-                    result[ARG_ALPHABET].as<std::string>().c_str());
+                    alphabet_arg.c_str());
             }
         }
     }
+
 }
 
+inline void parse_pattern_mode(CommandLineArgs& target, cxxopts::ParseResult& result)
+{
+    printf("Error: patterns are not implemented");
+}
 }
 
 inline void progress_bar(double percent, const std::chrono::seconds& elapsed)
@@ -169,7 +208,6 @@ inline void progress_bar(double percent, const std::chrono::seconds& elapsed)
     printf("%d%%  %02lld:%02lld:%02lld   \n", (int)(percent * 100),
         elapsed.count() / 3600, (elapsed.count() / 60) % 60, elapsed.count() % 60);
 }
-
 
 inline CommandLineArgs parse_command_line(int argc, const char** argv)
 {
@@ -204,21 +242,21 @@ inline CommandLineArgs parse_command_line(int argc, const char** argv)
         (ARG_BINDICT, "Binary dictionary file - each 8 bytes of the file will be used as key (do not check duplicates or zeroes)",
             cxxopts::value<std::string>())
 
-        // Bruteforce
+        // Common (Bruteforce, Alphabet) - set start and end of execution
         (ARG_START, "The first key value which will be used for selected mode(s). (default:0)",
             cxxopts::value<std::uint64_t>()->default_value("0"))
-        (ARG_COUNT, "How many keys selected mode(s) should check. (default: -1, all)",
+        (ARG_COUNT, "How many keys selected mode(s) should check. (default: -1, all possible)",
             cxxopts::value<std::uint64_t>()->default_value("0xFFFFFFFFFFFFFFFF"))
 
         // Alphabet
-        (ARG_ALPHABET, "Alphabet file (or alphabet itself) - contans colon separated hexadecimal strings which describes alphabet like: AA:61:62:bb",
-            cxxopts::value<std::string>())
+        (ARG_ALPHABET, "Alphabet binary file(s) or alphabet hex sting(s) (like: AA:61:62:bb)",
+            cxxopts::value<std::vector<std::string>>())
 
         // Pattern
         (ARG_PATTERN, "Pattern file (or pattern itself) - contans colon separated patterns for each byte in a key like: ??:ss:d?:3?:88:FF",
             cxxopts::value<std::string>())
 
-        // filters
+        // Bruteforce filters
         (ARG_EFILTER, "Exclude filter: key matching this filters will not be used in bruteforce (default:0,None)",
             cxxopts::value<std::uint64_t>()->default_value("0"))
         (ARG_IFILTER, "Include filter: only keys matching this filters will be used in bruteforce (default:-1,All)",
@@ -256,13 +294,16 @@ inline CommandLineArgs parse_command_line(int argc, const char** argv)
             parse_dictionary_mode(args, result);
             break;
         case (uint8_t)BruteforceConfig::Type::Simple:
+            parse_bruteforce_mode(args, result);
             break;
         case (uint8_t)BruteforceConfig::Type::Filtered:
+            parse_bruteforce_filtered_mode(args, result);
             break;
         case (uint8_t)BruteforceConfig::Type::Alphabet:
             parse_alphabet_mode(args, result);
             break;
         case (uint8_t)BruteforceConfig::Type::Pattern:
+            parse_pattern_mode(args, result);
             break;
         default:
             break;
@@ -270,8 +311,33 @@ inline CommandLineArgs parse_command_line(int argc, const char** argv)
 
     }
 
-
     return args;
 }
 
+namespace tests
+{
+CommandLineArgs run()
+{
+    const char* commandline[] = {
+        "tests",
+        "--" ARG_INPUTS"=0xC65D52A0A81FD504,0xCCA9B335A81FD504,0xE0DA7372A81FD504",
+        "--" ARG_BLOCKS"=32",
+        "--" ARG_THREADS"=32",
+        "--" ARG_LOOPS"=4",
+        "--" ARG_MODE"=0,1,2,3,4,5",
+
+        "--" ARG_WORDDICT"=0xCEB6AE48B5C63ED1,CEB6AE48B5C63ED2,0xCEB6AE48B5C63ED3,examples/dictionary.words",
+        "--" ARG_BINDICT"=examples/dictionary.bin",
+
+        "--" ARG_START"=1",
+        "--" ARG_COUNT"=0xFFFF",
+
+        "--" ARG_ALPHABET"=61:62:63:64,examples/alphabet.bin",
+
+        "--" ARG_IFILTER"=0x2" //SmartFilterFlags::Max6OnesInARow  other are very heavy
+    };
+
+    return parse_command_line(sizeof(commandline)/ sizeof(char*), commandline);
+}
+}
 }

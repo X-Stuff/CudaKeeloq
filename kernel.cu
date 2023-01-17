@@ -64,26 +64,18 @@ bool process_block_results(const KernelResult& result, CudaRunSetup& run)
     return false;
 }
 
-int main(int argc, char** argv)
+int main(int argc, const char** argv)
 {
-    const char* commandline[] = {
-        "skip",
-        "--" ARG_INPUTS"=0xC65D52A0A81FD504,0xCCA9B335A81FD504,0xE0DA7372A81FD504",
-        "--" ARG_BLOCKS"=32",
-        "--" ARG_THREADS"=32",
-        "--" ARG_LOOPS"=4",
-        "--" ARG_MODE"=0",
-        "--" ARG_WORDDICT"=0xCEB6AE48B5C63ED1,CEB6AE48B5C63ED2,0xCEB6AE48B5C63ED3"
-    };
+    //test_keeloq(); return;
+    auto targs = console::tests::run();
+    return;
 
-    auto args = console::parse_command_line(sizeof(commandline) / sizeof(char*), commandline);
+    auto args = console::parse_command_line(argc, argv);
     if (!args.isValid())
     {
         return 1;
     }
 
-    return 0;
-    //test_keeloq(); return;
 
     cudaDeviceProp prop;
     cudaGetDeviceProperties(&prop, 0);

@@ -8,6 +8,9 @@
     <CudaCompile Include="keeloq_main.cu">
       <Filter>keeloq</Filter>
     </CudaCompile>
+    <CudaCompile Include="keeloq_types.cu">
+      <Filter>keeloq</Filter>
+    </CudaCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="keeloq_generators.cuh">

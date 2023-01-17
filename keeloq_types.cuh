@@ -1,11 +1,16 @@
 #pragma once
 
 #include <string>
+#include <tuple>
+
 #include "CUDA_helpers.cuh"
 
-// forward declaration
+// forward declarations
+enum class SmartFilterFlags : uint64_t;
+
 extern const char* LearningNames[];
 extern const char* GeneratorTypeName[];
+extern const std::vector<std::tuple<SmartFilterFlags, const char*>> FilterNames;
 
 
 // Input encoded data (received over the air) - 16bytes
@@ -91,20 +96,9 @@ struct SingleResult
         // fixed side array for every learning type
         uint32_t data[ResultsCount];
 
-        inline void print(uint8_t element, bool ismatch) const
-        {
-            printf("[%-40s] Btn:0x%X\tSerial:0x%X\tCounter:0x%X\t%s\n", LearningNames[element],
-                (data[element] >> 28),              // Button
-                (data[element] >> 16) & 0x3ff,      // Serial
-                data[element] & 0xFFFF,             // Counter
-                (ismatch ? "(MATCH)" : ""));
-        }
+        void print(uint8_t element, bool ismatch) const;
 
-        inline void print() const {
-            for(uint8_t i = 0; i < ResultsCount; ++i ){
-                print(i, false);
-            }
-        }
+        void print() const;
     };
 
     // Per each learning type
@@ -120,23 +114,7 @@ struct SingleResult
     // Set by GPU after analysis if there was a match
     KeeloqLearningType match;
 
-    inline void print(bool onlymatch = true) const
-    {
-        printf("Results:\n\tOTA: 0x%llX\tMan key: 0x%llX\n\n", ota, man);
-
-        for (uint8_t i = 0; i < ResultsCount; ++i)
-        {
-            bool isMatch = (uint8_t)match == i;
-            if (!onlymatch)
-            {
-                results.print(i, isMatch);
-            }
-            else if (isMatch)
-            {
-                results.print(i, isMatch);
-            }
-        }
-    }
+    void print(bool onlymatch = true) const;
 };
 
 // is test manufacture code with seed (default is 0)
@@ -183,22 +161,10 @@ struct BruteforceConfig
         // Actual size of alphabet
         uint8_t num = 0;
 
-        Alphabet()
-        {
-        }
+        Alphabet() = default;
 
-        Alphabet(const std::vector<uint8_t>& alphabet)
-        {
-            assert(alphabet.size() < Alphabet::Size && "Using all bytes values as alphabet is not efficient");
-
-            num = (uint8_t)min(alphabet.size(), (size_t)Size);
-            memcpy(alp, alphabet.data(), num * sizeof(uint8_t));
-
-            for (uint8_t i = 0; i < num; ++i)
-            {
-                lut[alp[i]] = i;
-            }
-        }
+        // Duplicates will be removed
+        Alphabet(std::vector<uint8_t> alphabet);
 
         __host__ __device__ inline bool add(uint8_t number[sizeof(uint64_t)], uint64_t value)
         {
@@ -268,6 +234,10 @@ struct BruteforceConfig
 
         // Filter for keys to exclude
         SmartFilterFlags exclude = SmartFilterFlags::None;
+
+        std::string toString(SmartFilterFlags flags) const;
+
+        std::string toString() const;
     };
 
     // HOST SET. ONCE. How many generator rounds should be taken (in fact how many times cuda kernel will be called)
@@ -345,18 +315,7 @@ struct BruteforceConfig
         }
     }
 
-    std::string ToString() const
-    {
-        char tmp[128];
-        if (type == Type::Dictionary) {
-            sprintf_s(tmp, "Type: %s. size: %zd", GeneratorTypeName[(uint8_t)type % (uint8_t)Type::LAST], dict_size());
-        }
-        else {
-            sprintf_s(tmp, "Type: %s. Initial: 0x%llX (seed:%ul). Brute size: %zd",
-                GeneratorTypeName[(uint8_t)type % (uint8_t)Type::LAST], start.man, start.seed, brute_size());
-        }
-        return std::string(tmp);
-    }
+    std::string toString() const;
 
 private:
     BruteforceConfig(Decryptor start, Type gen, size_t num) :
@@ -436,7 +395,6 @@ struct KernelResult : TGenericGpuObject<KernelResult>
     }
 };
 
-
 struct CommandLineArgs
 {
     // Input recevied encrypted data
@@ -467,34 +425,6 @@ struct CommandLineArgs
         return inputs.size() > 0 || brute_configs.size() > 0;
     }
 };
-
-static const char* LearningNames[KeeloqLearningType::LAST] = {
-    "KEELOQ_LEARNING_SIMPLE",
-    "KEELOQ_LEARNING_SIMPLE_REV",
-    "KEELOQ_LEARNING_NORMAL",
-    "KEELOQ_LEARNING_NORMAL_REV",
-    "KEELOQ_LEARNING_SECURE",
-    "KEELOQ_LEARNING_SECURE_REV",
-    "KEELOQ_LEARNING_MAGIC_XOR_TYPE_1",
-    "KEELOQ_LEARNING_MAGIC_XOR_TYPE_1_REV",
-    "KEELOQ_LEARNING_FAAC",
-    "KEELOQ_LEARNING_FAAC_REV",
-    "KEELOQ_LEARNING_MAGIC_SERIAL_TYPE_1",
-    "KEELOQ_LEARNING_MAGIC_SERIAL_TYPE_1_REV",
-    "KEELOQ_LEARNING_MAGIC_SERIAL_TYPE_2",
-    "KEELOQ_LEARNING_MAGIC_SERIAL_TYPE_2_REV",
-    "KEELOQ_LEARNING_MAGIC_SERIAL_TYPE_3",
-    "KEELOQ_LEARNING_MAGIC_SERIAL_TYPE_3_REV",
-};
-
-static const char* GeneratorTypeName[(int)BruteforceConfig::Type::LAST] = {
-    "Dictionary",
-    "Simple",
-    "Filtered",
-    "Alphabet",
-    "Pattern"
-};
-
 
 inline std::vector<uint8_t> operator "" _b(const char* ascii, size_t num)
 {

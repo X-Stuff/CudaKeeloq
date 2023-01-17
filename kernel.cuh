@@ -89,7 +89,7 @@ struct CudaRunSetup
 
         char tmp[512];
         sprintf_s(tmp, "Setup:\n\tEncrypted data size:%zd\n\tResults per batch:%zd\n\tDecryptors per batch:%zd\n\tConfig: %s",
-            encrypted_data.size(), ResultsPerBatch(), KeysCheckedInBatch(), Config().ToString().c_str());
+            encrypted_data.size(), ResultsPerBatch(), KeysCheckedInBatch(), Config().toString().c_str());
 
         return std::string(tmp);
     }
