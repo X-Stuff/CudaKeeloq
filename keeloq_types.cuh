@@ -137,8 +137,8 @@ struct BruteforceConfig
     enum class Type : uint8_t
     {
         // Generation will be skipped
-        None = 0,
         Dictionary = 0,
+        None = Dictionary,
 
         // Simple +1 generator (vert fast in terms of genration of decryptors candidates)
         Simple,
@@ -249,6 +249,8 @@ struct BruteforceConfig
     // HOST SET. ONCE. Which generator to use.
     Type type;
 
+    // Dictionery - HOST SET. ONCE.
+    // Brute -      GPU SET. UPDATING.
     std::vector<Decryptor> decryptors;
 
     // HOST SET. ONCE. for filtered type.
@@ -402,9 +404,6 @@ struct CommandLineArgs
 
     // How brute will be performed (may be several iterations)
     std::vector<BruteforceConfig> brute_configs;
-
-    // whole dictionary (may be big, TODO: stream support)
-    std::vector<uint64_t> dictionary;
 
     // Stop on forst match
     bool match_stop;

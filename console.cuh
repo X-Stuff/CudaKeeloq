@@ -27,6 +27,7 @@
 #define ARG_MODE "mode"
 #define ARG_WORDDICT "word-dict"
 #define ARG_BINDICT "bin-dict"
+#define ARG_BINDMODE "bin-dict-mode"
 #define ARG_START "start"
 #define ARG_COUNT "count"
 #define ARG_ALPHABET "alphabet"
@@ -52,10 +53,18 @@ inline void parse_dictionary_mode(CommandLineArgs& target, cxxopts::ParseResult&
         {
             if (FILE* file_dict = fopen(dict_arg.c_str(), "r"))
             {
-                char line[32] = {0};
+                char line[66] = {0};
                 while (fgets(line, sizeof(line), file_dict))
                 {
-                    if (auto key = strtoull(dict_arg.c_str(), nullptr, 16))
+                    int base = 0;
+                    if (line[0] == '0' && (line[1] == 'b' || line[1] == 'B'))
+                    {
+                        line[0] = ' ';
+                        line[1] = ' ';
+                        base = 2;
+                    }
+
+                    if (auto key = strtoull(line, nullptr, base))
                     {
                         decryptors.push_back(key);
                     }
@@ -85,30 +94,46 @@ inline void parse_dictionary_mode(CommandLineArgs& target, cxxopts::ParseResult&
 
     if (result[ARG_BINDICT].count() > 0)
     {
-        auto bin_file_path = result[ARG_BINDICT].as<std::string>();
-        if (FILE* bin_file = fopen(bin_file_path.c_str(), "rb"))
+        auto dicts = result[ARG_BINDICT].as<std::vector<std::string>>();
+        auto mode = result[ARG_BINDMODE].as<uint8_t>();
+
+        std::vector<Decryptor> decryptors;
+
+        for (const auto& bin_dict_path : dicts)
         {
-            std::vector<Decryptor> decryptors;
-
-            uint8_t key[sizeof(uint64_t)] = {0};
-
-            while (fread_s(key, sizeof(key), sizeof(uint64_t), sizeof(uint8_t), bin_file))
+            if (FILE* bin_file = fopen(bin_dict_path.c_str(), "rb"))
             {
-                decryptors.push_back(*(uint64_t*)key);
+                std::vector<Decryptor> decryptors;
+
+                uint8_t key[sizeof(uint64_t)] = {0};
+
+                while (fread_s(key, sizeof(key), sizeof(uint64_t), sizeof(uint8_t), bin_file))
+                {
+                    uint64_t reversed = *(uint64_t*)key;
+                    uint64_t as_is = _byteswap_uint64(reversed);
+
+                    decryptors.push_back(mode == 0 ? as_is : reversed);
+                    if (mode == 2)
+                    {
+                        // reversed already added above
+                        decryptors.push_back(as_is);
+                    }
+                }
+
+                fclose(bin_file);
+
+                if (decryptors.size() > 0)
+                {
+                    target.brute_configs.push_back(BruteforceConfig::GetDictionary(std::move(decryptors)));
+                }
             }
-
-            fclose(bin_file);
-
-            if (decryptors.size() > 0)
+            else
             {
-                target.brute_configs.push_back(BruteforceConfig::GetDictionary(std::move(decryptors)));
+                printf("Error: invalid param passed to '--%s' argument: '%s'. Cannot open file!\n",
+                    ARG_BINDICT, bin_dict_path.c_str());
             }
         }
-        else
-        {
-            printf("Error: invalid param passed to '--%s' argument: '%s'. Cannot open file!\n",
-                ARG_BINDICT, bin_file_path.c_str());
-        }
+
     }
 }
 
@@ -240,7 +265,9 @@ inline CommandLineArgs parse_command_line(int argc, const char** argv)
         (ARG_WORDDICT, "Word dictionary file (or words themselves) - contains hexadecimal strings which will be used as keys. e.g: 0xaabb1122 FFbb9800121212",
             cxxopts::value<std::vector<std::string>>())
         (ARG_BINDICT, "Binary dictionary file - each 8 bytes of the file will be used as key (do not check duplicates or zeroes)",
-            cxxopts::value<std::string>())
+            cxxopts::value<std::vector<std::string>>())
+        (ARG_BINDMODE, "Byteorder mode for binary dictionary. 0 - as is (default). 1 - reverse, 2 - add both",
+            cxxopts::value<uint8_t>()->default_value("0"))
 
         // Common (Bruteforce, Alphabet) - set start and end of execution
         (ARG_START, "The first key value which will be used for selected mode(s). (default:0)",
@@ -328,16 +355,22 @@ CommandLineArgs run()
 
         "--" ARG_WORDDICT"=0xCEB6AE48B5C63ED1,CEB6AE48B5C63ED2,0xCEB6AE48B5C63ED3,examples/dictionary.words",
         "--" ARG_BINDICT"=examples/dictionary.bin",
+        "--" ARG_BINDMODE"=2",
 
         "--" ARG_START"=1",
         "--" ARG_COUNT"=0xFFFF",
 
         "--" ARG_ALPHABET"=61:62:63:64,examples/alphabet.bin",
 
-        "--" ARG_IFILTER"=0x2" //SmartFilterFlags::Max6OnesInARow  other are very heavy
+        "--" ARG_IFILTER"=0x2", //SmartFilterFlags::Max6OnesInARow  other are very heavy, this one will allow all numbers less than 0x03FFFFFFFFFFFFFF
+        "--" ARG_EFILTER"=64",  //SmartFilterFlags::BytesRepeat4
+
+        "--" ARG_FMATCH,
     };
 
-    return parse_command_line(sizeof(commandline)/ sizeof(char*), commandline);
+    CommandLineArgs args = parse_command_line(sizeof(commandline)/ sizeof(char*), commandline);
+
+    return args;
 }
 }
 }
