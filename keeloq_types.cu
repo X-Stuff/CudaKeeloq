@@ -102,10 +102,11 @@ std::string BruteforceConfig::Filters::toString(SmartFilterFlags flags) const
     std::string result;
     for (const auto& pair : FilterNames)
     {
-        if ((uint64_t)std::get<0>(pair) & (uint64_t)flags)
+        auto check = (uint64_t)std::get<0>(pair);
+        if (check != 0 && (check & (uint64_t)flags) == check)
         {
             result += std::get<1>(pair);
-            result += " |";
+            result += " | ";
         }
     }
     if (result.size() > 0)

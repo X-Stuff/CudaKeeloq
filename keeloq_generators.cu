@@ -376,3 +376,40 @@ __global__ void CUDA_generators_filters_test(FiltersTestinput* tests, uint8_t nu
 		tests[i].value = 0;// just to check if kernel worked well
 	}
 }
+
+
+int CUDA_generator_wrapper(KernelInput& mainInputs, uint16_t ThreadBlocks, uint16_t ThreadsInBlock)
+{
+	KernelResult generator_results;
+
+	switch (mainInputs.generator.type)
+	{
+	case BruteforceConfig::Type::Simple:
+		CUDA_keeloq_generate_brute<<<ThreadBlocks, ThreadsInBlock>>>(mainInputs.ptr(), generator_results.ptr());
+		break;
+	case BruteforceConfig::Type::Filtered:
+		CUDA_keeloq_generate_filtered<<<ThreadBlocks, ThreadsInBlock>>>(mainInputs.ptr(), generator_results.ptr());
+		break;
+	case BruteforceConfig::Type::Alphabet:
+		CUDA_keeloq_generate_alphabet<<<ThreadBlocks, ThreadsInBlock>>>(mainInputs.ptr(), generator_results.ptr());
+		break;
+	case BruteforceConfig::Type::Pattern:
+		assert(false && "Not implemented");
+		return 1;
+		break;
+
+	case BruteforceConfig::Type::Dictionary:
+	default:
+		return 0;
+	}
+
+	mainInputs.read();          // it will not cause underneath arrays copy
+	generator_results.read();
+
+
+	// last generated decryptor - is first on next batch
+	//  Warning: In case of non-aligned calculations "real" last decryptor may be somewhere in the middle of array
+	mainInputs.generator.next = mainInputs.decryptors->host_last().man;
+
+	return generator_results.error;
+}

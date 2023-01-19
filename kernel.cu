@@ -10,21 +10,6 @@
 
 #include "CUDA_helpers.cuh"
 
-constexpr int NUM_BLOCKS = 32;
-constexpr int NUM_THREAD = 256;
-
-// How much interation per one thread (basically for loop count)
-constexpr int NUM_DECRYPTORS_PER_THREAD = 128;
-
-void test_keeloq()
-{
-    // Using encrypt and decrypt functions:
-    uint64_t man = 0xCEB6AE48B5C63ED2; // benica manuf
-    uint64_t ota = 0xCCA9B335A81FD504; //
-
-    SingleResult::DecryptedArray all_dec = keeloq_decrypt(ota, man);
-    all_dec.print();
-}
 
 bool process_block_results(const KernelResult& result, CudaRunSetup& run)
 {
@@ -66,51 +51,65 @@ bool process_block_results(const KernelResult& result, CudaRunSetup& run)
 
 int main(int argc, const char** argv)
 {
-    //test_keeloq(); return;
-    auto targs = console::tests::run();
-    return;
+    //console::tests::run(); return;
 
-    auto args = console::parse_command_line(argc, argv);
+    const char* commandline[] = {
+        "tests",
+        "--" ARG_INPUTS"=0xC65D52A0A81FD504,0xCCA9B335A81FD504,0xE0DA7372A81FD504",
+        "--" ARG_BLOCKS"=32",
+        "--" ARG_THREADS"=256",
+        "--" ARG_LOOPS"=512",
+        "--" ARG_MODE"=1,0",
+
+        "--" ARG_WORDDICT"=0xCEB6AE48B5C63ED1,0xCEB6AE48B5C63ED2,0xCEB6AE48B5C63ED3",
+
+        "--" ARG_START"=0xCEB6AE4800000000",
+        "--" ARG_COUNT"=0xFFFFFFFF",
+
+        "--" ARG_IFILTER"=0x2", //SmartFilterFlags::Max6OnesInARow  other are very heavy, this one will allow all numbers less than 0x03FFFFFFFFFFFFFF
+        "--" ARG_EFILTER"=64",  //SmartFilterFlags::BytesRepeat4
+
+        "--" ARG_FMATCH,
+    };
+
+    auto args = console::parse_command_line(sizeof(commandline)/ sizeof(char*), commandline); //console::parse_command_line(argc, argv);
     if (!args.isValid())
     {
         return 1;
     }
 
-
-    cudaDeviceProp prop;
-    cudaGetDeviceProperties(&prop, 0);
-
-    std::vector<uint64_t> otas = {
-        0xC65D52A0A81FD504,
-        0xCCA9B335A81FD504,
-        0xE0DA7372A81FD504
-    };
-
-    std::vector<Decryptor> dictionary = {
-        { 0xCEB6AE48B5C63ED1, 0 },
-        { 0xCEB6AE48B5C63ED2, 0 },
-        { 0xCEB6AE48B5C63ED3, 0 },
-    };
-
-    assert(CUDA_check_keeloq_works());
+    if (!CUDA_check_keeloq_works())
     {
-        auto dict_config = BruteforceConfig::GetDictionary(std::move(dictionary));
-        auto brute_config = BruteforceConfig::GetBruteforce(0xCEB6AE4800000000, 0xFFFFFFFF);
+        printf("Error: This device cannot compute keeloq right. Single ecnryption and decryption mismacth.");
+        assert(false);
+        return 1;
+    }
 
-        // keep them inside this {} scope, otherwise free() will cause errors because of cudaDeviceReset()
-        CudaRunSetup dict_setup(otas, dict_config,   NUM_BLOCKS, NUM_THREAD, NUM_DECRYPTORS_PER_THREAD);
-        CudaRunSetup brute_setup(otas, brute_config, NUM_BLOCKS, NUM_THREAD, NUM_DECRYPTORS_PER_THREAD);
+    {
+        // Could be used for device check and input validation
+        cudaDeviceProp prop;
+        cudaGetDeviceProperties(&prop, 0);
+    }
 
-        CudaRunSetup& setup = brute_setup;//dict_setup; //
-        setup.Init();
+    if (args.selected_learning == KeeloqLearningType::INVALID)
+    {
+        printf("Bruteforcing without spcific learning type (slower)"
+            "(1 KKey/s == %u Kkc (keeloq calcs) per second)\n", KeeloqLearningType::LAST);
+    }
 
-        printf("%s\n(1 KKey/s == %u Kkc (keeloq calcs) per second)\n",
-            setup.ToString().c_str(), KeeloqLearningType::LAST);
+    for (const auto& config: args.brute_configs)
+    {
+        CudaRunSetup single_run(args.inputs, config, args.cuda_blocks, args.cuda_threads, args.cuda_loops);
+
+        printf("\nallocating...");
+        single_run.Init();
+
+        printf("\rRunning %s", single_run.ToString().c_str());
 
         bool match = false;
 
-        size_t num_batches = setup.NumBatches();
-        size_t key_per_batch = setup.KeysCheckedInBatch();
+        size_t num_batches = single_run.NumBatches();
+        size_t key_per_batch = single_run.KeysCheckedInBatch();
 
         auto dec_start = std::chrono::system_clock::now();
 
@@ -118,19 +117,19 @@ int main(int argc, const char** argv)
         {
             auto batch_start = std::chrono::high_resolution_clock::now();
 
-            KernelInput& kernel_input = setup.Inputs();
+            KernelInput& kernel_input = single_run.Inputs();
 
-            if (setup.Type() == BruteforceConfig::Type::Dictionary) {
-                kernel_input.WriteDecryptors(dict_config.decryptors, batch * key_per_batch, key_per_batch);
+            if (single_run.Type() == BruteforceConfig::Type::Dictionary) {
+                kernel_input.WriteDecryptors(config.decryptors, batch * key_per_batch, key_per_batch);
             }
             else {
                 kernel_input.UpdateInitialDecryptor();
             }
 
-            int error = CUDA_generator_wrapper<NUM_BLOCKS, NUM_THREAD>(kernel_input);
+            int error = CUDA_generator_wrapper(kernel_input, args.cuda_blocks, args.cuda_threads);
             assert(error == 0);
-            auto kernel_result = CUDA_keeloq_main_wrapper<NUM_BLOCKS, NUM_THREAD>(kernel_input);
-            match = process_block_results(kernel_result, setup);
+            auto kernel_result = CUDA_keeloq_main_wrapper(kernel_input, args.cuda_blocks, args.cuda_threads);
+            match = process_block_results(kernel_result, single_run);
 
             auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
                 std::chrono::high_resolution_clock::now() - batch_start);

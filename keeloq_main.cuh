@@ -52,6 +52,11 @@ __global__ void CUDA_keeloq_test(KernelResult::TCudaPtr ret);
 
 __global__ void CUDA_keeloq_main(KernelInput::TCudaPtr CUDA_inputs, KernelResult::TCudaPtr ret);
 
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+KernelResult CUDA_keeloq_main_wrapper(KernelInput& mainInputs, uint16_t ThreadBlocks, uint16_t ThreadsInBlock);
+
+
 inline bool CUDA_check_keeloq_works()
 {
     KernelResult kernel_results;
@@ -61,16 +66,3 @@ inline bool CUDA_check_keeloq_works()
     return kernel_results.error == 0 && kernel_results.value != 0;
 }
 
-
-template<uint16_t ThreadBlocks, uint16_t ThreadsInBlock>
-KernelResult CUDA_keeloq_main_wrapper(KernelInput& mainInputs)
-{
-    KernelResult kernel_results;
-
-    CUDA_keeloq_main<<<ThreadBlocks, ThreadsInBlock>>>(mainInputs.ptr(), kernel_results.ptr());
-
-    mainInputs.read();
-    kernel_results.read();
-
-    return kernel_results;
-}

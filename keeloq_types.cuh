@@ -240,14 +240,14 @@ struct BruteforceConfig
         std::string toString() const;
     };
 
-    // HOST SET. ONCE. How many generator rounds should be taken (in fact how many times cuda kernel will be called)
-    size_t size;
+    // HOST SET. ONCE. Which generator to use.
+    Type type;
 
     // HOST SET. ONCE. Decryption will start from this
     Decryptor start;
 
-    // HOST SET. ONCE. Which generator to use.
-    Type type;
+    // HOST SET. ONCE. How many generator rounds should be taken (in fact how many times cuda kernel will be called)
+    size_t size;
 
     // Dictionery - HOST SET. ONCE.
     // Brute -      GPU SET. UPDATING.
@@ -400,7 +400,7 @@ struct KernelResult : TGenericGpuObject<KernelResult>
 struct CommandLineArgs
 {
     // Input recevied encrypted data
-    std::vector<uint64_t> inputs;
+    std::vector<EncData> inputs;
 
     // How brute will be performed (may be several iterations)
     std::vector<BruteforceConfig> brute_configs;
@@ -412,6 +412,9 @@ struct CommandLineArgs
     uint16_t cuda_threads;
     uint16_t cuda_loops;
 
+    // Do not do all 16 calculations, use predefined one
+    KeeloqLearningType selected_learning = KeeloqLearningType::INVALID;
+
     inline void init_inputs(const std::vector<uint64_t> inp) {
         inputs = inp;
     }
@@ -421,7 +424,7 @@ struct CommandLineArgs
     }
 
     inline bool isValid() {
-        return inputs.size() > 0 || brute_configs.size() > 0;
+        return inputs.size() > 0 && brute_configs.size() > 0;
     }
 };
 

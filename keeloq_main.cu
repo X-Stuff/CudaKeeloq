@@ -353,3 +353,18 @@ __global__ void CUDA_keeloq_main(KernelInput::TCudaPtr CUDA_inputs, KernelResult
     atomicAdd(&ret->error,  num_errors);
     atomicAdd(&ret->value, num_matches);
 }
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+KernelResult CUDA_keeloq_main_wrapper(KernelInput& mainInputs, uint16_t ThreadBlocks, uint16_t ThreadsInBlock)
+{
+    KernelResult kernel_results;
+
+    CUDA_keeloq_main<<<ThreadBlocks, ThreadsInBlock>>>(mainInputs.ptr(), kernel_results.ptr());
+
+    mainInputs.read();
+    kernel_results.read();
+
+    return kernel_results;
+}

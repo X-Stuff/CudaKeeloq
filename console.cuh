@@ -159,7 +159,7 @@ inline void parse_bruteforce_filtered_mode(CommandLineArgs& target, cxxopts::Par
         (SmartFilterFlags)exclude_filter,
     };
 
-    printf("Filters are: %s", filters.toString().c_str());
+    printf("Filters are: %s\n", filters.toString().c_str());
     target.brute_configs.push_back(BruteforceConfig::GetBruteforce(start_key, count_key, filters));
 }
 
@@ -184,11 +184,32 @@ inline void parse_alphabet_mode(CommandLineArgs& target, cxxopts::ParseResult& r
         }
         else
         {
+            // "61:ab:00:33..." -> "61,ab,00,33..."
             std::string alphabet_bytes_hex = alphabet_arg;
             std::replace(alphabet_bytes_hex.begin(), alphabet_bytes_hex.end(), ':',',');
-            std::vector<uint8_t> alphabet_bytes;
-            cxxopts::values::parse_value(alphabet_bytes_hex, alphabet_bytes);
 
+            // ["61","ab","00","33"]
+            std::vector<std::string> alphabet_hex;
+            cxxopts::values::parse_value(alphabet_bytes_hex, alphabet_hex);
+
+            // ["61","ab","00","33"] -> [0x61, 0xAB, 0x00, 0x33]
+            std::vector<uint8_t> alphabet_bytes;
+            alphabet_bytes.reserve(alphabet_hex.size());
+
+            for (const auto& hex : alphabet_hex)
+            {
+                auto value = (uint8_t)strtoul(hex.c_str(), nullptr, 16);
+                if (value != 0 && hex != "00")
+                {
+                    alphabet_bytes.push_back(value);
+                }
+                else
+                {
+                    printf("Error: cannot parse alphabet byte '%s'!\n", hex.c_str());
+                }
+            }
+
+            //
             if (alphabet_bytes.size() > 0)
             {
                 if (alphabet_bytes.size() < 0xFF)
@@ -241,57 +262,58 @@ inline CommandLineArgs parse_command_line(int argc, const char** argv)
         ("h," ARG_HELP, "Prints this help")
 
         // What to bruteforce
-        (ARG_INPUTS, "Comma separated uint64 values (it's better to have 3+)", cxxopts::value<std::vector<uint64_t>>())
+        (ARG_INPUTS, "Comma separated uint64 values (it's better to have 3+)",
+            cxxopts::value<std::vector<uint64_t>>(), "[k1,k1,k3...]")
 
         // CUDA Setup
-        (ARG_BLOCKS, "How many thread blocks (block is first multiplier) to launch (default:32)",
-            cxxopts::value<uint16_t>()->default_value("32"))
-        (ARG_THREADS, "How many threads will be launched in a block (this is second multiplier) (default:256)",
-            cxxopts::value<uint16_t>()->default_value("256"))
-        (ARG_LOOPS, "How many loop iterations will one thread perform (default:32)",
-            cxxopts::value<uint16_t>()->default_value("32"))
+        (ARG_BLOCKS, "How many thread blocks (block is first multiplier) to launch.",
+            cxxopts::value<uint16_t>()->default_value("32"), "<num>")
+        (ARG_THREADS, "How many threads will be launched in a block (this is second multiplier).",
+            cxxopts::value<uint16_t>()->default_value("256"), "<num>")
+        (ARG_LOOPS, "How many loop iterations will one thread perform.",
+            cxxopts::value<uint16_t>()->default_value("32"), "<num>")
 
         // Mode - what bruteforce type will be used
         (ARG_MODE,
             "Bruteforce modes (comma separated):"
-            "\n\t0: - Dictionary (default)."
+            "\n\t0: - Dictionary."
             "\n\t1: - Simple +1."
             "\n\t2: - Simple +1 with filters."
             "\n\t3: - Alphabet. Bruteforce +1 using only specified bytes."
             "\n\t4: - Pattern. Bruteforce with bytes selected by specified pattern.",
-            cxxopts::value<std::vector<uint8_t>>())
+            cxxopts::value<std::vector<uint8_t>>(), "[m1,m2..]")
 
         // Dictionaries files
-        (ARG_WORDDICT, "Word dictionary file (or words themselves) - contains hexadecimal strings which will be used as keys. e.g: 0xaabb1122 FFbb9800121212",
-            cxxopts::value<std::vector<std::string>>())
-        (ARG_BINDICT, "Binary dictionary file - each 8 bytes of the file will be used as key (do not check duplicates or zeroes)",
-            cxxopts::value<std::vector<std::string>>())
-        (ARG_BINDMODE, "Byteorder mode for binary dictionary. 0 - as is (default). 1 - reverse, 2 - add both",
-            cxxopts::value<uint8_t>()->default_value("0"))
+        (ARG_WORDDICT, "Word dictionary file(s) or word(s) - contains hexadecimal strings which will be used as keys. e.g: 0xaabb1122 FFbb9800121212",
+            cxxopts::value<std::vector<std::string>>(),"[f1,w1,...]")
+        (ARG_BINDICT, "Binary dictionary file(s) - each 8 bytes of the file will be used as key (do not check duplicates or zeroes)",
+            cxxopts::value<std::vector<std::string>>(),"[b1,b2,...]")
+        (ARG_BINDMODE, "Byteorder mode for binary dictionary. 0 - as is. 1 - reverse, 2 - add both",
+            cxxopts::value<uint8_t>()->default_value("0"),"num")
 
         // Common (Bruteforce, Alphabet) - set start and end of execution
-        (ARG_START, "The first key value which will be used for selected mode(s). (default:0)",
-            cxxopts::value<std::uint64_t>()->default_value("0"))
-        (ARG_COUNT, "How many keys selected mode(s) should check. (default: -1, all possible)",
-            cxxopts::value<std::uint64_t>()->default_value("0xFFFFFFFFFFFFFFFF"))
+        (ARG_START, "The first key value which will be used for selected mode(s)",
+            cxxopts::value<std::uint64_t>()->default_value("0"), "first")
+        (ARG_COUNT, "How many keys selected mode(s) should check.",
+            cxxopts::value<std::uint64_t>()->default_value("0xFFFFFFFFFFFFFFFF"), "len")
 
         // Alphabet
-        (ARG_ALPHABET, "Alphabet binary file(s) or alphabet hex sting(s) (like: AA:61:62:bb)",
-            cxxopts::value<std::vector<std::string>>())
+        (ARG_ALPHABET, "Alphabet binary file(s) or alphabet hex string(s) (like: AA:61:62:bb)",
+            cxxopts::value<std::vector<std::string>>(), "[f1,a1,...]")
 
         // Pattern
         (ARG_PATTERN, "Pattern file (or pattern itself) - contans colon separated patterns for each byte in a key like: ??:ss:d?:3?:88:FF",
-            cxxopts::value<std::string>())
+            cxxopts::value<std::string>(), "[f1,p1,...]")
 
         // Bruteforce filters
-        (ARG_EFILTER, "Exclude filter: key matching this filters will not be used in bruteforce (default:0,None)",
-            cxxopts::value<std::uint64_t>()->default_value("0"))
-        (ARG_IFILTER, "Include filter: only keys matching this filters will be used in bruteforce (default:-1,All)",
-            cxxopts::value<std::uint64_t>()->default_value("0xFFFFFFFFFFFFFFFF"))
+        (ARG_EFILTER, "Exclude filter: key matching this filters will not be used in bruteforce.",
+            cxxopts::value<std::uint64_t>()->default_value("0"), "value")
+        (ARG_IFILTER, "Include filter: only keys matching this filters will be used in bruteforce.",
+            cxxopts::value<std::uint64_t>()->default_value("0xFFFFFFFFFFFFFFFF"), "value")
 
         // Stop config
         (ARG_FMATCH, "Stop bruteforce on first match. If inputs are 3+ probably should set to true",
-            cxxopts::value<bool>()->default_value("true"))
+            cxxopts::value<bool>()->default_value("true"), "0|1")
      ;
     options.set_width(140);
 
@@ -300,12 +322,24 @@ inline CommandLineArgs parse_command_line(int argc, const char** argv)
     auto result = options.parse(argc, argv);
     if (result.count(ARG_HELP) || result.arguments().size() == 0 || result.count(ARG_INPUTS) == 0)
     {
-        printf("%s\n", options.help().c_str());
+        printf("\n%s\n", options.help().c_str());
         return args;
     }
 
     // Inputs
-    args.init_inputs(result[ARG_INPUTS].as<std::vector<uint64_t>>());
+    if (result.count(ARG_INPUTS) > 0)
+    {
+        args.init_inputs(result[ARG_INPUTS].as<std::vector<uint64_t>>());
+        if (args.inputs.size() < 3)
+        {
+            printf("WARNING: No engough inputs: '%zd'! Need at least 3!\nHowever we'll proceed...\n", args.inputs.size());
+        }
+    }
+    else
+    {
+        printf("Error: No inputs! Nothing to brute!\n%s\n", options.help().c_str());
+        return args;
+    }
 
     // Stop if need
     args.match_stop = result[ARG_FMATCH].as<bool>();
@@ -313,29 +347,43 @@ inline CommandLineArgs parse_command_line(int argc, const char** argv)
     // CUDA
     args.init_cuda(result[ARG_BLOCKS].as<uint16_t>(),result[ARG_THREADS].as<uint16_t>(), result[ARG_LOOPS].as<uint16_t>());
 
-    for (const auto& mode : result[ARG_MODE].as<std::vector<uint8_t>>())
+    // Bruteforce configs
+    if (result.count(ARG_MODE) > 0)
     {
-        switch (mode)
+        for (const auto& mode : result[ARG_MODE].as<std::vector<uint8_t>>())
         {
-        case (uint8_t)BruteforceConfig::Type::Dictionary:
-            parse_dictionary_mode(args, result);
-            break;
-        case (uint8_t)BruteforceConfig::Type::Simple:
-            parse_bruteforce_mode(args, result);
-            break;
-        case (uint8_t)BruteforceConfig::Type::Filtered:
-            parse_bruteforce_filtered_mode(args, result);
-            break;
-        case (uint8_t)BruteforceConfig::Type::Alphabet:
-            parse_alphabet_mode(args, result);
-            break;
-        case (uint8_t)BruteforceConfig::Type::Pattern:
-            parse_pattern_mode(args, result);
-            break;
-        default:
-            break;
+            switch (mode)
+            {
+            case (uint8_t)BruteforceConfig::Type::Dictionary:
+                parse_dictionary_mode(args, result);
+                break;
+            case (uint8_t)BruteforceConfig::Type::Simple:
+                parse_bruteforce_mode(args, result);
+                break;
+            case (uint8_t)BruteforceConfig::Type::Filtered:
+                parse_bruteforce_filtered_mode(args, result);
+                break;
+            case (uint8_t)BruteforceConfig::Type::Alphabet:
+                parse_alphabet_mode(args, result);
+                break;
+            case (uint8_t)BruteforceConfig::Type::Pattern:
+                parse_pattern_mode(args, result);
+                break;
+            default:
+                break;
+            }
         }
 
+        if (args.brute_configs.size() == 0)
+        {
+            printf("Error: Cannot parse inputs to at least one brute config! '%s'\n",
+                result[ARG_MODE].as<std::string>().c_str());
+        }
+    }
+    else
+    {
+        printf("Error: you need to specify bruteforce mode!\n%s\n",
+            options.help().c_str());
     }
 
     return args;
@@ -360,7 +408,7 @@ CommandLineArgs run()
         "--" ARG_START"=1",
         "--" ARG_COUNT"=0xFFFF",
 
-        "--" ARG_ALPHABET"=61:62:63:64,examples/alphabet.bin",
+        "--" ARG_ALPHABET"=61:62:63:64:zz:AB,examples/alphabet.bin",
 
         "--" ARG_IFILTER"=0x2", //SmartFilterFlags::Max6OnesInARow  other are very heavy, this one will allow all numbers less than 0x03FFFFFFFFFFFFFF
         "--" ARG_EFILTER"=64",  //SmartFilterFlags::BytesRepeat4
@@ -368,7 +416,13 @@ CommandLineArgs run()
         "--" ARG_FMATCH,
     };
 
-    CommandLineArgs args = parse_command_line(sizeof(commandline)/ sizeof(char*), commandline);
+    const char* help[] = {
+        "skip",
+        "-h"
+    };
+
+    CommandLineArgs args = parse_command_line(sizeof(help)/ sizeof(char*), help);
+    args = parse_command_line(sizeof(commandline)/ sizeof(char*), commandline);
 
     return args;
 }

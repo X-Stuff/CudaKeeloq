@@ -63,6 +63,20 @@ struct CUDA_Array
         return CUDA_Array<T>::copy(this, target);
     }
 
+    CUDA_Array<T> host()
+    {
+        // thiscall should work even with invalid pointer
+        return CUDA_Array<T>::host(this);
+    }
+
+    // Copies this pointer (which assumes to be GPU) to host and return copy of the last element
+    T host_last()
+    {
+        // thiscall should work even with invalid pointer
+        CUDA_Array<T> HOST_array = CUDA_Array<T>::host(this);
+        return CUDA_Array<T>::read(HOST_array, HOST_array.num - 1);
+    }
+
     static CUDA_Array<T>* allocate(const std::vector<T>& source)
     {
         // Allocate memory of vector itself (ptr + size_t == 16 bytes)
@@ -98,7 +112,7 @@ struct CUDA_Array
 
     static CUDA_Array<T> host(const CUDA_Array<T>* device)
     {
-        assert(device && "Invalida CUDA pointer");
+        assert(device && "Invalid CUDA pointer");
         CUDA_Array<T> HOST_dest = {0};
 
         auto error = cudaMemcpy(&HOST_dest, device, sizeof(CUDA_Array<T>), cudaMemcpyDeviceToHost);
@@ -119,6 +133,17 @@ struct CUDA_Array
 
         auto error = cudaFree(array);
         CUDA_CHECK(error);
+    }
+
+    static T read(const CUDA_Array<T>& HOST_Array, size_t index)
+    {
+        assert(index < HOST_Array.num);
+
+        T result;
+        auto error = cudaMemcpy(&result, &HOST_Array.CUDA_data[index], sizeof(T), cudaMemcpyDeviceToHost);
+        CUDA_CHECK(error);
+
+        return result;
     }
 
     static size_t copy(const CUDA_Array<T>* array, std::vector<T>& target)
