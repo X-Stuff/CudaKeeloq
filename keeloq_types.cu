@@ -64,7 +64,7 @@ void SingleResult::DecryptedArray::print() const
 
 void SingleResult::print(bool onlymatch /* = true */) const
 {
-    printf("Results:\n\tOTA: 0x%llX\tMan key: 0x%llX\n\n", ota, man);
+    printf("Results (Input: 0x%llX - Man key: 0x%llX)\n\n", ota, man);
 
     for (uint8_t i = 0; i < ResultsCount; ++i)
     {
@@ -78,6 +78,7 @@ void SingleResult::print(bool onlymatch /* = true */) const
             results.print(i, isMatch);
         }
     }
+    printf("\n");
 }
 
 
