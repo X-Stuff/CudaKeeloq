@@ -29,22 +29,10 @@ __device__ __host__ inline uint32_t keeloq_common_decrypt_orig(const uint32_t da
     return x;
 }
 
-__device__ __host__ inline uint32_t keeloq_common_encrypt_orig(const uint32_t data, const uint64_t key) {
-    uint32_t x = data, r;
-    for(r = 0; r < 528; r++)
-        x = (x >> 1) ^ ((bit(x, 0) ^ bit(x, 16) ^ (uint32_t)bit(key, r & 63) ^
-            bit(NLF_LOOKUP_CONSTANT, g5(x, 1, 9, 20, 26, 31)))
-            << 31);
-    return x;
-}
-
 
 __device__ __host__ inline uint32_t keeloq_common_decrypt(const uint32_t data, const uint64_t key) {
     uint32_t x = data, g, k, f;
 
-#if __CUDA_ARCH__
-    #pragma unroll
-#endif
     for (int32_t r = 15; r >= -512; --r)
     {
         uint32_t key_bit = r & 0b111111;
