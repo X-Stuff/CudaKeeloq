@@ -6,20 +6,25 @@
 
 #include "keeloq_types.cuh"
 
+#define CONSOLE_WIDTH 140
+
 #define CXXOPTS_NO_EXCEPTIONS
 #include "cxxopts/include/cxxopts.hpp"
 
+#define console_hide_cursor() printf("\033[?25l")
 #define console_clear() printf("\033[H\033[J")
 
 #define console_cursor_up(lines) printf("\033[%dA", (lines))
+#define console_set_width(col) printf("\033[%du", (col))
 
-#define console_cursor_ret_up() printf("\033[F")
+#define console_cursor_ret_up(lines) printf("\033[%dF", (lines))
 #define console_set_cursor(x,y) printf("\033[%d;%dH", (y), (x))
 
 #define save_cursor_pos() printf("\033[s")
 #define load_cursor_pos() printf("\033[u")
 
 #define ARG_HELP "help"
+#define ARG_TEST "test"
 #define ARG_INPUTS "inputs"
 #define ARG_BLOCKS "cuda-blocks"
 #define ARG_THREADS "cuda-threads"
@@ -159,7 +164,6 @@ inline void parse_bruteforce_filtered_mode(CommandLineArgs& target, cxxopts::Par
         (SmartFilterFlags)exclude_filter,
     };
 
-    printf("Filters are: %s\n", filters.toString().c_str());
     target.brute_configs.push_back(BruteforceConfig::GetBruteforce(start_key, count_key, filters));
 }
 
@@ -234,7 +238,7 @@ inline void parse_alphabet_mode(CommandLineArgs& target, cxxopts::ParseResult& r
 
 inline void parse_pattern_mode(CommandLineArgs& target, cxxopts::ParseResult& result)
 {
-    printf("Error: patterns are not implemented");
+    printf("Error: patterns are not implemented\n");
 }
 }
 
@@ -308,16 +312,21 @@ inline CommandLineArgs parse_command_line(int argc, const char** argv)
         // Bruteforce filters
         (ARG_EFILTER, "Exclude filter: key matching this filters will not be used in bruteforce.",
             cxxopts::value<std::uint64_t>()->default_value("0"), "value")
-        (ARG_IFILTER, "Include filter: only keys matching this filters will be used in bruteforce.",
+        (ARG_IFILTER, "Include filter: only keys matching this filters will be used in bruteforce. (WARNING: may be EXTREMELY heavy to compute)",
             cxxopts::value<std::uint64_t>()->default_value("0xFFFFFFFFFFFFFFFF"), "value")
 
         // Stop config
         (ARG_FMATCH, "Stop bruteforce on first match. If inputs are 3+ probably should set to true",
             cxxopts::value<bool>()->default_value("true"), "0|1")
+
+        // Tests run
+        (ARG_TEST, "Run application tests. You'd better use them in debug.",
+            cxxopts::value<bool>()->default_value("false"), "0|1")
      ;
-    options.set_width(140);
+    options.set_width(CONSOLE_WIDTH);
 
     CommandLineArgs args;
+
 
     auto result = options.parse(argc, argv);
     if (result.count(ARG_HELP) || result.arguments().size() == 0 || result.count(ARG_INPUTS) == 0)
@@ -325,6 +334,9 @@ inline CommandLineArgs parse_command_line(int argc, const char** argv)
         printf("\n%s\n", options.help().c_str());
         return args;
     }
+
+    // tests
+    args.run_tests = result[ARG_TEST].as<bool>();
 
     // Inputs
     if (result.count(ARG_INPUTS) > 0)

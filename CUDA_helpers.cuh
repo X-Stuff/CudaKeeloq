@@ -48,29 +48,29 @@ struct CUDA_Array
         return CUDA_data[index];
     }
 
-    void free()
+    inline void free()
     {
         CUDA_Array<T>::free(this);
     }
 
-    void write(const T* source, size_t num)
+    inline void write(const T* source, size_t num)
     {
         CUDA_Array<T>::write(this, source, num);
     }
 
-    size_t copy(std::vector<T>& target)
+    inline size_t copy(std::vector<T>& target)
     {
         return CUDA_Array<T>::copy(this, target);
     }
 
-    CUDA_Array<T> host()
+    inline CUDA_Array<T> host()
     {
         // thiscall should work even with invalid pointer
         return CUDA_Array<T>::host(this);
     }
 
     // Copies this pointer (which assumes to be GPU) to host and return copy of the last element
-    T host_last()
+    inline T host_last()
     {
         // thiscall should work even with invalid pointer
         CUDA_Array<T> HOST_array = CUDA_Array<T>::host(this);
@@ -328,7 +328,7 @@ struct TGenericGpuObject
     TGenericGpuObject(const TGenericGpuObject<T>& other) = delete;
     TGenericGpuObject<T>& operator =(const TGenericGpuObject<T>& other) = delete;
 
-    TCudaPtr ptr() {
+    virtual TCudaPtr ptr() {
         return SelfGpu.ptr();
     }
 

@@ -10,6 +10,7 @@ enum class SmartFilterFlags : uint64_t;
 
 extern const char* LearningNames[];
 extern const char* GeneratorTypeName[];
+extern const size_t GeneratorTypeNamesCount;
 extern const std::vector<std::tuple<SmartFilterFlags, const char*>> FilterNames;
 
 
@@ -86,7 +87,6 @@ enum class SmartFilterFlags : uint64_t
 };
 
 
-//template<uint8_t ResultsCount = (uint8_t)KeeloqLearningType::LAST>
 struct SingleResult
 {
     static constexpr uint8_t ResultsCount = (uint8_t)KeeloqLearningType::LAST;
@@ -124,13 +124,18 @@ struct Decryptor
     uint32_t seed;
 
     Decryptor() = default;
-    Decryptor(uint64_t key, uint32_t s = 0) :
-        man(key), seed(s) {}
+    Decryptor(uint64_t key, uint32_t s = 0) : man(key), seed(s) {}
+
+    __host__ __device__ inline bool operator==(const Decryptor& other) {
+        return man == other.man && seed == other.seed;
+    }
+    __host__ __device__ inline bool operator<(const Decryptor& other) {
+        return man < other.man;
+    }
 };
 
 
-// Generator config - is setup for bruteforce
-// In case of dictionary attack - does nothing
+// Single run Configuration
 struct BruteforceConfig
 {
     // CUDA bruteforce generator
@@ -211,6 +216,8 @@ struct BruteforceConfig
             return alp[index];
         }
 
+        __host__ std::string toString() const;
+
     private:
         static const uint16_t Size = 0xFF + 1; // 256
 
@@ -243,7 +250,7 @@ struct BruteforceConfig
     // HOST SET. ONCE. Which generator to use.
     Type type;
 
-    // HOST SET. ONCE. Decryption will start from this
+    // HOST SET. UPDATING. PER BATCH. Decryption batch (or decrypters generation) will start from this
     Decryptor start;
 
     // HOST SET. ONCE. How many generator rounds should be taken (in fact how many times cuda kernel will be called)
@@ -414,6 +421,8 @@ struct CommandLineArgs
 
     // Do not do all 16 calculations, use predefined one
     KeeloqLearningType selected_learning = KeeloqLearningType::INVALID;
+
+    bool run_tests;
 
     inline void init_inputs(const std::vector<uint64_t> inp) {
         inputs = inp;

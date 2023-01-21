@@ -63,7 +63,8 @@ void bruteforce(const CommandLineArgs& args)
         printf("\nallocating...");
         single_run.Init();
 
-        printf("\rRunning %s", single_run.ToString().c_str());
+
+        printf("\rRunning...\t\t\t\n%s\n", single_run.ToString().c_str());
 
         bool match = false;
 
@@ -95,8 +96,8 @@ void bruteforce(const CommandLineArgs& args)
 
             if (batch == 0 || match)
             {
-                printf("\n\n");
-                save_cursor_pos();
+                console_hide_cursor();
+                printf("\n\n\n");
             }
 
             if (!match)
@@ -104,7 +105,8 @@ void bruteforce(const CommandLineArgs& args)
                 auto kilo_result_per_second = duration.count() == 0 ? 0 : key_per_batch / duration.count();
                 auto progress_percent = (double)(batch + 1)/ num_batches;
 
-                load_cursor_pos();
+                console_cursor_ret_up(2);
+
                 printf("[%c][%zd/%zd]\t %llu(ms)/batch Speed: %llu KKeys/s\tNext key:0x%llX (%ul)\n", WAIT_CHAR(batch),
                     batch, num_batches, duration.count(),
                     kilo_result_per_second,
@@ -131,32 +133,54 @@ void bruteforce(const CommandLineArgs& args)
 
 int main(int argc, const char** argv)
 {
-    //console::tests::run(); return;
-
     const char* commandline[] = {
         "tests",
         "--" ARG_INPUTS"=0xC65D52A0A81FD504,0xCCA9B335A81FD504,0xE0DA7372A81FD504",
-        "--" ARG_BLOCKS"=32",
-        "--" ARG_THREADS"=256",
-        "--" ARG_LOOPS"=512",
-        "--" ARG_MODE"=1,0",
+        "--" ARG_MODE"=2,1,0",
 
         "--" ARG_WORDDICT"=0xCEB6AE48B5C63ED1,0xCEB6AE48B5C63ED2,0xCEB6AE48B5C63ED3",
 
+#if _DEBUG
+        "--" ARG_BLOCKS"=32",
+        "--" ARG_THREADS"=512",
+        "--" ARG_LOOPS"=2",
+        "--" ARG_START"=0xCEB6AE48B5000000", // debug is very slow
+#else
+        "--" ARG_BLOCKS"=32",
+        "--" ARG_THREADS"=512",
+        "--" ARG_LOOPS"=32",
         "--" ARG_START"=0xCEB6AE48B0000000",
+#endif
         "--" ARG_COUNT"=0xFFFFFFF",
 
-        "--" ARG_IFILTER"=0x2", //SmartFilterFlags::Max6OnesInARow  other are very heavy, this one will allow all numbers less than 0x03FFFFFFFFFFFFFF
-        "--" ARG_EFILTER"=64",  //SmartFilterFlags::BytesRepeat4
+        // "--" ARG_IFILTER"=0x2", include filter let be all (otherwise will have big impact)
+        "--" ARG_EFILTER"=96",  // BytesRepeat4 | BytesIncremental should increse performance(?)
+
+        "--" ARG_ALPHABET"=CE:B6:AE:48:B5:C6:3E:D2",
 
         "--" ARG_FMATCH"=0",
+
+        "--" ARG_TEST"=1",
     };
 
+    console_set_width(CONSOLE_WIDTH);
+
     auto args = console::parse_command_line(sizeof(commandline)/ sizeof(char*), commandline); //console::parse_command_line(argc, argv);
+    if (args.run_tests)
+    {
+        printf("\n...RUNNING TESTS...\n");
+        console::tests::run();
+        generators::tests::run();
+        printf("\n...TESTS FINISHED...\n");
+        //return;
+    }
+
     if (!args.isValid())
     {
         return 1;
     }
+
+    console_clear();
 
     if (!CUDA_check_keeloq_works())
     {

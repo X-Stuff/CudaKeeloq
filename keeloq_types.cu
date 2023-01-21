@@ -21,13 +21,15 @@ static const char* LearningNames[KeeloqLearningType::LAST] = {
     "KEELOQ_LEARNING_MAGIC_SERIAL_TYPE_3_REV",
 };
 
-static const char* GeneratorTypeName[(int)BruteforceConfig::Type::LAST] = {
+static const char* GeneratorTypeName[] = {
     "Dictionary",
     "Simple",
     "Filtered",
     "Alphabet",
     "Pattern"
 };
+
+static const size_t GeneratorTypeNamesCount = sizeof(GeneratorTypeName) / sizeof(char*);
 
 static const std::vector<std::tuple<SmartFilterFlags, const char*>> FilterNames = {
 
@@ -81,20 +83,36 @@ void SingleResult::print(bool onlymatch /* = true */) const
     printf("\n");
 }
 
-
 std::string BruteforceConfig::toString() const
 {
-    char tmp[128];
-    if (type == Type::Dictionary) {
-        sprintf_s(tmp, "Type: %s. size: %zd", GeneratorTypeName[(uint8_t)type % (uint8_t)Type::LAST], dict_size());
+    char tmp[256];
+    const char* pGeneratorName = (uint8_t)type < GeneratorTypeNamesCount ? GeneratorTypeName[(uint8_t)type] : "<OUT OF RANGE>";
+    switch (type)
+    {
+    case BruteforceConfig::Type::Simple:
+        sprintf_s(tmp, "Type: %s. Initial: 0x%llX (seed:%ul). Brute size: %zd", pGeneratorName, start.man, start.seed, brute_size());
+        break;
+    case BruteforceConfig::Type::Filtered:
+        sprintf_s(tmp, "Type: %s. Initial: 0x%llX (seed:%ul). Brute size: %zd.\n\tFilters: %s",
+            pGeneratorName, start.man, start.seed, brute_size(), filters.toString().c_str());
+        break;
+    case BruteforceConfig::Type::Alphabet:
+        sprintf_s(tmp, "Type: %s. Initial: 0x%llX (seed:%ul). All invariants: %zd.\n\tAlphabet: %s",
+            pGeneratorName, start.man, start.seed, brute_size(), alphabet.toString().c_str());
+        break;
+    case BruteforceConfig::Type::Pattern:
+        sprintf_s(tmp, "Type: %s. NOT IMPLEMEMENTED", pGeneratorName);
+        break;
+    case BruteforceConfig::Type::Dictionary:
+        sprintf_s(tmp, "Type: %s. Words num: %zd", pGeneratorName, dict_size());
+        break;
+    default:
+        sprintf_s(tmp, "UNSUPPORTED Type (%d): %s", (int)type, pGeneratorName);
+        break;
     }
-    else {
-        sprintf_s(tmp, "Type: %s. Initial: 0x%llX (seed:%ul). Brute size: %zd",
-            GeneratorTypeName[(uint8_t)type % (uint8_t)Type::LAST], start.man, start.seed, brute_size());
-    }
+
     return std::string(tmp);
 }
-
 
 std::string BruteforceConfig::Filters::toString(SmartFilterFlags flags) const
 {
@@ -139,4 +157,15 @@ BruteforceConfig::Alphabet::Alphabet(std::vector<uint8_t> alphabet)
     {
         lut[alp[i]] = i;
     }
+}
+
+__host__ std::string BruteforceConfig::Alphabet::toString() const
+{
+    char tmp[255 * 3] = {0}; // one byte is 'XX:' last is XX\0
+    int write_index = 0;
+    for (int i = 0; i < num; ++i)
+    {
+        write_index += sprintf(&tmp[write_index], i == 0 ? "%X" : ":%X", alp[i]);
+    }
+    return std::string(tmp);
 }
