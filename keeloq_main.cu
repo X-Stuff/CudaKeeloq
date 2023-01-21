@@ -97,7 +97,8 @@ __device__ uint8_t analyze_results_btn(SingleResult* results, uint32_t num, Keel
     return lrn_matches == num;
 }
 
-__device__ KeeloqLearningType analyze_results_srl(SingleResult* results, uint32_t num)
+__device__ KeeloqLearningType analyze_results_srl(SingleResult* results, uint32_t num,
+    KeeloqLearningType begin = KeeloqLearningType::Simple, KeeloqLearningType end = KeeloqLearningType::LAST)
 {
     uint8_t match_count = 0; // 0 or 1. if bigger - double match
     KeeloqLearningType match_learning_type = KeeloqLearningType::INVALID;
@@ -105,7 +106,7 @@ __device__ KeeloqLearningType analyze_results_srl(SingleResult* results, uint32_
     SingleResult& first = results[0];
 
     // outer loop - over all learning types
-    for (uint8_t lrn = 0; lrn < (uint8_t)KeeloqLearningType::LAST; ++lrn)
+    for (uint8_t lrn = (uint8_t)begin; lrn < (uint8_t)end; ++lrn)
     {
         uint32_t expected_srl = (first.results.data[lrn] >> 16) & 0x3ff;
         uint32_t lrn_matches = 1;
@@ -126,7 +127,7 @@ __device__ KeeloqLearningType analyze_results_srl(SingleResult* results, uint32_
 
 #if !STRICT_ANALYSIS
         // break imitation
-        lrn += has_match * KeeloqLearningType::LAST;
+        lrn += has_match * (uint8_t)KeeloqLearningType::LAST;
 #endif
     }
 
@@ -135,12 +136,15 @@ __device__ KeeloqLearningType analyze_results_srl(SingleResult* results, uint32_
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-__device__ uint8_t keeloq_find_matches(const CUDACtx& ctx, SingleResult* results, uint32_t num)
+__device__ uint8_t keeloq_find_matches(const CUDACtx& ctx, SingleResult* results, uint32_t num, KeeloqLearningType exact_type)
 {
     uint8_t result_error = 0;
 
     // ifs are bad
-    KeeloqLearningType learning_type = analyze_results_srl(results, num);
+    KeeloqLearningType learning_type = exact_type < KeeloqLearningType::LAST ?
+        analyze_results_srl(results, num, exact_type, (KeeloqLearningType)((uint8_t)exact_type + 1)) :
+        analyze_results_srl(results, num);
+
     if (learning_type != KeeloqLearningType::INVALID)
     {
         if (analyze_results_btn(results, num, learning_type) &&  // same button
@@ -214,7 +218,7 @@ __device__ uint8_t keeloq_decryption_run(const CUDACtx& ctx, KernelInput& input)
         }
 
         // now check find matches in check decryptors
-        result_error += keeloq_find_matches(ctx, &results[decryptor_index * encrypted.num], encrypted.num);
+        result_error += keeloq_find_matches(ctx, &results[decryptor_index * encrypted.num], encrypted.num, input.learning_type);
     }
 
     return result_error;

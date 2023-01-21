@@ -5,7 +5,12 @@
 #include "keeloq_types.cuh"
 #include "CUDA_helpers.cuh"
 
-#define STRICT_ANALYSIS 1
+#if _DEBUG
+    #define STRICT_ANALYSIS 1
+#else
+    #define STRICT_ANALYSIS 0
+#endif
+
 #define NLF_LOOKUP_CONSTANT 0x3a5c742e
 
 
@@ -65,7 +70,7 @@ __device__ __host__ SingleResult::DecryptedArray keeloq_decrypt(uint64_t ota, ui
 __device__ uint8_t keeloq_decryption_run(const CUDACtx& ctx, KernelInput& results);
 
 // run from result[0] to result[num] tries to detect if there is a match (man key valid)
-__device__ uint8_t keeloq_find_matches(const CUDACtx& ctx, SingleResult* results, uint32_t num);
+__device__ uint8_t keeloq_find_matches(const CUDACtx& ctx, SingleResult* results, uint32_t num, KeeloqLearningType exact_type = KeeloqLearningType::INVALID);
 
 // aggregate matches into count
 __device__ uint8_t keeloq_analyze_results(const CUDACtx& ctx, const CUDA_Array<SingleResult>& results, uint32_t num_decryptors, uint32_t num_inputs);
