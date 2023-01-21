@@ -430,6 +430,11 @@ struct CommandLineArgs
 
     inline void init_cuda(uint16_t b, uint16_t t, uint16_t l) {
         cuda_blocks = b; cuda_threads = t; cuda_loops = l;
+        if (cuda_threads == 0) {
+            cudaDeviceProp prop;
+            cudaGetDeviceProperties(&prop, 0);
+            cuda_threads = prop.maxThreadsPerBlock;
+        }
     }
 
     inline bool isValid() {

@@ -276,9 +276,6 @@ __global__ void CUDA_keeloq_generate_filtered(KernelInput::TCudaPtr input, Kerne
 {
 	assert(input->generator.type == BruteforceConfig::Type::Filtered);
 
-	assert(input->generator.start == input->generator.next &&
-		"This type of generator requires 'next' decryptor be equal to 'start' decryptor at the beginning of the kernel.");
-
 	assert(input->generator.start.man > 0x100000000000 && "Starting key should be big enough to start bruteforcing. Consider pattern brute.");
 
 	assert(input->generator.filters.include != SmartFilterFlags::None && "Include filter None is invalid - will lead to infinite loop!");
@@ -361,6 +358,7 @@ __global__ void CUDA_keeloq_generate_filtered(KernelInput::TCudaPtr input, Kerne
 				}
 			}
 
+		// somwhere here infinite loop
 		} while (!written);
 	}
 }

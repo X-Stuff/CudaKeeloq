@@ -270,12 +270,12 @@ inline CommandLineArgs parse_command_line(int argc, const char** argv)
             cxxopts::value<std::vector<uint64_t>>(), "[k1,k1,k3...]")
 
         // CUDA Setup
-        (ARG_BLOCKS, "How many thread blocks (block is first multiplier) to launch.",
+        (ARG_BLOCKS, "How many thread blocks to launch.",
             cxxopts::value<uint16_t>()->default_value("32"), "<num>")
-        (ARG_THREADS, "How many threads will be launched in a block (this is second multiplier).",
-            cxxopts::value<uint16_t>()->default_value("256"), "<num>")
-        (ARG_LOOPS, "How many loop iterations will one thread perform.",
-            cxxopts::value<uint16_t>()->default_value("32"), "<num>")
+        (ARG_THREADS, "How many threads will be launched in a block (if 0 - will use value from device).",
+            cxxopts::value<uint16_t>()->default_value("0"), "<num>")
+        (ARG_LOOPS, "How many loop iterations will one thread perform (keep it low).",
+            cxxopts::value<uint16_t>()->default_value("2"), "<num>")
 
         // Mode - what bruteforce type will be used
         (ARG_MODE,

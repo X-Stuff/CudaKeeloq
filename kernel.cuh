@@ -16,6 +16,10 @@ struct CudaRunSetup
     CudaRunSetup(const std::vector<EncData>& data, const BruteforceConfig& gen, uint32_t blocks, uint32_t threads, uint32_t iterations)
         : encrypted_data(data)
     {
+        CUDASetup[0] = blocks;
+        CUDASetup[1] = threads;
+        CUDASetup[2] = iterations;
+
         num_decryptors_per_batch = iterations * threads * blocks;
 
         kernel_inputs.generator = gen;
@@ -55,6 +59,12 @@ struct CudaRunSetup
         }
     }
 
+    inline uint32_t CudaBlocks() const { return CUDASetup[0]; }
+
+    inline uint32_t CudaThreads() const { return CUDASetup[1]; }
+
+    inline uint32_t CudaThreadIterations() const { return CUDASetup[2]; }
+
     inline const BruteforceConfig& Config() const { assert(inited); return kernel_inputs.generator; }
 
     inline BruteforceConfig::Type Type() { assert(inited); return Config().type; }
@@ -88,7 +98,13 @@ struct CudaRunSetup
         assert(inited);
 
         char tmp[512];
-        sprintf_s(tmp, "Setup:\n\tEncrypted data size:%zd\n\tResults per batch:%zd\n\tDecryptors per batch:%zd\n\tConfig: %s",
+        sprintf_s(tmp, "Setup:\n"
+            "\tCUDA: Blocks:%u Threads:%u Iteraions:%u\n"
+            "\tEncrypted data size:%zd\n"
+            "\tResults per batch:%zd\n"
+            "\tDecryptors per batch:%zd\n"
+            "\tConfig: %s",
+            CudaBlocks(), CudaThreads(), CudaThreadIterations(),
             encrypted_data.size(), ResultsPerBatch(), KeysCheckedInBatch(), Config().toString().c_str());
 
         return std::string(tmp);
@@ -162,5 +178,7 @@ private:
 
     // could be pretty much data here
     std::vector<SingleResult> block_results;
+
+    uint32_t CUDASetup [3] = {0};
 };
 

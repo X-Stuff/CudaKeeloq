@@ -63,7 +63,6 @@ void bruteforce(const CommandLineArgs& args)
         printf("\nallocating...");
         single_run.Init();
 
-
         printf("\rRunning...\t\t\t\n%s\n", single_run.ToString().c_str());
 
         bool match = false;
@@ -86,9 +85,9 @@ void bruteforce(const CommandLineArgs& args)
                 kernel_input.UpdateInitialDecryptor();
             }
 
-            int error = CUDA_generator_wrapper(kernel_input, args.cuda_blocks, args.cuda_threads);
+            int error = CUDA_generator_wrapper(kernel_input, single_run.CudaBlocks(), single_run.CudaThreads());
             assert(error == 0);
-            auto kernel_result = CUDA_keeloq_main_wrapper(kernel_input, args.cuda_blocks, args.cuda_threads);
+            auto kernel_result = CUDA_keeloq_main_wrapper(kernel_input, single_run.CudaBlocks(), single_run.CudaThreads());
             match = process_block_results(kernel_result, single_run);
 
             auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -136,22 +135,20 @@ int main(int argc, const char** argv)
     const char* commandline[] = {
         "tests",
         "--" ARG_INPUTS"=0xC65D52A0A81FD504,0xCCA9B335A81FD504,0xE0DA7372A81FD504",
-        "--" ARG_MODE"=2,1,0",
+        "--" ARG_MODE"=3,2,1,0",
 
         "--" ARG_WORDDICT"=0xCEB6AE48B5C63ED1,0xCEB6AE48B5C63ED2,0xCEB6AE48B5C63ED3",
 
 #if _DEBUG
-        "--" ARG_BLOCKS"=32",
-        "--" ARG_THREADS"=512",
+        "--" ARG_BLOCKS"=512",
         "--" ARG_LOOPS"=2",
-        "--" ARG_START"=0xCEB6AE48B5000000", // debug is very slow
-#else
-        "--" ARG_BLOCKS"=32",
-        "--" ARG_THREADS"=512",
-        "--" ARG_LOOPS"=32",
         "--" ARG_START"=0xCEB6AE48B0000000",
+#else
+        "--" ARG_BLOCKS"=1024",
+        "--" ARG_LOOPS"=2",
+        "--" ARG_START"=0xCEB6AE4800000000",
 #endif
-        "--" ARG_COUNT"=0xFFFFFFF",
+        "--" ARG_COUNT"=0xFFFFFFFF",
 
         // "--" ARG_IFILTER"=0x2", include filter let be all (otherwise will have big impact)
         "--" ARG_EFILTER"=96",  // BytesRepeat4 | BytesIncremental should increse performance(?)
@@ -160,7 +157,7 @@ int main(int argc, const char** argv)
 
         "--" ARG_FMATCH"=0",
 
-        "--" ARG_TEST"=1",
+        "--" ARG_TEST"=0",
     };
 
     console_set_width(CONSOLE_WIDTH);
@@ -172,6 +169,9 @@ int main(int argc, const char** argv)
         console::tests::run();
         generators::tests::run();
         printf("\n...TESTS FINISHED...\n");
+
+        console_clear();
+
         //return;
     }
 
@@ -180,8 +180,6 @@ int main(int argc, const char** argv)
         return 1;
     }
 
-    console_clear();
-
     if (!CUDA_check_keeloq_works())
     {
         printf("Error: This device cannot compute keeloq right. Single ecnryption and decryption mismacth.");
@@ -189,10 +187,13 @@ int main(int argc, const char** argv)
         return 1;
     }
 
-
     // Could be used for device check and input validation
     cudaDeviceProp prop;
     cudaGetDeviceProperties(&prop, 0);
+
+    // Just for test
+    args.brute_configs[0].start.man = 0;
+    args.brute_configs[0].next.man = 0;
 
     bruteforce(args);
 
