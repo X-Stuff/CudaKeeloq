@@ -171,7 +171,6 @@ int main(int argc, const char** argv)
         printf("\n...TESTS FINISHED...\n");
 
         console_clear();
-
         //return;
     }
 
@@ -192,8 +191,11 @@ int main(int argc, const char** argv)
     cudaGetDeviceProperties(&prop, 0);
 
     // Just for test
-    args.brute_configs[0].start.man = 0;
-    args.brute_configs[0].next.man = 0;
+    if (args.brute_configs[0].type == BruteforceConfig::Type::Alphabet)
+    {
+        args.brute_configs[0].start.man = 0;
+        args.brute_configs[0].next.man = 0;
+    }
 
     bruteforce(args);
 
