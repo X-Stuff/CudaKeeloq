@@ -13,16 +13,51 @@
 #define g5(x, a, b, c, d, e) \
     (bit(x, a) + bit(x, b) * 2 + bit(x, c) * 4 + bit(x, d) * 8 + bit(x, e) * 16)
 
+// 0, 8, 19, 25, 30 == 0x42080101
+#define g5dec(x, g) \
+    auto m = (x & 0x42080101); \
+    g = (0b11111 & ( m | (m >> 7) | (m >> 17) | ( m >> 22) | (m >> 26)))
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-__device__ __host__ inline uint32_t keeloq_common_decrypt(const uint32_t data, const uint64_t key) {
+__device__ __host__ inline uint32_t keeloq_common_decrypt_orig(const uint32_t data, const uint64_t key) {
     uint32_t x = data, r;
     for(r = 0; r < 528; r++)
         x = (x << 1) ^ bit(x, 31) ^ bit(x, 15) ^ (uint32_t)bit(key, (15 - r) & 63) ^
         bit(NLF_LOOKUP_CONSTANT, g5(x, 0, 8, 19, 25, 30));
     return x;
 }
+
+__device__ __host__ inline uint32_t keeloq_common_encrypt_orig(const uint32_t data, const uint64_t key) {
+    uint32_t x = data, r;
+    for(r = 0; r < 528; r++)
+        x = (x >> 1) ^ ((bit(x, 0) ^ bit(x, 16) ^ (uint32_t)bit(key, r & 63) ^
+            bit(NLF_LOOKUP_CONSTANT, g5(x, 1, 9, 20, 26, 31)))
+            << 31);
+    return x;
+}
+
+
+__device__ __host__ inline uint32_t keeloq_common_decrypt(const uint32_t data, const uint64_t key) {
+    uint32_t x = data, g, k, f;
+
+#if __CUDA_ARCH__
+    #pragma unroll
+#endif
+    for (int32_t r = 15; r >= -512; --r)
+    {
+        uint32_t key_bit = r & 0b111111;
+
+        g5dec(x, g);
+
+        k = (uint32_t)((key >> key_bit));
+        f = ((x >> 31) ^ (x >> 15) ^ (NLF_LOOKUP_CONSTANT >> g) ^ k) & 1;
+        x = (x << 1) ^ f;
+    }
+    return x;
+}
+
 
 __device__ __host__ inline uint32_t keeloq_common_encrypt(const uint32_t data, const uint64_t key) {
     uint32_t x = data, r;

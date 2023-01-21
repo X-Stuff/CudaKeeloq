@@ -153,7 +153,7 @@ int main(int argc, const char** argv)
         // "--" ARG_IFILTER"=0x2", include filter let be all (otherwise will have big impact)
         "--" ARG_EFILTER"=96",  // BytesRepeat4 | BytesIncremental should increse performance(?)
 
-        "--" ARG_ALPHABET"=CE:B6:AE:48:B5:C6:3E:D2",
+        "--" ARG_ALPHABET"=CE:B6:AE:48:B5:C6:3E:D2",//:AA:BB:CC:DD:EE:FF:00:11",
 
         "--" ARG_FMATCH"=0",
 
