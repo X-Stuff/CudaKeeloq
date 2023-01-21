@@ -11,6 +11,83 @@
 #include "CUDA_helpers.cuh"
 
 
+const char* CudaRunSetup::GetLearningTypeName() const
+{
+    if ((uint8_t)kernel_inputs.learning_type < LearningNamesCount)
+    {
+        return LearningNames[(uint8_t)kernel_inputs.learning_type];
+    }
+    return "ALL";
+}
+
+std::string CudaRunSetup::ToString() const
+{
+    assert(inited);
+
+    char tmp[512];
+    sprintf_s(tmp, "Setup:\n"
+        "\tCUDA: Blocks:%u Threads:%u Iteraions:%u\n"
+        "\tEncrypted data size:%zd\n"
+        "\tLearning type:%s\n"
+        "\tResults per batch:%zd\n"
+        "\tDecryptors per batch:%zd\n"
+        "\tConfig: %s",
+        CudaBlocks(), CudaThreads(), CudaThreadIterations(),
+        encrypted_data.size(), GetLearningTypeName(), ResultsPerBatch(), KeysCheckedInBatch(), Config().toString().c_str());
+
+    return std::string(tmp);
+}
+
+
+void CudaRunSetup::alloc()
+{
+    //
+    assert(kernel_inputs.encdata    == nullptr && "Encrypted data already allocated on GPU");
+    assert(kernel_inputs.decryptors == nullptr && "Decryptors data already allocated on GPU");
+    assert(kernel_inputs.results    == nullptr && "Results data already allocated on GPU");
+
+    // ALLOCATE ON GPU
+    if (kernel_inputs.encdata == nullptr)
+    {
+        kernel_inputs.encdata  = CUDA_Array<EncData>::allocate(encrypted_data);
+    }
+
+    if (kernel_inputs.decryptors == nullptr)
+    {
+        kernel_inputs.decryptors = CUDA_Array<Decryptor>::allocate(decryptors);
+    }
+
+    if (kernel_inputs.results == nullptr)
+    {
+        kernel_inputs.results    = CUDA_Array<SingleResult>::allocate(block_results);
+    }
+}
+
+void CudaRunSetup::free()
+{
+    if (kernel_inputs.encdata != nullptr)
+    {
+        kernel_inputs.encdata->free();
+        kernel_inputs.encdata = nullptr;
+    }
+
+    if (kernel_inputs.decryptors != nullptr)
+    {
+        kernel_inputs.decryptors->free();
+        kernel_inputs.decryptors = nullptr;
+    }
+
+    if (kernel_inputs.results != nullptr)
+    {
+        kernel_inputs.results->free();
+        kernel_inputs.results = nullptr;
+    }
+
+    encrypted_data.clear();
+    decryptors.clear();
+    block_results.clear();
+}
+
 bool process_block_results(const KernelResult& result, CudaRunSetup& run)
 {
     if (result.error != 0)
@@ -58,7 +135,7 @@ void bruteforce(const CommandLineArgs& args)
 
     for (const auto& config: args.brute_configs)
     {
-        CudaRunSetup single_run(args.inputs, config, args.cuda_blocks, args.cuda_threads, args.cuda_loops);
+        CudaRunSetup single_run(args.inputs, config, args.selected_learning, args.cuda_blocks, args.cuda_threads, args.cuda_loops);
 
         printf("\nallocating...");
         single_run.Init();
@@ -136,6 +213,7 @@ int main(int argc, const char** argv)
         "tests",
         "--" ARG_INPUTS"=0xC65D52A0A81FD504,0xCCA9B335A81FD504,0xE0DA7372A81FD504",
         "--" ARG_MODE"=3,2,1,0",
+        "--" ARG_LTYPE"=6",
 
         "--" ARG_WORDDICT"=0xCEB6AE48B5C63ED1,0xCEB6AE48B5C63ED2,0xCEB6AE48B5C63ED3",
 
@@ -157,7 +235,7 @@ int main(int argc, const char** argv)
 
         "--" ARG_FMATCH"=0",
 
-        "--" ARG_TEST"=0",
+        "--" ARG_TEST"=1",
     };
 
     console_set_width(CONSOLE_WIDTH);

@@ -2,7 +2,7 @@
 
 #include <algorithm>
 
-static const char* LearningNames[KeeloqLearningType::LAST] = {
+extern const char* LearningNames[] = {
     "KEELOQ_LEARNING_SIMPLE",
     "KEELOQ_LEARNING_SIMPLE_REV",
     "KEELOQ_LEARNING_NORMAL",
@@ -21,7 +21,7 @@ static const char* LearningNames[KeeloqLearningType::LAST] = {
     "KEELOQ_LEARNING_MAGIC_SERIAL_TYPE_3_REV",
 };
 
-static const char* GeneratorTypeName[] = {
+extern const char* GeneratorTypeName[] = {
     "Dictionary",
     "Simple",
     "Filtered",
@@ -29,7 +29,8 @@ static const char* GeneratorTypeName[] = {
     "Pattern"
 };
 
-static const size_t GeneratorTypeNamesCount = sizeof(GeneratorTypeName) / sizeof(char*);
+extern const size_t GeneratorTypeNamesCount = sizeof(GeneratorTypeName) / sizeof(char*);
+extern const size_t LearningNamesCount = sizeof(LearningNames) / sizeof(char*);
 
 static const std::vector<std::tuple<SmartFilterFlags, const char*>> FilterNames = {
 
@@ -85,7 +86,7 @@ void SingleResult::print(bool onlymatch /* = true */) const
 
 std::string BruteforceConfig::toString() const
 {
-    char tmp[256];
+    char tmp[384];
     const char* pGeneratorName = (uint8_t)type < GeneratorTypeNamesCount ? GeneratorTypeName[(uint8_t)type] : "<OUT OF RANGE>";
     switch (type)
     {

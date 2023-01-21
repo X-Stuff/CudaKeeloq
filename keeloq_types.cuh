@@ -9,6 +9,7 @@
 enum class SmartFilterFlags : uint64_t;
 
 extern const char* LearningNames[];
+extern const size_t LearningNamesCount;
 extern const char* GeneratorTypeName[];
 extern const size_t GeneratorTypeNamesCount;
 extern const std::vector<std::tuple<SmartFilterFlags, const char*>> FilterNames;
@@ -17,7 +18,7 @@ extern const std::vector<std::tuple<SmartFilterFlags, const char*>> FilterNames;
 // Input encoded data (received over the air) - 16bytes
 typedef uint64_t EncData;
 
-enum KeeloqLearningType
+enum class KeeloqLearningType : uint8_t
 {
     Simple = 0,
     Simple_Rev,
@@ -45,7 +46,7 @@ enum KeeloqLearningType
 
     LAST,
 
-    INVALID = 0xffffffff,
+    INVALID = 0xff,
 };
 
 enum class SmartFilterFlags : uint64_t
@@ -344,6 +345,9 @@ struct KernelInput : TGenericGpuObject<KernelInput>
 
     // Single-run results
     CUDA_Array<SingleResult>* results;
+
+    // Which type of learning use for decryption
+    KeeloqLearningType learning_type = KeeloqLearningType::INVALID;
 
     // from this dectryptor generation will start
     BruteforceConfig generator;

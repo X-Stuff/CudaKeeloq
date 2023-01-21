@@ -13,7 +13,8 @@ constexpr char WAIT_SPIN[] = "|/-\\";
 
 struct CudaRunSetup
 {
-    CudaRunSetup(const std::vector<EncData>& data, const BruteforceConfig& gen, uint32_t blocks, uint32_t threads, uint32_t iterations)
+    CudaRunSetup(const std::vector<EncData>& data, const BruteforceConfig& gen, KeeloqLearningType selected_learning,
+        uint32_t blocks, uint32_t threads, uint32_t iterations)
         : encrypted_data(data)
     {
         CUDASetup[0] = blocks;
@@ -23,6 +24,7 @@ struct CudaRunSetup
         num_decryptors_per_batch = iterations * threads * blocks;
 
         kernel_inputs.generator = gen;
+        kernel_inputs.learning_type = selected_learning;
     }
 
     ~CudaRunSetup()
@@ -93,73 +95,15 @@ struct CudaRunSetup
         return block_results.size();
     }
 
-    std::string ToString()
-    {
-        assert(inited);
-
-        char tmp[512];
-        sprintf_s(tmp, "Setup:\n"
-            "\tCUDA: Blocks:%u Threads:%u Iteraions:%u\n"
-            "\tEncrypted data size:%zd\n"
-            "\tResults per batch:%zd\n"
-            "\tDecryptors per batch:%zd\n"
-            "\tConfig: %s",
-            CudaBlocks(), CudaThreads(), CudaThreadIterations(),
-            encrypted_data.size(), ResultsPerBatch(), KeysCheckedInBatch(), Config().toString().c_str());
-
-        return std::string(tmp);
-    }
+    std::string ToString() const;
 
 private:
 
-    void alloc()
-    {
-        //
-        assert(kernel_inputs.encdata    == nullptr && "Encrypted data already allocated on GPU");
-        assert(kernel_inputs.decryptors == nullptr && "Decryptors data already allocated on GPU");
-        assert(kernel_inputs.results    == nullptr && "Results data already allocated on GPU");
+    void alloc();
 
-        // ALLOCATE ON GPU
-        if (kernel_inputs.encdata == nullptr)
-        {
-            kernel_inputs.encdata  = CUDA_Array<EncData>::allocate(encrypted_data);
-        }
+    void free();
 
-        if (kernel_inputs.decryptors == nullptr)
-        {
-            kernel_inputs.decryptors = CUDA_Array<Decryptor>::allocate(decryptors);
-        }
-
-        if (kernel_inputs.results == nullptr)
-        {
-            kernel_inputs.results    = CUDA_Array<SingleResult>::allocate(block_results);
-        }
-    }
-
-    void free()
-    {
-        if (kernel_inputs.encdata != nullptr)
-        {
-            kernel_inputs.encdata->free();
-            kernel_inputs.encdata = nullptr;
-        }
-
-        if (kernel_inputs.decryptors != nullptr)
-        {
-            kernel_inputs.decryptors->free();
-            kernel_inputs.decryptors = nullptr;
-        }
-
-        if (kernel_inputs.results != nullptr)
-        {
-            kernel_inputs.results->free();
-            kernel_inputs.results = nullptr;
-        }
-
-        encrypted_data.clear();
-        decryptors.clear();
-        block_results.clear();
-    }
+    const char* GetLearningTypeName() const;
 
 private:
 

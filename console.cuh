@@ -30,6 +30,7 @@
 #define ARG_THREADS "cuda-threads"
 #define ARG_LOOPS "cuda-loops"
 #define ARG_MODE "mode"
+#define ARG_LTYPE "learning-type"
 #define ARG_WORDDICT "word-dict"
 #define ARG_BINDICT "bin-dict"
 #define ARG_BINDMODE "bin-dict-mode"
@@ -286,6 +287,14 @@ inline CommandLineArgs parse_command_line(int argc, const char** argv)
             "\n\t3: - Alphabet. Bruteforce +1 using only specified bytes."
             "\n\t4: - Pattern. Bruteforce with bytes selected by specified pattern.",
             cxxopts::value<std::vector<uint8_t>>(), "[m1,m2..]")
+        (ARG_LTYPE,
+            "Specific learning type (if you know your target well). Increases approximately x16 times (since doesn't calculate other types):"
+            "\n\t0: - Simple"
+            "\n\t2: - Normal"
+            "\n\t4: - Secure"
+            "\n\t6: - Xor"
+            "\nType+1 means with reverse key.\nThere are also more types. see source code",
+            cxxopts::value<uint8_t>()->default_value("0xFF"), "type")
 
         // Dictionaries files
         (ARG_WORDDICT, "Word dictionary file(s) or word(s) - contains hexadecimal strings which will be used as keys. e.g: 0xaabb1122 FFbb9800121212",
@@ -293,7 +302,7 @@ inline CommandLineArgs parse_command_line(int argc, const char** argv)
         (ARG_BINDICT, "Binary dictionary file(s) - each 8 bytes of the file will be used as key (do not check duplicates or zeroes)",
             cxxopts::value<std::vector<std::string>>(),"[b1,b2,...]")
         (ARG_BINDMODE, "Byteorder mode for binary dictionary. 0 - as is. 1 - reverse, 2 - add both",
-            cxxopts::value<uint8_t>()->default_value("0"),"num")
+            cxxopts::value<uint8_t>()->default_value("0"),"mode")
 
         // Common (Bruteforce, Alphabet) - set start and end of execution
         (ARG_START, "The first key value which will be used for selected mode(s)",
@@ -397,6 +406,8 @@ inline CommandLineArgs parse_command_line(int argc, const char** argv)
         printf("Error: you need to specify bruteforce mode!\n%s\n",
             options.help().c_str());
     }
+
+    args.selected_learning = (KeeloqLearningType)result[ARG_LTYPE].as<uint8_t>();
 
     return args;
 }
