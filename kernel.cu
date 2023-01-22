@@ -11,20 +11,31 @@
 #include "CUDA_helpers.cuh"
 
 
-const char* CudaRunSetup::GetLearningTypeName() const
+std::string CudaRunSetup::GetLearningTypeName() const
 {
-    if ((uint8_t)kernel_inputs.learning_type < LearningNamesCount)
+    if (kernel_inputs.learning_types[(uint8_t)KeeloqLearningType::LAST])
     {
-        return LearningNames[(uint8_t)kernel_inputs.learning_type];
+        return "ALL";
     }
-    return "ALL";
+
+    char str[512];
+    int len = 0;
+    for (auto type = 0; type < (uint8_t)KeeloqLearningType::LAST; ++type)
+    {
+        if (kernel_inputs.learning_types[type])
+        {
+            len += sprintf_s(&str[len], sizeof(str) - len, "%s, ", LearningNames[(uint8_t)type]);
+        }
+    }
+
+    return std::string(str, len - 2);
 }
 
 std::string CudaRunSetup::ToString() const
 {
     assert(inited);
 
-    char tmp[512];
+    char tmp[1024];
     sprintf_s(tmp, "Setup:\n"
         "\tCUDA: Blocks:%u Threads:%u Iteraions:%u\n"
         "\tEncrypted data size:%zd\n"
@@ -33,7 +44,7 @@ std::string CudaRunSetup::ToString() const
         "\tDecryptors per batch:%zd\n"
         "\tConfig: %s",
         CudaBlocks(), CudaThreads(), CudaThreadIterations(),
-        encrypted_data.size(), GetLearningTypeName(), ResultsPerBatch(), KeysCheckedInBatch(), Config().toString().c_str());
+        encrypted_data.size(), GetLearningTypeName().c_str(), ResultsPerBatch(), KeysCheckedInBatch(), Config().toString().c_str());
 
     return std::string(tmp);
 }
@@ -127,7 +138,7 @@ bool process_block_results(const KernelResult& result, CudaRunSetup& run)
 
 void bruteforce(const CommandLineArgs& args)
 {
-    if (args.selected_learning == KeeloqLearningType::INVALID)
+    if (args.selected_learning.size() == 0)
     {
         printf("Bruteforcing without specific learning type (slower)"
             "(1 KKey/s == %u Kkc (keeloq calcs) per second)\n", KeeloqLearningType::LAST);
@@ -231,7 +242,7 @@ int main(int argc, const char** argv)
         // "--" ARG_IFILTER"=0x2", include filter let be all (otherwise will have big impact)
         "--" ARG_EFILTER"=96",  // BytesRepeat4 | BytesIncremental should increse performance(?)
 
-        "--" ARG_ALPHABET"=CE:B6:AE:48:B5:C6:3E:D2",//:AA:BB:CC:DD:EE:FF:00:11",
+        "--" ARG_ALPHABET"=examples/alphabet.bin,CE:B6:AE:48:B5:C6:3E:D2",//:AA:BB:CC:DD:EE:FF:00:11",
 
         "--" ARG_FMATCH"=0",
 

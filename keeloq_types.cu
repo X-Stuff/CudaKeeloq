@@ -91,16 +91,20 @@ std::string BruteforceConfig::toString() const
     switch (type)
     {
     case BruteforceConfig::Type::Simple:
-        sprintf_s(tmp, "Type: %s. Initial: 0x%llX (seed:%ul). Brute size: %zd", pGeneratorName, start.man, start.seed, brute_size());
+        sprintf_s(tmp, "Type: %s. First: 0x%llX (seed:%u). Last: 0x%llX", pGeneratorName, start.man, start.seed, start.man + brute_size());
         break;
     case BruteforceConfig::Type::Filtered:
-        sprintf_s(tmp, "Type: %s. Initial: 0x%llX (seed:%ul). Brute size: %zd.\n\tFilters: %s",
+        sprintf_s(tmp, "Type: %s. Initial: 0x%llX (seed:%u). Brute count: %zd.\n\tFilters: %s",
             pGeneratorName, start.man, start.seed, brute_size(), filters.toString().c_str());
         break;
     case BruteforceConfig::Type::Alphabet:
-        sprintf_s(tmp, "Type: %s. Initial: 0x%llX (seed:%ul). All invariants: %zd.\n\tAlphabet: %s",
-            pGeneratorName, start.man, start.seed, brute_size(), alphabet.toString().c_str());
+        {
+        uint64_t first = alphabet.value(alphabet.lookup(start.man));
+        uint64_t last  = alphabet.add(first, brute_size());
+        sprintf_s(tmp, "Type: %s. First: 0x%llX (seed:%u). Last: 0x%llX.  All invariants: %zd.\n\tAlphabet: %s",
+            pGeneratorName, first, start.seed, last, alphabet.invariants(), alphabet.toString().c_str());
         break;
+        }
     case BruteforceConfig::Type::Pattern:
         sprintf_s(tmp, "Type: %s. NOT IMPLEMEMENTED", pGeneratorName);
         break;
@@ -144,20 +148,22 @@ std::string BruteforceConfig::Filters::toString() const
     return "Include filter: " + include_str + "\t Exclude filter: " + exclude_str;
 }
 
-BruteforceConfig::Alphabet::Alphabet(std::vector<uint8_t> alphabet)
+BruteforceConfig::Alphabet::Alphabet(const std::vector<uint8_t>& alphabet)
 {
-    std::sort(alphabet.begin(), alphabet.end());
-    alphabet.erase(std::unique(alphabet.begin(), alphabet.end()), alphabet.end());
+    num = 0;
 
-    assert(alphabet.size() < Alphabet::Size && "Using all bytes values as alphabet is not efficient");
-
-    num = (uint8_t)min(alphabet.size(), (size_t)Size);
-    memcpy(alp, alphabet.data(), num * sizeof(uint8_t));
-
-    for (uint8_t i = 0; i < num; ++i)
+    for (int i = 0; i < alphabet.size(); ++i)
     {
-        lut[alp[i]] = i;
+        uint8_t byte = alphabet[i];
+        if (!lut[byte])
+        {
+            lut[byte] = num;
+            alp[num] = byte;
+            ++num;
+        }
     }
+
+    assert(num < Alphabet::Size && "Using all bytes values as alphabet is not efficient");
 }
 
 __host__ std::string BruteforceConfig::Alphabet::toString() const

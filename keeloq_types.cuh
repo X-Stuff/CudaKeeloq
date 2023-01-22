@@ -49,6 +49,20 @@ enum class KeeloqLearningType : uint8_t
     INVALID = 0xff,
 };
 
+constexpr const char* ValueString(KeeloqLearningType type) {
+
+    constexpr const char* LUT[]{
+        "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
+        "10", "11", "12", "13", "14", "15", "16", "17", "18", "19",
+        "20", "21", "22", "23", "24", "25", "26", "27", "28", "29",
+        "30", "31", "32"
+    };
+
+    uint8_t value = static_cast<std::underlying_type_t<KeeloqLearningType>>(type);
+
+    return LUT[value];
+}
+
 enum class SmartFilterFlags : uint64_t
 {
     //
@@ -170,9 +184,17 @@ struct BruteforceConfig
         Alphabet() = default;
 
         // Duplicates will be removed
-        Alphabet(std::vector<uint8_t> alphabet);
+        Alphabet(const std::vector<uint8_t>& alphabet);
 
-        __host__ __device__ inline bool add(uint8_t number[sizeof(uint64_t)], uint64_t value)
+        __host__ __device__ inline uint64_t add(uint64_t number, uint64_t value) const
+        {
+            uint8_t result[8];
+            *(uint64_t*)result = number;
+            add(result, value);
+            return *(uint64_t*)result;
+        }
+
+        __host__ __device__ inline void add(uint8_t number[sizeof(uint64_t)], uint64_t value) const
         {
 #ifdef __CUDA_ARCH__
             #pragma unroll
@@ -215,6 +237,25 @@ struct BruteforceConfig
         // return value by index
         __host__ __device__ inline uint8_t operator[](uint8_t index) {
             return alp[index];
+        }
+
+        __host__ __device__ inline size_t invariants() const {
+            return (size_t)pow(num, sizeof(uint64_t));
+        }
+
+        __host__ __device__ inline uint64_t value(uint64_t index) const {
+            uint8_t* pIndex = (uint8_t*)&index;
+            uint8_t result[8] = {
+                alp[pIndex[0]],
+                alp[pIndex[1]],
+                alp[pIndex[2]],
+                alp[pIndex[3]],
+                alp[pIndex[4]],
+                alp[pIndex[5]],
+                alp[pIndex[6]],
+                alp[pIndex[7]],
+                };
+            return *(uint64_t*)result;
         }
 
         __host__ std::string toString() const;
@@ -292,7 +333,7 @@ struct BruteforceConfig
     static BruteforceConfig GetAlphabet(Decryptor first, const Alphabet& alphabet, size_t num = (size_t)-1)
     {
         // max operation take to check all keys with alphabet of size
-        num = min((uint64_t)pow(alphabet.num, sizeof(uint64_t)), num);
+        num = min(alphabet.invariants(), num);
 
         BruteforceConfig result(first, Type::Alphabet, num);
         result.alphabet = alphabet;
@@ -346,8 +387,8 @@ struct KernelInput : TGenericGpuObject<KernelInput>
     // Single-run results
     CUDA_Array<SingleResult>* results;
 
-    // Which type of learning use for decryption
-    KeeloqLearningType learning_type = KeeloqLearningType::INVALID;
+    // Which type of learning use for decryption // the last one indicates all
+    uint8_t learning_types[(int)KeeloqLearningType::LAST + 1];
 
     // from this dectryptor generation will start
     BruteforceConfig generator;
@@ -424,7 +465,7 @@ struct CommandLineArgs
     uint16_t cuda_loops;
 
     // Do not do all 16 calculations, use predefined one
-    KeeloqLearningType selected_learning = KeeloqLearningType::INVALID;
+    std::vector<KeeloqLearningType> selected_learning = {};
 
     bool run_tests;
 

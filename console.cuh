@@ -6,7 +6,7 @@
 
 #include "keeloq_types.cuh"
 
-#define CONSOLE_WIDTH 140
+#define CONSOLE_WIDTH 160
 
 #define CXXOPTS_NO_EXCEPTIONS
 #include "cxxopts/include/cxxopts.hpp"
@@ -288,13 +288,14 @@ inline CommandLineArgs parse_command_line(int argc, const char** argv)
             "\n\t4: - Pattern. Bruteforce with bytes selected by specified pattern.",
             cxxopts::value<std::vector<uint8_t>>(), "[m1,m2..]")
         (ARG_LTYPE,
-            "Specific learning type (if you know your target well). Increases approximately x16 times (since doesn't calculate other types):"
+            "Specific learning type (if you know your target well). Increases approximately x16 times (since doesn't calculate other types)"
+            "\n\tV+1 means with reverse key (There are also more types. see source code):"
             "\n\t0: - Simple"
             "\n\t2: - Normal"
             "\n\t4: - Secure"
             "\n\t6: - Xor"
-            "\nType+1 means with reverse key.\nThere are also more types. see source code",
-            cxxopts::value<uint8_t>()->default_value("0xFF"), "type")
+            "\nALL",
+            cxxopts::value<std::vector<uint8_t>>()->default_value(ValueString(KeeloqLearningType::LAST)), "type")
 
         // Dictionaries files
         (ARG_WORDDICT, "Word dictionary file(s) or word(s) - contains hexadecimal strings which will be used as keys. e.g: 0xaabb1122 FFbb9800121212",
@@ -407,7 +408,16 @@ inline CommandLineArgs parse_command_line(int argc, const char** argv)
             options.help().c_str());
     }
 
-    args.selected_learning = (KeeloqLearningType)result[ARG_LTYPE].as<uint8_t>();
+    auto learning_type_bytes = result[ARG_LTYPE].as<std::vector<uint8_t>>();
+    if (learning_type_bytes.size() > 0)
+    {
+        args.selected_learning.clear();
+        for (auto value : learning_type_bytes) {
+            if (value < (uint8_t)KeeloqLearningType::LAST) {
+                args.selected_learning.push_back((KeeloqLearningType)value);
+            }
+        }
+    }
 
     return args;
 }
@@ -423,6 +433,7 @@ CommandLineArgs run()
         "--" ARG_THREADS"=32",
         "--" ARG_LOOPS"=4",
         "--" ARG_MODE"=0,1,2,3,4,5",
+        "--" ARG_LTYPE"=0,1,2,3,4",
 
         "--" ARG_WORDDICT"=0xCEB6AE48B5C63ED1,CEB6AE48B5C63ED2,0xCEB6AE48B5C63ED3,examples/dictionary.words",
         "--" ARG_BINDICT"=examples/dictionary.bin",

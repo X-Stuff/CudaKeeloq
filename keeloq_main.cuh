@@ -26,6 +26,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+
 __device__ __host__ inline uint32_t keeloq_common_decrypt_orig(const uint32_t data, const uint64_t key) {
     uint32_t x = data, r;
     for(r = 0; r < 528; r++)
@@ -34,7 +35,7 @@ __device__ __host__ inline uint32_t keeloq_common_decrypt_orig(const uint32_t da
     return x;
 }
 
-
+// This version like 5 times faster
 __device__ __host__ inline uint32_t keeloq_common_decrypt(const uint32_t data, const uint64_t key) {
     uint32_t x = data, g, k, f;
 
@@ -51,7 +52,6 @@ __device__ __host__ inline uint32_t keeloq_common_decrypt(const uint32_t data, c
     return x;
 }
 
-
 __device__ __host__ inline uint32_t keeloq_common_encrypt(const uint32_t data, const uint64_t key) {
     uint32_t x = data, r;
     for(r = 0; r < 528; r++)
@@ -61,16 +61,15 @@ __device__ __host__ inline uint32_t keeloq_common_encrypt(const uint32_t data, c
     return x;
 }
 
-__device__ __host__ SingleResult::DecryptedArray keeloq_decrypt_all(uint32_t data, uint32_t fix, const uint64_t key, const uint32_t seed);
 
-__device__ __host__ SingleResult::DecryptedArray keeloq_decrypt(uint64_t ota, uint64_t man, uint32_t seed = 0, KeeloqLearningType type = KeeloqLearningType::INVALID);
+__device__ __host__ SingleResult::DecryptedArray keeloq_decrypt(uint64_t ota, uint64_t man, uint32_t seed, uint8_t type_mask[]);
 
 
 // run decryption parallel per thread and find matches
 __device__ uint8_t keeloq_decryption_run(const CUDACtx& ctx, KernelInput& results);
 
 // run from result[0] to result[num] tries to detect if there is a match (man key valid)
-__device__ uint8_t keeloq_find_matches(const CUDACtx& ctx, SingleResult* results, uint32_t num, KeeloqLearningType exact_type = KeeloqLearningType::INVALID);
+__device__ uint8_t keeloq_find_matches(const CUDACtx& ctx, SingleResult* results, uint32_t num, uint8_t type_mask[]);
 
 // aggregate matches into count
 __device__ uint8_t keeloq_analyze_results(const CUDACtx& ctx, const CUDA_Array<SingleResult>& results, uint32_t num_decryptors, uint32_t num_inputs);

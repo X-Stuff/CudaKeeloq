@@ -6,14 +6,13 @@
 #include "keeloq_main.cuh"
 
 
-
 constexpr char WAIT_SPIN[] = "|/-\\";
 
 #define WAIT_CHAR(i) (WAIT_SPIN[i % (sizeof(WAIT_SPIN) - 1)])
 
 struct CudaRunSetup
 {
-    CudaRunSetup(const std::vector<EncData>& data, const BruteforceConfig& gen, KeeloqLearningType selected_learning,
+    CudaRunSetup(const std::vector<EncData>& data, const BruteforceConfig& gen, std::vector<KeeloqLearningType> selected_learning,
         uint32_t blocks, uint32_t threads, uint32_t iterations)
         : encrypted_data(data)
     {
@@ -24,7 +23,20 @@ struct CudaRunSetup
         num_decryptors_per_batch = iterations * threads * blocks;
 
         kernel_inputs.generator = gen;
-        kernel_inputs.learning_type = selected_learning;
+        memset(kernel_inputs.learning_types,0, sizeof(kernel_inputs.learning_types));
+
+        if (selected_learning.size() > 0)
+        {
+            for (auto type : selected_learning)
+            {
+                kernel_inputs.learning_types[(uint8_t)type] = true;
+            }
+        }
+        else
+        {
+            // set all
+            kernel_inputs.learning_types[(uint8_t)KeeloqLearningType::LAST] = true;
+        }
     }
 
     ~CudaRunSetup()
@@ -103,7 +115,7 @@ private:
 
     void free();
 
-    const char* GetLearningTypeName() const;
+    std::string GetLearningTypeName() const;
 
 private:
 
