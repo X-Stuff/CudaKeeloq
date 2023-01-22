@@ -224,7 +224,7 @@ int main(int argc, const char** argv)
         "tests",
         "--" ARG_INPUTS"=0xC65D52A0A81FD504,0xCCA9B335A81FD504,0xE0DA7372A81FD504",
         "--" ARG_MODE"=3,2,1,0",
-        "--" ARG_LTYPE"=6",
+        //"--" ARG_LTYPE"=6",
 
         "--" ARG_WORDDICT"=0xCEB6AE48B5C63ED1,0xCEB6AE48B5C63ED2,0xCEB6AE48B5C63ED3",
 

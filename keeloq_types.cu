@@ -101,8 +101,8 @@ std::string BruteforceConfig::toString() const
         {
         uint64_t first = alphabet.value(alphabet.lookup(start.man));
         uint64_t last  = alphabet.add(first, brute_size());
-        sprintf_s(tmp, "Type: %s. First: 0x%llX (seed:%u). Last: 0x%llX.  All invariants: %zd.\n\tAlphabet: %s",
-            pGeneratorName, first, start.seed, last, alphabet.invariants(), alphabet.toString().c_str());
+        sprintf_s(tmp, "Type: %s. First: 0x%llX (seed:%u). Last: 0x%llX. (Count: %zd)  All invariants: %zd.\n\tAlphabet: %s",
+            pGeneratorName, first, start.seed, last, brute_size(), alphabet.invariants(), alphabet.toString().c_str());
         break;
         }
     case BruteforceConfig::Type::Pattern:

@@ -254,10 +254,14 @@ inline void progress_bar(double percent, const std::chrono::seconds& elapsed)
         memset(progress_none, '-', sizeof(progress_none));
     }
 
+    std::chrono::seconds eta = elapsed.count() > 0 ?
+        std::chrono::seconds((uint64_t)(elapsed.count() / percent)) - elapsed : std::chrono::seconds(0);
+
     printf("[%.*s>", (int)(progress_width * percent), progress_fill);
     printf("%.*s]", (int)(progress_width * (1 - percent)), progress_none);
-    printf("%d%%  %02lld:%02lld:%02lld   \n", (int)(percent * 100),
-        elapsed.count() / 3600, (elapsed.count() / 60) % 60, elapsed.count() % 60);
+    printf("%d%%  %02lld:%02lld:%02lld   ETA:%02lld:%02lld:%02lld\n", (int)(percent * 100),
+        elapsed.count() / 3600, (elapsed.count() / 60) % 60, elapsed.count() % 60,
+        eta.count() / 3600, (eta.count() / 60) % 60, eta.count() % 60);
 }
 
 inline CommandLineArgs parse_command_line(int argc, const char** argv)
