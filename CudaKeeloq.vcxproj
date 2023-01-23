@@ -42,7 +42,10 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.0\include;$(IncludePath)</IncludePath>
+    <IncludePath>$(projectdir);C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.0\include;$(IncludePath)</IncludePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(projectdir)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -98,13 +101,23 @@
     <CudaCompile Include="kernel.cu" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="console.cuh" />
     <ClInclude Include="CUDA_check.cuh" />
     <ClInclude Include="CUDA_helpers.cuh" />
+    <ClInclude Include="host\console.h" />
+    <ClInclude Include="host\types\bruteforce_config.h" />
+    <ClInclude Include="host\types\command_line_args.h" />
+    <ClInclude Include="host\types\keeloq_learning_types.h" />
+    <ClInclude Include="host\types\keeloq_single_result.h" />
     <ClInclude Include="keeloq_main.cuh" />
     <ClInclude Include="keeloq_generators.cuh" />
     <ClInclude Include="keeloq_types.cuh" />
     <ClInclude Include="kernel.cuh" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="host\types\bruteforce_config.cpp" />
+    <ClCompile Include="host\types\command_line_args.cpp" />
+    <ClCompile Include="host\types\keeloq_learning_types.cpp" />
+    <ClCompile Include="host\types\keeloq_single_result.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

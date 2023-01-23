@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <algorithm>
 
 #include "CUDA_check.cuh"
 
@@ -168,7 +169,7 @@ struct CUDA_Array
         assert(HOST_dest.CUDA_data && "CUDA Data wasn't allocated");
         if (HOST_dest.CUDA_data)
         {
-            auto copy_bytes = sizeof(T) * min(num, HOST_dest.num);
+            auto copy_bytes = sizeof(T) * std::min(num, HOST_dest.num);
 
             auto error = cudaMemcpy(HOST_dest.CUDA_data, source, copy_bytes, cudaMemcpyHostToDevice);
             CUDA_CHECK(error);
@@ -287,7 +288,7 @@ struct GpuOobject
 
         if (CUDA_Ptr == nullptr)
         {
-            uint32_t error = cudaMalloc(&CUDA_Ptr, sizeof(TTarget));
+            uint32_t error = cudaMalloc((void**)&CUDA_Ptr, sizeof(TTarget));
             CUDA_CHECK(error);
         }
 

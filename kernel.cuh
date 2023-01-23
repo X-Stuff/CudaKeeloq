@@ -12,7 +12,7 @@ constexpr char WAIT_SPIN[] = "|/-\\";
 
 struct CudaRunSetup
 {
-    CudaRunSetup(const std::vector<EncData>& data, const BruteforceConfig& gen, std::vector<KeeloqLearningType> selected_learning,
+    CudaRunSetup(const std::vector<EncData>& data, const BruteforceConfig& gen, std::vector<KeeloqLearningType::Type> selected_learning,
         uint32_t blocks, uint32_t threads, uint32_t iterations)
         : encrypted_data(data)
     {
@@ -29,13 +29,13 @@ struct CudaRunSetup
         {
             for (auto type : selected_learning)
             {
-                kernel_inputs.learning_types[(uint8_t)type] = true;
+                kernel_inputs.learning_types[type] = true;
             }
         }
         else
         {
             // set all
-            kernel_inputs.learning_types[(uint8_t)KeeloqLearningType::LAST] = true;
+            kernel_inputs.learning_types[KeeloqLearningType::LAST] = true;
         }
     }
 

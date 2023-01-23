@@ -3,7 +3,8 @@
 #include <string>
 #include <stdlib.h>
 
-#include "console.cuh"
+#include "host/console.h"
+
 #include "kernel.cuh"
 #include "keeloq_main.cuh"
 #include "keeloq_generators.cuh"
@@ -13,18 +14,18 @@
 
 std::string CudaRunSetup::GetLearningTypeName() const
 {
-    if (kernel_inputs.learning_types[(uint8_t)KeeloqLearningType::LAST])
+    if (kernel_inputs.learning_types[KeeloqLearningType::LAST])
     {
         return "ALL";
     }
 
     char str[512];
     int len = 0;
-    for (auto type = 0; type < (uint8_t)KeeloqLearningType::LAST; ++type)
+    for (auto type = 0; type < KeeloqLearningType::LAST; ++type)
     {
         if (kernel_inputs.learning_types[type])
         {
-            len += sprintf_s(&str[len], sizeof(str) - len, "%s, ", LearningNames[(uint8_t)type]);
+            len += sprintf_s(&str[len], sizeof(str) - len, "%s, ", KeeloqLearningType::Name(type));
         }
     }
 

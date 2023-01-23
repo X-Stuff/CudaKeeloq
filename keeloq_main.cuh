@@ -62,14 +62,14 @@ __device__ __host__ inline uint32_t keeloq_common_encrypt(const uint32_t data, c
 }
 
 
-__device__ __host__ SingleResult::DecryptedArray keeloq_decrypt(uint64_t ota, uint64_t man, uint32_t seed, uint8_t type_mask[]);
+__device__ __host__ SingleResult::DecryptedArray keeloq_decrypt(uint64_t ota, uint64_t man, uint32_t seed, const KeeloqLearningType::Type type_mask[]);
 
 
 // run decryption parallel per thread and find matches
 __device__ uint8_t keeloq_decryption_run(const CUDACtx& ctx, KernelInput& results);
 
 // run from result[0] to result[num] tries to detect if there is a match (man key valid)
-__device__ uint8_t keeloq_find_matches(const CUDACtx& ctx, SingleResult* results, uint32_t num, uint8_t type_mask[]);
+__device__ uint8_t keeloq_find_matches(const CUDACtx& ctx, SingleResult* results, uint32_t num, const KeeloqLearningType::Type type_mask[]);
 
 // aggregate matches into count
 __device__ uint8_t keeloq_analyze_results(const CUDACtx& ctx, const CUDA_Array<SingleResult>& results, uint32_t num_decryptors, uint32_t num_inputs);

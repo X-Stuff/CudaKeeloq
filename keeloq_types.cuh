@@ -1,15 +1,17 @@
 #pragma once
 
 #include <string>
+#include <algorithm>
 #include <tuple>
+
+#include "host/types/keeloq_learning_types.h"
+#include "host/types/keeloq_single_result.h"
 
 #include "CUDA_helpers.cuh"
 
 // forward declarations
 enum class SmartFilterFlags : uint64_t;
 
-extern const char* LearningNames[];
-extern const size_t LearningNamesCount;
 extern const char* GeneratorTypeName[];
 extern const size_t GeneratorTypeNamesCount;
 extern const std::vector<std::tuple<SmartFilterFlags, const char*>> FilterNames;
@@ -17,51 +19,6 @@ extern const std::vector<std::tuple<SmartFilterFlags, const char*>> FilterNames;
 
 // Input encoded data (received over the air) - 16bytes
 typedef uint64_t EncData;
-
-enum class KeeloqLearningType : uint8_t
-{
-    Simple = 0,
-    Simple_Rev,
-
-    Normal,
-    Normal_Rev,
-
-    Secure,
-    Secure_Rev,
-
-    Xor,
-    Xor_Rev,
-
-    Faac,
-    Faac_Rev,
-
-    Serial1,
-    Serial1_Rev,
-
-    Serial2,
-    Serial2_Rev,
-
-    Serial3,
-    Serial3_Rev,
-
-    LAST,
-
-    INVALID = 0xff,
-};
-
-constexpr const char* ValueString(KeeloqLearningType type) {
-
-    constexpr const char* LUT[]{
-        "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
-        "10", "11", "12", "13", "14", "15", "16", "17", "18", "19",
-        "20", "21", "22", "23", "24", "25", "26", "27", "28", "29",
-        "30", "31", "32"
-    };
-
-    uint8_t value = static_cast<std::underlying_type_t<KeeloqLearningType>>(type);
-
-    return LUT[value];
-}
 
 enum class SmartFilterFlags : uint64_t
 {
@@ -101,36 +58,6 @@ enum class SmartFilterFlags : uint64_t
     All = (uint64_t)-1,
 };
 
-
-struct SingleResult
-{
-    static constexpr uint8_t ResultsCount = (uint8_t)KeeloqLearningType::LAST;
-
-    struct DecryptedArray
-    {
-        // fixed side array for every learning type
-        uint32_t data[ResultsCount];
-
-        void print(uint8_t element, bool ismatch) const;
-
-        void print() const;
-    };
-
-    // Per each learning type
-    DecryptedArray results;
-
-    // used manufactorer key and seed for this result
-    uint64_t man;
-    uint32_t seed;
-
-    // Input data
-    uint64_t ota;
-
-    // Set by GPU after analysis if there was a match
-    KeeloqLearningType match;
-
-    void print(bool onlymatch = true) const;
-};
 
 // is test manufacture code with seed (default is 0)
 struct Decryptor
@@ -333,7 +260,7 @@ struct BruteforceConfig
     static BruteforceConfig GetAlphabet(Decryptor first, const Alphabet& alphabet, size_t num = (size_t)-1)
     {
         // max operation take to check all keys with alphabet of size
-        num = min(alphabet.invariants(), num);
+        num = std::min(alphabet.invariants(), num);
 
         BruteforceConfig result(first, Type::Alphabet, num);
         result.alphabet = alphabet;
@@ -388,7 +315,7 @@ struct KernelInput : TGenericGpuObject<KernelInput>
     CUDA_Array<SingleResult>* results;
 
     // Which type of learning use for decryption // the last one indicates all
-    uint8_t learning_types[(int)KeeloqLearningType::LAST + 1];
+    KeeloqLearningType::Type learning_types[KeeloqLearningType::LAST + 1];
 
     // from this dectryptor generation will start
     BruteforceConfig generator;
@@ -418,7 +345,7 @@ struct KernelInput : TGenericGpuObject<KernelInput>
         {
             assert(generator.type == BruteforceConfig::Type::Dictionary);
 
-            size_t copy_num = max(0ull, min(num, (source.size() - from)));
+            size_t copy_num = std::max(0ull, std::min(num, (source.size() - from)));
             decryptors->write(&source[from], copy_num);
         }
     }
@@ -449,43 +376,6 @@ struct KernelResult : TGenericGpuObject<KernelResult>
     }
 };
 
-struct CommandLineArgs
-{
-    // Input recevied encrypted data
-    std::vector<EncData> inputs;
-
-    // How brute will be performed (may be several iterations)
-    std::vector<BruteforceConfig> brute_configs;
-
-    // Stop on forst match
-    bool match_stop;
-
-    uint16_t cuda_blocks;
-    uint16_t cuda_threads;
-    uint16_t cuda_loops;
-
-    // Do not do all 16 calculations, use predefined one
-    std::vector<KeeloqLearningType> selected_learning = {};
-
-    bool run_tests;
-
-    inline void init_inputs(const std::vector<uint64_t> inp) {
-        inputs = inp;
-    }
-
-    inline void init_cuda(uint16_t b, uint16_t t, uint16_t l) {
-        cuda_blocks = b; cuda_threads = t; cuda_loops = l;
-        if (cuda_threads == 0) {
-            cudaDeviceProp prop;
-            cudaGetDeviceProperties(&prop, 0);
-            cuda_threads = prop.maxThreadsPerBlock;
-        }
-    }
-
-    inline bool isValid() {
-        return inputs.size() > 0 && brute_configs.size() > 0;
-    }
-};
 
 inline std::vector<uint8_t> operator "" _b(const char* ascii, size_t num)
 {

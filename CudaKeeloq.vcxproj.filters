@@ -29,7 +29,21 @@
     <ClInclude Include="keeloq_types.cuh">
       <Filter>keeloq</Filter>
     </ClInclude>
-    <ClInclude Include="console.cuh" />
+    <ClInclude Include="host\console.h">
+      <Filter>host</Filter>
+    </ClInclude>
+    <ClInclude Include="host\types\keeloq_learning_types.h">
+      <Filter>host\types</Filter>
+    </ClInclude>
+    <ClInclude Include="host\types\keeloq_single_result.h">
+      <Filter>host\types</Filter>
+    </ClInclude>
+    <ClInclude Include="host\types\command_line_args.h">
+      <Filter>host\types</Filter>
+    </ClInclude>
+    <ClInclude Include="host\types\bruteforce_config.h">
+      <Filter>host\types</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="keeloq">
@@ -38,5 +52,25 @@
     <Filter Include="CUDA">
       <UniqueIdentifier>{829575b9-e9f3-4274-b335-f3069ce82e5f}</UniqueIdentifier>
     </Filter>
+    <Filter Include="host">
+      <UniqueIdentifier>{d58c5d00-01d9-4cfc-a18f-6b503d35fa86}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="host\types">
+      <UniqueIdentifier>{cefd7d3d-1125-4b3d-8dfa-93e4b168010a}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="host\types\keeloq_learning_types.cpp">
+      <Filter>host\types</Filter>
+    </ClCompile>
+    <ClCompile Include="host\types\keeloq_single_result.cpp">
+      <Filter>host\types</Filter>
+    </ClCompile>
+    <ClCompile Include="host\types\command_line_args.cpp">
+      <Filter>host\types</Filter>
+    </ClCompile>
+    <ClCompile Include="host\types\bruteforce_config.cpp">
+      <Filter>host\types</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

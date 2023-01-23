@@ -2,25 +2,6 @@
 
 #include <algorithm>
 
-extern const char* LearningNames[] = {
-    "KEELOQ_LEARNING_SIMPLE",
-    "KEELOQ_LEARNING_SIMPLE_REV",
-    "KEELOQ_LEARNING_NORMAL",
-    "KEELOQ_LEARNING_NORMAL_REV",
-    "KEELOQ_LEARNING_SECURE",
-    "KEELOQ_LEARNING_SECURE_REV",
-    "KEELOQ_LEARNING_MAGIC_XOR_TYPE_1",
-    "KEELOQ_LEARNING_MAGIC_XOR_TYPE_1_REV",
-    "KEELOQ_LEARNING_FAAC",
-    "KEELOQ_LEARNING_FAAC_REV",
-    "KEELOQ_LEARNING_MAGIC_SERIAL_TYPE_1",
-    "KEELOQ_LEARNING_MAGIC_SERIAL_TYPE_1_REV",
-    "KEELOQ_LEARNING_MAGIC_SERIAL_TYPE_2",
-    "KEELOQ_LEARNING_MAGIC_SERIAL_TYPE_2_REV",
-    "KEELOQ_LEARNING_MAGIC_SERIAL_TYPE_3",
-    "KEELOQ_LEARNING_MAGIC_SERIAL_TYPE_3_REV",
-};
-
 extern const char* GeneratorTypeName[] = {
     "Dictionary",
     "Simple",
@@ -30,7 +11,6 @@ extern const char* GeneratorTypeName[] = {
 };
 
 extern const size_t GeneratorTypeNamesCount = sizeof(GeneratorTypeName) / sizeof(char*);
-extern const size_t LearningNamesCount = sizeof(LearningNames) / sizeof(char*);
 
 static const std::vector<std::tuple<SmartFilterFlags, const char*>> FilterNames = {
 
@@ -48,41 +28,6 @@ static const std::vector<std::tuple<SmartFilterFlags, const char*>> FilterNames 
     { SmartFilterFlags::AsciiSpecial,       "ASCII special characters" },
 };
 
-void SingleResult::DecryptedArray::print(uint8_t element, bool ismatch) const
-{
-    printf("[%-40s] Btn:0x%X\tSerial:0x%X\tCounter:0x%X\t%s\n", LearningNames[element],
-        (data[element] >> 28),              // Button
-        (data[element] >> 16) & 0x3ff,      // Serial
-        data[element] & 0xFFFF,             // Counter
-        (ismatch ? "(MATCH)" : ""));
-}
-
-void SingleResult::DecryptedArray::print() const
-{
-    for(uint8_t i = 0; i < ResultsCount; ++i )
-    {
-        print(i, false);
-    }
-}
-
-void SingleResult::print(bool onlymatch /* = true */) const
-{
-    printf("Results (Input: 0x%llX - Man key: 0x%llX)\n\n", ota, man);
-
-    for (uint8_t i = 0; i < ResultsCount; ++i)
-    {
-        bool isMatch = (uint8_t)match == i;
-        if (!onlymatch)
-        {
-            results.print(i, isMatch);
-        }
-        else if (isMatch)
-        {
-            results.print(i, isMatch);
-        }
-    }
-    printf("\n");
-}
 
 std::string BruteforceConfig::toString() const
 {

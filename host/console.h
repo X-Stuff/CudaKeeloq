@@ -1,10 +1,12 @@
 #pragma once
 
-
 #include <stdio.h>
 #include <conio.h>
 
-#include "keeloq_types.cuh"
+#include "host/types/keeloq_learning_types.h"
+#include "host/types/command_line_args.h"
+
+#include "../keeloq_types.cuh"
 
 #define CONSOLE_WIDTH 160
 
@@ -299,7 +301,7 @@ inline CommandLineArgs parse_command_line(int argc, const char** argv)
             "\n\t4: - Secure"
             "\n\t6: - Xor"
             "\nALL",
-            cxxopts::value<std::vector<uint8_t>>()->default_value(ValueString(KeeloqLearningType::LAST)), "type")
+            cxxopts::value<std::vector<uint8_t>>()->default_value(KeeloqLearningType::ValueString(KeeloqLearningType::LAST)), "type")
 
         // Dictionaries files
         (ARG_WORDDICT, "Word dictionary file(s) or word(s) - contains hexadecimal strings which will be used as keys. e.g: 0xaabb1122 FFbb9800121212",
@@ -417,8 +419,8 @@ inline CommandLineArgs parse_command_line(int argc, const char** argv)
     {
         args.selected_learning.clear();
         for (auto value : learning_type_bytes) {
-            if (value < (uint8_t)KeeloqLearningType::LAST) {
-                args.selected_learning.push_back((KeeloqLearningType)value);
+            if (value < KeeloqLearningType::LAST) {
+                args.selected_learning.push_back(value);
             }
         }
     }
