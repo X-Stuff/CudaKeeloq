@@ -112,6 +112,7 @@
     <ClInclude Include="host\console.h" />
     <ClInclude Include="host\types\bruteforce_config.h" />
     <ClInclude Include="host\types\bruteforce_filters.h" />
+    <ClInclude Include="host\types\bruteforce_type.h" />
     <ClInclude Include="host\types\command_line_args.h" />
     <ClInclude Include="host\types\keeloq_learning_types.h" />
     <ClInclude Include="host\types\keeloq_single_result.h" />
@@ -125,6 +126,7 @@
   <ItemGroup>
     <ClCompile Include="host\types\bruteforce_config.cpp" />
     <ClCompile Include="host\types\bruteforce_filters.cpp" />
+    <ClCompile Include="host\types\bruteforce_type.cpp" />
     <ClCompile Include="host\types\command_line_args.cpp" />
     <ClCompile Include="host\types\keeloq_learning_types.cpp" />
     <ClCompile Include="host\types\keeloq_single_result.cpp" />

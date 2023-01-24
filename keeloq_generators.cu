@@ -13,7 +13,7 @@ __global__ void CUDA_keeloq_generate_brute(KernelInput::TCudaPtr input, KernelRe
 {
 	CUDACtx ctx = GET_CUDA_CONTEXT();
 
-	assert(input->generator.type == BruteforceConfig::Type::Simple);
+	assert(input->generator.type ==BruteforceType::Simple);
 
 	Decryptor& start = input->generator.start;
 
@@ -31,7 +31,7 @@ __global__ void CUDA_keeloq_generate_alphabet(KernelInput::TCudaPtr input, Kerne
 {
 	CUDACtx ctx = GET_CUDA_CONTEXT();
 
-	assert(input->generator.type == BruteforceConfig::Type::Alphabet);
+	assert(input->generator.type == BruteforceType::Alphabet);
 
 	BruteforceConfig::Alphabet& alphabet = input->generator.alphabet;
 	assert(alphabet.num > 0);
@@ -79,22 +79,22 @@ int CUDA_generator_wrapper(KernelInput& mainInputs, uint16_t ThreadBlocks, uint1
 
 	switch (mainInputs.generator.type)
 	{
-	case BruteforceConfig::Type::Simple:
+	case BruteforceType::Simple:
 		CUDA_keeloq_generate_brute<<<ThreadBlocks, ThreadsInBlock>>>(mainInputs.ptr(), generator_results.ptr());
 		break;
-	case BruteforceConfig::Type::Filtered:
+	case BruteforceType::Filtered:
 		mainInputs.generator.next = mainInputs.generator.start;
 		Call_CUDA_keeloq_generate_filtered(ThreadBlocks, ThreadsInBlock, mainInputs.ptr(), generator_results.ptr());
 		break;
-	case BruteforceConfig::Type::Alphabet:
+	case BruteforceType::Alphabet:
 		CUDA_keeloq_generate_alphabet<<<ThreadBlocks, ThreadsInBlock>>>(mainInputs.ptr(), generator_results.ptr());
 		break;
-	case BruteforceConfig::Type::Pattern:
+	case BruteforceType::Pattern:
 		assert(false && "Not implemented");
 		return 1;
 		break;
 
-	case BruteforceConfig::Type::Dictionary:
+	case BruteforceType::Dictionary:
 	default:
 		return 0;
 	}

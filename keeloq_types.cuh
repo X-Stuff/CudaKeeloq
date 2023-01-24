@@ -10,18 +10,11 @@
 #include "host/types/keeloq_single_result.h"
 
 #include "host/types/bruteforce_filters.h"
+#include "host/types/bruteforce_type.h"
 
 #include "CUDA_helpers.cuh"
 
 USE_NS_LOCATION
-
-
-// forward declarations
-enum class SmartFilterFlags : uint64_t;
-
-extern const char* GeneratorTypeName[];
-extern const size_t GeneratorTypeNamesCount;
-
 
 // Input encoded data (received over the air) - 16bytes
 typedef uint64_t EncData;
@@ -48,27 +41,6 @@ struct Decryptor
 struct BruteforceConfig
 {
     // CUDA bruteforce generator
-    enum class Type : uint8_t
-    {
-        // Generation will be skipped
-        Dictionary = 0,
-        None = Dictionary,
-
-        // Simple +1 generator (vert fast in terms of genration of decryptors candidates)
-        Simple,
-
-        // Simple +1 bruteforce but with filters applied performance may degrage)
-        Filtered,
-
-        // Specify alphabet and brute over it
-        Alphabet,
-
-        // ASCII pattern like ss:01:??:3?:*
-        Pattern,
-
-        // Not for usage
-        LAST,
-    };
 
     struct Alphabet
     {
@@ -165,9 +137,8 @@ struct BruteforceConfig
 
     };
 
-
     // HOST SET. ONCE. Which generator to use.
-    Type type;
+    BruteforceType::Type type;
 
     // HOST SET. UPDATING. PER BATCH. Decryption batch (or decrypters generation) will start from this
     Decryptor start;
@@ -188,21 +159,21 @@ struct BruteforceConfig
     // GPU SET. UPDATING. Last generated decryptor (will be initial for next block run)
     Decryptor next;
 
-    BruteforceConfig() : BruteforceConfig(0, Type::LAST, 0) {
+    BruteforceConfig() : BruteforceConfig(0, BruteforceType::LAST, 0) {
     }
 
-    static BruteforceConfig GetDictionary(const std::vector<Decryptor>&& dictionary)
+    static BruteforceConfig GetDictionary(std::vector<Decryptor>&& dictionary)
     {
-        BruteforceConfig result(0, Type::Dictionary, dictionary.size());
+        BruteforceConfig result(0, BruteforceType::Dictionary, dictionary.size());
         result.decryptors = std::move(dictionary);
         return result;
     };
 
-    static BruteforceConfig GetBruteforce(Decryptor first, size_t size) { return BruteforceConfig(first, Type::Simple, size); }
+    static BruteforceConfig GetBruteforce(Decryptor first, size_t size) { return BruteforceConfig(first, BruteforceType::Simple, size); }
 
     static BruteforceConfig GetBruteforce(Decryptor first, size_t size, const BruteforceFilters& filters)
     {
-        BruteforceConfig result(first, Type::Filtered, size);
+        BruteforceConfig result(first, BruteforceType::Filtered, size);
         result.filters = filters;
         return result;
     }
@@ -212,7 +183,7 @@ struct BruteforceConfig
         // max operation take to check all keys with alphabet of size
         num = std::min(alphabet.invariants(), num);
 
-        BruteforceConfig result(first, Type::Alphabet, num);
+        BruteforceConfig result(first, BruteforceType::Alphabet, num);
         result.alphabet = alphabet;
         return result;
     }
@@ -220,25 +191,25 @@ struct BruteforceConfig
     static BruteforceConfig GetPattern()
     {
         // not implemented
-        return BruteforceConfig(0, Type::LAST, 0);
+        return BruteforceConfig(0, BruteforceType::LAST, 0);
     }
 
     uint64_t dict_size() const {
-        if (type == Type::Dictionary) {
+        if (type == BruteforceType::Dictionary) {
             return size;
         }
         return 0;
     }
 
     uint64_t brute_size() const {
-        if (type != Type::Dictionary) {
+        if (type != BruteforceType::Dictionary) {
             return size;
         }
         return 0;
     }
 
     void update_decryptor() {
-        if (type != Type::Dictionary) {
+        if (type != BruteforceType::Dictionary) {
             start = next;
         }
     }
@@ -246,8 +217,8 @@ struct BruteforceConfig
     std::string toString() const;
 
 private:
-    BruteforceConfig(Decryptor start, Type gen, size_t num) :
-        start(start), type(gen), next(start), size(num)
+    BruteforceConfig(Decryptor start, BruteforceType::Type t, size_t num) :
+        start(start), type(t), next(start), size(num)
     {
     }
 };
@@ -293,7 +264,7 @@ struct KernelInput : TGenericGpuObject<KernelInput>
     {
         if (decryptors != nullptr)
         {
-            assert(generator.type == BruteforceConfig::Type::Dictionary);
+            assert(generator.type == BruteforceType::Dictionary);
 
             size_t copy_num = std::max(0ull, std::min(num, (source.size() - from)));
             decryptors->write(&source[from], copy_num);
@@ -302,7 +273,7 @@ struct KernelInput : TGenericGpuObject<KernelInput>
 
     inline void UpdateInitialDecryptor()
     {
-        assert(generator.type != BruteforceConfig::Type::Dictionary);
+        assert(generator.type != BruteforceType::Dictionary);
         generator.update_decryptor();
     }
 };

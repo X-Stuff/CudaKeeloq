@@ -384,19 +384,19 @@ inline CommandLineArgs parse_command_line(int argc, const char** argv)
         {
             switch (mode)
             {
-            case (uint8_t)BruteforceConfig::Type::Dictionary:
+            case (uint8_t)BruteforceType::Dictionary:
                 parse_dictionary_mode(args, result);
                 break;
-            case (uint8_t)BruteforceConfig::Type::Simple:
+            case (uint8_t)BruteforceType::Simple:
                 parse_bruteforce_mode(args, result);
                 break;
-            case (uint8_t)BruteforceConfig::Type::Filtered:
+            case (uint8_t)BruteforceType::Filtered:
                 parse_bruteforce_filtered_mode(args, result);
                 break;
-            case (uint8_t)BruteforceConfig::Type::Alphabet:
+            case (uint8_t)BruteforceType::Alphabet:
                 parse_alphabet_mode(args, result);
                 break;
-            case (uint8_t)BruteforceConfig::Type::Pattern:
+            case (uint8_t)BruteforceType::Pattern:
                 parse_pattern_mode(args, result);
                 break;
             default:

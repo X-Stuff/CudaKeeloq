@@ -169,7 +169,7 @@ void bruteforce(const CommandLineArgs& args)
 
             KernelInput& kernel_input = single_run.Inputs();
 
-            if (single_run.Type() == BruteforceConfig::Type::Dictionary) {
+            if (single_run.Type() == BruteforceType::Dictionary) {
                 kernel_input.WriteDecryptors(config.decryptors, batch * key_per_batch, key_per_batch);
             }
             else {
@@ -283,7 +283,7 @@ int main(int argc, const char** argv)
     cudaGetDeviceProperties(&prop, 0);
 
     // Just for test
-    if (args.brute_configs[0].type == BruteforceConfig::Type::Alphabet)
+    if (args.brute_configs[0].type == BruteforceType::Alphabet)
     {
         args.brute_configs[0].start.man = 0;
         args.brute_configs[0].next.man = 0;

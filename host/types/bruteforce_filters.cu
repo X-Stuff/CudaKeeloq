@@ -27,7 +27,7 @@ namespace
 
 __global__ void CUDA_keeloq_generate_filtered_device(KernelInput::TCudaPtr input, KernelResult::TCudaPtr results)
 {
-	assert(input->generator.type == BruteforceConfig::Type::Filtered);
+	assert(input->generator.type == BruteforceType::Filtered);
 
 	assert(input->generator.start.man > 0x100000000000 && "Starting key should be big enough to start bruteforcing. Consider pattern brute.");
 

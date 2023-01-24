@@ -4,32 +4,23 @@
 
 #include <algorithm>
 
-extern const char* GeneratorTypeName[] = {
-    "Dictionary",
-    "Simple",
-    "Filtered",
-    "Alphabet",
-    "Pattern"
-};
-
-extern const size_t GeneratorTypeNamesCount = sizeof(GeneratorTypeName) / sizeof(char*);
 
 
 
 std::string BruteforceConfig::toString() const
 {
     char tmp[384];
-    const char* pGeneratorName = (uint8_t)type < GeneratorTypeNamesCount ? GeneratorTypeName[(uint8_t)type] : "<OUT OF RANGE>";
+    const char* pGeneratorName =  BruteforceType::Name(type);
     switch (type)
     {
-    case BruteforceConfig::Type::Simple:
+    case BruteforceType::Simple:
         sprintf_s(tmp, "Type: %s. First: 0x%llX (seed:%u). Last: 0x%llX", pGeneratorName, start.man, start.seed, start.man + brute_size());
         break;
-    case BruteforceConfig::Type::Filtered:
+    case BruteforceType::Filtered:
         sprintf_s(tmp, "Type: %s. Initial: 0x%llX (seed:%u). Brute count: %zd.\n\tFilters: %s",
             pGeneratorName, start.man, start.seed, brute_size(), filters.toString().c_str());
         break;
-    case BruteforceConfig::Type::Alphabet:
+    case BruteforceType::Alphabet:
         {
         uint64_t first = alphabet.value(alphabet.lookup(start.man));
         uint64_t last  = alphabet.add(first, brute_size());
@@ -37,10 +28,10 @@ std::string BruteforceConfig::toString() const
             pGeneratorName, first, start.seed, last, brute_size(), alphabet.invariants(), alphabet.toString().c_str());
         break;
         }
-    case BruteforceConfig::Type::Pattern:
+    case BruteforceType::Pattern:
         sprintf_s(tmp, "Type: %s. NOT IMPLEMEMENTED", pGeneratorName);
         break;
-    case BruteforceConfig::Type::Dictionary:
+    case BruteforceType::Dictionary:
         sprintf_s(tmp, "Type: %s. Words num: %zd", pGeneratorName, dict_size());
         break;
     default:

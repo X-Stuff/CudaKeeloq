@@ -55,6 +55,9 @@
       <Filter>kernels</Filter>
     </ClInclude>
     <ClInclude Include="common.h" />
+    <ClInclude Include="host\types\bruteforce_type.h">
+      <Filter>host\types</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="keeloq">
@@ -87,6 +90,9 @@
       <Filter>host\types</Filter>
     </ClCompile>
     <ClCompile Include="host\types\bruteforce_filters.cpp">
+      <Filter>host\types</Filter>
+    </ClCompile>
+    <ClCompile Include="host\types\bruteforce_type.cpp">
       <Filter>host\types</Filter>
     </ClCompile>
   </ItemGroup>

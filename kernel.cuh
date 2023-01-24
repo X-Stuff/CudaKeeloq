@@ -81,13 +81,13 @@ struct CudaRunSetup
 
     inline const BruteforceConfig& Config() const { assert(inited); return kernel_inputs.generator; }
 
-    inline BruteforceConfig::Type Type() { assert(inited); return Config().type; }
+    inline BruteforceType::Type Type() { assert(inited); return Config().type; }
 
     inline KernelInput& Inputs() { assert(inited); return kernel_inputs; }
 
     inline size_t NumBatches() {
         assert(inited);
-        if (Type() == BruteforceConfig::Type::Dictionary) {
+        if (Type() == BruteforceType::Dictionary) {
             uint8_t non_align = Config().dict_size() % KeysCheckedInBatch() == 0 ? 0 : 1;
             return Config().dict_size() / KeysCheckedInBatch() + non_align;
         }
