@@ -114,6 +114,7 @@
     <ClInclude Include="host\types\bruteforce_filters.h" />
     <ClInclude Include="host\types\bruteforce_type.h" />
     <ClInclude Include="host\types\command_line_args.h" />
+    <ClInclude Include="host\types\keeloq_decryptor.h" />
     <ClInclude Include="host\types\keeloq_learning_types.h" />
     <ClInclude Include="host\types\keeloq_single_result.h" />
     <ClInclude Include="keeloq_main.cuh" />

@@ -58,6 +58,9 @@
     <ClInclude Include="host\types\bruteforce_type.h">
       <Filter>host\types</Filter>
     </ClInclude>
+    <ClInclude Include="host\types\keeloq_decryptor.h">
+      <Filter>host\types</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="keeloq">

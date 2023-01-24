@@ -8,6 +8,7 @@
 
 #include "host/types/keeloq_learning_types.h"
 #include "host/types/keeloq_single_result.h"
+#include "host/types/keeloq_decryptor.h"
 
 #include "host/types/bruteforce_filters.h"
 #include "host/types/bruteforce_type.h"
@@ -19,22 +20,6 @@ USE_NS_LOCATION
 // Input encoded data (received over the air) - 16bytes
 typedef uint64_t EncData;
 
-// is test manufacture code with seed (default is 0)
-struct Decryptor
-{
-    uint64_t man;
-    uint32_t seed;
-
-    Decryptor() = default;
-    Decryptor(uint64_t key, uint32_t s = 0) : man(key), seed(s) {}
-
-    __host__ __device__ inline bool operator==(const Decryptor& other) {
-        return man == other.man && seed == other.seed;
-    }
-    __host__ __device__ inline bool operator<(const Decryptor& other) {
-        return man < other.man;
-    }
-};
 
 
 // Single run Configuration
