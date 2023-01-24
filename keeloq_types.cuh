@@ -10,6 +10,7 @@
 #include "host/types/keeloq_single_result.h"
 #include "host/types/keeloq_decryptor.h"
 
+#include "host/types/bruteforce_alphabet.h"
 #include "host/types/bruteforce_filters.h"
 #include "host/types/bruteforce_type.h"
 
@@ -25,103 +26,6 @@ typedef uint64_t EncData;
 // Single run Configuration
 struct BruteforceConfig
 {
-    // CUDA bruteforce generator
-
-    struct Alphabet
-    {
-        // Actual size of alphabet
-        uint8_t num = 0;
-
-        Alphabet() = default;
-
-        // Duplicates will be removed
-        Alphabet(const std::vector<uint8_t>& alphabet);
-
-        __host__ __device__ inline uint64_t add(uint64_t number, uint64_t value) const
-        {
-            uint8_t result[8];
-            *(uint64_t*)result = number;
-            add(result, value);
-            return *(uint64_t*)result;
-        }
-
-        __host__ __device__ inline void add(uint8_t number[sizeof(uint64_t)], uint64_t value) const
-        {
-#ifdef __CUDA_ARCH__
-            #pragma unroll
-#endif
-            for (int i = 0; i < sizeof(uint64_t); ++i)
-            {
-                uint8_t digit = value % num;                // 17 % 6 = 5
-                uint16_t addition = number[i] + digit;      // 5 + 5 = 10 (6 + 4)
-                number[i] = addition % num;                 // n[i] = 4
-
-                value /= num;                               // 17 / 6 = 2
-
-                uint8_t carry = addition >= num;            // 10 > 6
-                value += carry;                             // 2 + 1 = 3
-            }
-        }
-
-        // return index of value (cannot fail - if value not in a LUT - always return 0 index)
-        __host__ __device__ inline uint8_t lookup(uint8_t value) const {
-            return lut[value];
-        }
-
-        // lookup foreach byte
-        __host__ __device__ inline uint64_t lookup(uint64_t value) const
-        {
-            uint64_t result = 0;
-            uint8_t* pResult = (uint8_t*)&result;
-            uint8_t* pValue = (uint8_t*)&value;
-#ifdef __CUDA_ARCH__
-            #pragma unroll
-#endif
-            for (uint8_t i = 0; i < sizeof(uint64_t); ++i)
-            {
-                // Valid or 0 (first letter in alphabet)
-                pResult[i] = lookup(pValue[i]);
-            }
-            return result;
-        }
-
-        // return value by index
-        __host__ __device__ inline uint8_t operator[](uint8_t index) {
-            return alp[index];
-        }
-
-        __host__ __device__ inline size_t invariants() const {
-            return (size_t)pow(num, sizeof(uint64_t));
-        }
-
-        __host__ __device__ inline uint64_t value(uint64_t index) const {
-            uint8_t* pIndex = (uint8_t*)&index;
-            uint8_t result[8] = {
-                alp[pIndex[0]],
-                alp[pIndex[1]],
-                alp[pIndex[2]],
-                alp[pIndex[3]],
-                alp[pIndex[4]],
-                alp[pIndex[5]],
-                alp[pIndex[6]],
-                alp[pIndex[7]],
-                };
-            return *(uint64_t*)result;
-        }
-
-        __host__ std::string toString() const;
-
-    private:
-        static const uint16_t Size = 0xFF + 1; // 256
-
-        // The alphabet itself (256 bytes max)
-        uint8_t alp[Size] = {0};
-
-        // The alphabet lookup table
-        uint8_t lut[Size] = {0};
-
-    };
-
     // HOST SET. ONCE. Which generator to use.
     BruteforceType::Type type;
 
@@ -139,7 +43,7 @@ struct BruteforceConfig
     BruteforceFilters filters;
 
     // HOST SET. ONCE. for alphabet type.
-    Alphabet alphabet;
+    BruteforceAlphabet alphabet;
 
     // GPU SET. UPDATING. Last generated decryptor (will be initial for next block run)
     Decryptor next;
@@ -163,7 +67,7 @@ struct BruteforceConfig
         return result;
     }
 
-    static BruteforceConfig GetAlphabet(Decryptor first, const Alphabet& alphabet, size_t num = (size_t)-1)
+    static BruteforceConfig GetAlphabet(Decryptor first, const BruteforceAlphabet& alphabet, size_t num = (size_t)-1)
     {
         // max operation take to check all keys with alphabet of size
         num = std::min(alphabet.invariants(), num);

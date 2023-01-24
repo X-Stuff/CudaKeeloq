@@ -27,51 +27,6 @@ __global__ void CUDA_keeloq_generate_brute(KernelInput::TCudaPtr input, KernelRe
 	}
 }
 
-__global__ void CUDA_keeloq_generate_alphabet(KernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls)
-{
-	CUDACtx ctx = GET_CUDA_CONTEXT();
-
-	assert(input->generator.type == BruteforceType::Alphabet);
-
-	BruteforceConfig::Alphabet& alphabet = input->generator.alphabet;
-	assert(alphabet.num > 0);
-
-	Decryptor& start = input->generator.start;
-
-	CUDA_Array<Decryptor>& decryptors = *input->decryptors;
-
-	// Imagine alphabet as rotating rings with letters on it
-	// we have 8-bytes key so there will be 8 rings
-	// indexes are per-byte and shows how much ring is rotated
-	// and what 'letter' it should have.
-	// Or also it can be cosidered as 8-digit N-based number
-	uint64_t start_indexer = alphabet.lookup(start.man);
-
-	// decomposed uint64 indexer for inner loop
-	uint8_t curr_indexer[8];
-
-	CUDA_FOR_THREAD_ID(ctx, decryptor_index, decryptors.num)
-	{
-		// Set curr indexer to initial value first
-
-		*(uint64_t*)curr_indexer = start_indexer;
-
-		// Get new indexer value (rotate rings) depending on what decryptor we now producing (basically add 10-base number to N-base number)
-		alphabet.add(curr_indexer, decryptor_index);
-
-		Decryptor& current = decryptors[decryptor_index];
-		uint8_t* pCurrentKey = (uint8_t*)& current.man;
-
-		// produce key by indexes from curr_indexer
-		#pragma unroll
-		for (uint8_t i = 0; i < sizeof(uint64_t); ++i)
-		{
-			pCurrentKey[i] = alphabet[curr_indexer[i]];
-		}
-	}
-
-}
-
 
 int CUDA_generator_wrapper(KernelInput& mainInputs, uint16_t ThreadBlocks, uint16_t ThreadsInBlock)
 {
@@ -84,10 +39,10 @@ int CUDA_generator_wrapper(KernelInput& mainInputs, uint16_t ThreadBlocks, uint1
 		break;
 	case BruteforceType::Filtered:
 		mainInputs.generator.next = mainInputs.generator.start;
-		Call_CUDA_keeloq_generate_filtered(ThreadBlocks, ThreadsInBlock, mainInputs.ptr(), generator_results.ptr());
+		Generators::Kernel_GenerateDecryptorsFiltered(ThreadBlocks, ThreadsInBlock, mainInputs.ptr(), generator_results.ptr());
 		break;
 	case BruteforceType::Alphabet:
-		CUDA_keeloq_generate_alphabet<<<ThreadBlocks, ThreadsInBlock>>>(mainInputs.ptr(), generator_results.ptr());
+		Generators::Kernel_GenerateDecryptorsAlphabet(ThreadBlocks, ThreadsInBlock, mainInputs.ptr(), generator_results.ptr());
 		break;
 	case BruteforceType::Pattern:
 		assert(false && "Not implemented");
@@ -165,7 +120,7 @@ inline int CUDA_test_generator_filters()
 
 	// GPU tests
 	DOUBLE_ARRAY<BruteforceFilters::Test::Inputs> test_inputs(test_cases, NumTests);
-	Call_Kernel_RunFiltersTests(test_inputs.CUDA_mem, NumTests);
+	Tests::Kernel_RunBruteforceFiltersTests(test_inputs.CUDA_mem, NumTests);
 	test_inputs.read_GPU(); // for asserts
 
 	for (int i = 0; i < NumTests; ++i)
@@ -223,7 +178,7 @@ inline int CUDA_test_generator_alphabet()
 	KernelInput generatorInputs(nullptr, CUDA_Array<Decryptor>::allocate(decryptors), nullptr, testConfig);
 	KernelResult result;
 
-	CUDA_keeloq_generate_alphabet<<<NumBlocks,NumThreads>>>(generatorInputs.ptr(), result.ptr());
+	Generators::Kernel_GenerateDecryptorsAlphabet(NumBlocks, NumThreads, generatorInputs.ptr(), result.ptr());
 
 	generatorInputs.read();
 	generatorInputs.decryptors->copy(decryptors);

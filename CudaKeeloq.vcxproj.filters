@@ -14,6 +14,9 @@
     <CudaCompile Include="host\types\bruteforce_filters.cu">
       <Filter>kernels</Filter>
     </CudaCompile>
+    <CudaCompile Include="host\types\bruteforce_alphabet.cu">
+      <Filter>kernels</Filter>
+    </CudaCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="keeloq_generators.cuh">
@@ -61,6 +64,9 @@
     <ClInclude Include="host\types\keeloq_decryptor.h">
       <Filter>host\types</Filter>
     </ClInclude>
+    <ClInclude Include="host\types\bruteforce_alphabet.h">
+      <Filter>host\types</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="keeloq">
@@ -96,6 +102,9 @@
       <Filter>host\types</Filter>
     </ClCompile>
     <ClCompile Include="host\types\bruteforce_type.cpp">
+      <Filter>host\types</Filter>
+    </ClCompile>
+    <ClCompile Include="host\types\bruteforce_alphabet.cpp">
       <Filter>host\types</Filter>
     </ClCompile>
   </ItemGroup>

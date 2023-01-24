@@ -5,8 +5,6 @@
 #include <algorithm>
 
 
-
-
 std::string BruteforceConfig::toString() const
 {
     char tmp[384];
@@ -42,32 +40,3 @@ std::string BruteforceConfig::toString() const
     return std::string(tmp);
 }
 
-
-BruteforceConfig::Alphabet::Alphabet(const std::vector<uint8_t>& alphabet)
-{
-    num = 0;
-
-    for (int i = 0; i < alphabet.size(); ++i)
-    {
-        uint8_t byte = alphabet[i];
-        if (!lut[byte])
-        {
-            lut[byte] = num;
-            alp[num] = byte;
-            ++num;
-        }
-    }
-
-    assert(num < Alphabet::Size && "Using all bytes values as alphabet is not efficient");
-}
-
-__host__ std::string BruteforceConfig::Alphabet::toString() const
-{
-    char tmp[255 * 3] = {0}; // one byte is 'XX:' last is XX\0
-    int write_index = 0;
-    for (int i = 0; i < num; ++i)
-    {
-        write_index += sprintf(&tmp[write_index], i == 0 ? "%X" : ":%X", alp[i]);
-    }
-    return std::string(tmp);
-}
