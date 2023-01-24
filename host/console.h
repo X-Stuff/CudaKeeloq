@@ -1,5 +1,7 @@
 #pragma once
 
+#include "common.h"
+
 #include <stdio.h>
 #include <conio.h>
 
@@ -158,13 +160,13 @@ inline void parse_bruteforce_filtered_mode(CommandLineArgs& target, cxxopts::Par
     auto start_key = result[ARG_START].as<uint64_t>();
     auto count_key = result[ARG_COUNT].as<size_t>();
 
-    auto include_filter = result[ARG_IFILTER].as<uint64_t>();
-    auto exclude_filter = result[ARG_EFILTER].as<uint64_t>();
+    auto include_filter = result[ARG_IFILTER].as<BruteforceFilters::Flags::Type>();
+    auto exclude_filter = result[ARG_EFILTER].as<BruteforceFilters::Flags::Type>();
 
-    BruteforceConfig::Filters filters
+    BruteforceFilters filters
     {
-        (SmartFilterFlags)include_filter,
-        (SmartFilterFlags)exclude_filter,
+        include_filter,
+        exclude_filter,
     };
 
     target.brute_configs.push_back(BruteforceConfig::GetBruteforce(start_key, count_key, filters));

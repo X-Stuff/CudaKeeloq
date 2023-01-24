@@ -1,5 +1,7 @@
 #pragma once
 
+#include "common.h"
+
 #include <string>
 #include <algorithm>
 #include <tuple>
@@ -7,57 +9,22 @@
 #include "host/types/keeloq_learning_types.h"
 #include "host/types/keeloq_single_result.h"
 
+#include "host/types/bruteforce_filters.h"
+
 #include "CUDA_helpers.cuh"
+
+USE_NS_LOCATION
+
 
 // forward declarations
 enum class SmartFilterFlags : uint64_t;
 
 extern const char* GeneratorTypeName[];
 extern const size_t GeneratorTypeNamesCount;
-extern const std::vector<std::tuple<SmartFilterFlags, const char*>> FilterNames;
 
 
 // Input encoded data (received over the air) - 16bytes
 typedef uint64_t EncData;
-
-enum class SmartFilterFlags : uint64_t
-{
-    //
-    None = 0,
-
-    // filter fuction return true if key has more than 6 consecutive 0 bits
-    Max6ZerosInARow         = (1 << 0),
-
-    // filter fuction return true if key has more than 6 consecutive 1 bits
-    Max6OnesInARow          = (1 << 1),
-
-
-    // filter fuction return true if key has patterns like 11:22:33:44.. or FF:EE:DD:CC
-    // 6 bytes by default
-    BytesIncremental    = (1 << 5),
-
-    // filter fuction return true if key has repeating patterns like xx11:11:11:11xx or xxAA:AA:AA:AAxx
-    BytesRepeat4        = (1 << 6),
-
-    // filter fuction return true if key consist from only ascii numbers
-    AsciiNumbers        = (1 << 11),
-
-    // filter fuction return true if key consist from only letters 'a'-'z' 'A'-'Z'
-    AsciiAlpha          = (1 << 12),
-
-    // filter fuction return true if key consist from ascii letters and numbers
-    AsciiAlphaNum       = AsciiAlpha | AsciiNumbers,
-
-    // filter fuction return true if key consist from only ASCII special symbols like '^%#&*
-    AsciiSpecial        = (1 << 13),
-
-    // filter fuction return true if key consist from only ASCII typed characters
-    AsciiAny      = AsciiAlphaNum | AsciiSpecial,
-
-    //
-    All = (uint64_t)-1,
-};
-
 
 // is test manufacture code with seed (default is 0)
 struct Decryptor
@@ -198,23 +165,6 @@ struct BruteforceConfig
 
     };
 
-    struct Filters
-    {
-        // Filter for keys to include.
-        // WARNING:
-        //  Could be executed INFINITELY LONG TIME
-        //  e.g. start: 0x00000000001 filter SmartFilterFlags::AsciiAny
-        //  it will took around trillions and trillions operations just to get to the first valid with simple +1
-        //  In case of specific input - use dictionary, pattern or alphabet
-        SmartFilterFlags include = SmartFilterFlags::All;
-
-        // Filter for keys to exclude
-        SmartFilterFlags exclude = SmartFilterFlags::None;
-
-        std::string toString(SmartFilterFlags flags) const;
-
-        std::string toString() const;
-    };
 
     // HOST SET. ONCE. Which generator to use.
     Type type;
@@ -230,7 +180,7 @@ struct BruteforceConfig
     std::vector<Decryptor> decryptors;
 
     // HOST SET. ONCE. for filtered type.
-    Filters filters;
+    BruteforceFilters filters;
 
     // HOST SET. ONCE. for alphabet type.
     Alphabet alphabet;
@@ -250,7 +200,7 @@ struct BruteforceConfig
 
     static BruteforceConfig GetBruteforce(Decryptor first, size_t size) { return BruteforceConfig(first, Type::Simple, size); }
 
-    static BruteforceConfig GetBruteforce(Decryptor first, size_t size, const Filters& filters)
+    static BruteforceConfig GetBruteforce(Decryptor first, size_t size, const BruteforceFilters& filters)
     {
         BruteforceConfig result(first, Type::Filtered, size);
         result.filters = filters;

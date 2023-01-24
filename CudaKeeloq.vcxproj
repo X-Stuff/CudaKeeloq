@@ -67,6 +67,10 @@
       <AdditionalCompilerOptions>
       </AdditionalCompilerOptions>
       <FastMath>true</FastMath>
+      <GenerateRelocatableDeviceCode>false</GenerateRelocatableDeviceCode>
+      <ExtensibleWholeProgramCompilation>true</ExtensibleWholeProgramCompilation>
+      <NvccCompilation>compile</NvccCompilation>
+      <Keep>true</Keep>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -95,16 +99,19 @@
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <CudaCompile Include="host\types\bruteforce_filters.cu" />
     <CudaCompile Include="keeloq_main.cu" />
     <CudaCompile Include="keeloq_generators.cu" />
     <CudaCompile Include="keeloq_types.cu" />
     <CudaCompile Include="kernel.cu" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="common.h" />
     <ClInclude Include="CUDA_check.cuh" />
     <ClInclude Include="CUDA_helpers.cuh" />
     <ClInclude Include="host\console.h" />
     <ClInclude Include="host\types\bruteforce_config.h" />
+    <ClInclude Include="host\types\bruteforce_filters.h" />
     <ClInclude Include="host\types\command_line_args.h" />
     <ClInclude Include="host\types\keeloq_learning_types.h" />
     <ClInclude Include="host\types\keeloq_single_result.h" />
@@ -112,9 +119,12 @@
     <ClInclude Include="keeloq_generators.cuh" />
     <ClInclude Include="keeloq_types.cuh" />
     <ClInclude Include="kernel.cuh" />
+    <ClInclude Include="kernels.cuh" />
+    <ClInclude Include="unroll.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="host\types\bruteforce_config.cpp" />
+    <ClCompile Include="host\types\bruteforce_filters.cpp" />
     <ClCompile Include="host\types\command_line_args.cpp" />
     <ClCompile Include="host\types\keeloq_learning_types.cpp" />
     <ClCompile Include="host\types\keeloq_single_result.cpp" />

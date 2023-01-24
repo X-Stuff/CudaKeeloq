@@ -1,5 +1,7 @@
 #pragma once
 
+#include "common.h"
+
 #include <stdint.h>
 
 #include "host/types/keeloq_learning_types.h"

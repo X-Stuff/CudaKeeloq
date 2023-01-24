@@ -11,6 +11,9 @@
     <CudaCompile Include="keeloq_types.cu">
       <Filter>keeloq</Filter>
     </CudaCompile>
+    <CudaCompile Include="host\types\bruteforce_filters.cu">
+      <Filter>kernels</Filter>
+    </CudaCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="keeloq_generators.cuh">
@@ -44,6 +47,14 @@
     <ClInclude Include="host\types\bruteforce_config.h">
       <Filter>host\types</Filter>
     </ClInclude>
+    <ClInclude Include="host\types\bruteforce_filters.h">
+      <Filter>host\types</Filter>
+    </ClInclude>
+    <ClInclude Include="unroll.h" />
+    <ClInclude Include="kernels.cuh">
+      <Filter>kernels</Filter>
+    </ClInclude>
+    <ClInclude Include="common.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="keeloq">
@@ -58,6 +69,9 @@
     <Filter Include="host\types">
       <UniqueIdentifier>{cefd7d3d-1125-4b3d-8dfa-93e4b168010a}</UniqueIdentifier>
     </Filter>
+    <Filter Include="kernels">
+      <UniqueIdentifier>{fbe89dea-8a15-45d3-9cfb-db5aef48167a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="host\types\keeloq_learning_types.cpp">
@@ -70,6 +84,9 @@
       <Filter>host\types</Filter>
     </ClCompile>
     <ClCompile Include="host\types\bruteforce_config.cpp">
+      <Filter>host\types</Filter>
+    </ClCompile>
+    <ClCompile Include="host\types\bruteforce_filters.cpp">
       <Filter>host\types</Filter>
     </ClCompile>
   </ItemGroup>

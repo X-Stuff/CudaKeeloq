@@ -1,3 +1,5 @@
+#define CU_FILE
+
 #include "keeloq_types.cuh"
 
 #include <algorithm>
@@ -12,21 +14,6 @@ extern const char* GeneratorTypeName[] = {
 
 extern const size_t GeneratorTypeNamesCount = sizeof(GeneratorTypeName) / sizeof(char*);
 
-static const std::vector<std::tuple<SmartFilterFlags, const char*>> FilterNames = {
-
-    { SmartFilterFlags::None,               "None" },
-    { SmartFilterFlags::All,                "All" },
-
-    { SmartFilterFlags::Max6ZerosInARow,    "6 zero bit in a row" },
-    { SmartFilterFlags::Max6OnesInARow,     "6 one bit in a row" },
-
-    { SmartFilterFlags::BytesIncremental,   "Incremental bytes pattern" },
-    { SmartFilterFlags::BytesRepeat4,       "4 same byte in a row" },
-
-    { SmartFilterFlags::AsciiNumbers,       "ASCII numbers" },
-    { SmartFilterFlags::AsciiAlpha,         "ASCII letters" },
-    { SmartFilterFlags::AsciiSpecial,       "ASCII special characters" },
-};
 
 
 std::string BruteforceConfig::toString() const
@@ -64,34 +51,6 @@ std::string BruteforceConfig::toString() const
     return std::string(tmp);
 }
 
-std::string BruteforceConfig::Filters::toString(SmartFilterFlags flags) const
-{
-    if (flags == SmartFilterFlags::None) { return "None"; }
-    if (flags == SmartFilterFlags::All) { return "All"; }
-    std::string result;
-    for (const auto& pair : FilterNames)
-    {
-        auto check = (uint64_t)std::get<0>(pair);
-        if (check != 0 && (check & (uint64_t)flags) == check)
-        {
-            result += std::get<1>(pair);
-            result += " | ";
-        }
-    }
-    if (result.size() > 0)
-    {
-        result.erase(result.end() - 3, result.end());
-    }
-    return result;
-}
-
-std::string BruteforceConfig::Filters::toString() const
-{
-    std::string include_str = toString(include);
-    std::string exclude_str = toString(exclude);
-
-    return "Include filter: " + include_str + "\t Exclude filter: " + exclude_str;
-}
 
 BruteforceConfig::Alphabet::Alphabet(const std::vector<uint8_t>& alphabet)
 {
