@@ -3,13 +3,13 @@
 #include "stdio.h"
 
 #include "host/console.h"
-#include "kernels/bridge.h"
+
+#include "algorithm/keeloq/keeloq_kernel.h"
 
 #include "bruteforce/bruteforce_round.h"
 #include "bruteforce/generators/generator_bruteforce.h"
 
-#include "tests/test_filters.h"
-#include "tests/test_alphabet.h"
+#include "tests/test_all.h"
 
 
 void bruteforce(const CommandLineArgs& args)
@@ -58,7 +58,7 @@ void bruteforce(const CommandLineArgs& args)
 			assert(error == 0);
 
 			// do the bruteforce
-			auto kernelResults = Bridge::Kernel_KeeloqBruteMain(kernelInput, attackRound.CudaBlocks(), attackRound.CudaThreads());
+			auto kernelResults = LaunchKeeloqBruteMain(kernelInput, attackRound.CudaBlocks(), attackRound.CudaThreads());
 			match = attackRound.CheckResults(kernelResults);
 
 			auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -103,7 +103,7 @@ void bruteforce(const CommandLineArgs& args)
 
 int main(int argc, const char** argv)
 {
-	assert(Bridge::Kernel_CheckBridgeIsWorking());
+	assert(Tests::CheckCudaIsWorking());
 
 	const char* commandline[] = {
 		"tests",
@@ -147,8 +147,8 @@ int main(int argc, const char** argv)
 
 		printf("\n...TESTS FINISHED...\n");
 
-		console_clear();
 		//return;
+		console_clear();
 	}
 
 	if (!args.isValid())
@@ -156,22 +156,11 @@ int main(int argc, const char** argv)
 		return 1;
 	}
 
-	if (!Bridge::Kernel_CheckKeeloqIsWorking())
+	if (!CUDA_check_keeloq_works())
 	{
 		printf("Error: This device cannot compute keeloq right. Single encryption and decryption mismatch.");
 		assert(false);
 		return 1;
-	}
-
-	// Could be used for device check and input validation
-	cudaDeviceProp prop;
-	cudaGetDeviceProperties(&prop, 0);
-
-	// Just for test
-	if (args.brute_configs[0].type == BruteforceType::Alphabet)
-	{
-		args.brute_configs[0].start.man = 0;
-		args.brute_configs[0].next.man = 0;
 	}
 
 	bruteforce(args);

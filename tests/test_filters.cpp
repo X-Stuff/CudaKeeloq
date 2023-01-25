@@ -2,7 +2,6 @@
 
 #include <cuda_runtime_api.h>
 
-#include "kernels/bridge.h"
 #include "device/cuda_double_array.h"
 
 #include "bruteforce/bruteforce_filters.h"
@@ -63,7 +62,7 @@ namespace Tests
 
 		// GPU tests
 		DoubleArray<BruteforceFiltersTestInputs> test_inputs(test_cases, NumTests);
-		Kernel_LaunchFiltersTests(test_inputs.CUDA_mem, NumTests);
+		LaunchFiltersTests(test_inputs.CUDA_mem, NumTests);
 		test_inputs.read_GPU(); // for asserts
 
 		for (int i = 0; i < NumTests; ++i)

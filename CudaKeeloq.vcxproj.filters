@@ -8,12 +8,6 @@
     <ClInclude Include="tests\test_alphabet.h">
       <Filter>tests</Filter>
     </ClInclude>
-    <ClInclude Include="kernels\bridge.h">
-      <Filter>kernels</Filter>
-    </ClInclude>
-    <ClInclude Include="kernels\keeloq_main.cuh">
-      <Filter>kernels</Filter>
-    </ClInclude>
     <ClInclude Include="host\command_line_args.h">
       <Filter>host</Filter>
     </ClInclude>
@@ -67,6 +61,12 @@
     </ClInclude>
     <ClInclude Include="kernels\kernel_result.h">
       <Filter>kernels</Filter>
+    </ClInclude>
+    <ClInclude Include="algorithm\keeloq\keeloq_kernel.h">
+      <Filter>algorithm\keeloq</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\test_all.h">
+      <Filter>tests</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -138,17 +138,14 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <CudaCompile Include="kernels\bridge.cu">
-      <Filter>kernels</Filter>
-    </CudaCompile>
-    <CudaCompile Include="kernels\keeloq_main.cu">
-      <Filter>kernels</Filter>
-    </CudaCompile>
     <CudaCompile Include="bruteforce\generators\generator_kernel.cu">
       <Filter>bruteforce\generators</Filter>
     </CudaCompile>
     <CudaCompile Include="tests\test_kernel.cu">
       <Filter>tests</Filter>
+    </CudaCompile>
+    <CudaCompile Include="algorithm\keeloq\keeloq_kernel.cu">
+      <Filter>algorithm\keeloq</Filter>
     </CudaCompile>
   </ItemGroup>
   <ItemGroup>
@@ -160,6 +157,9 @@
     </None>
     <None Include="bruteforce\generators\generator_bruteforce_filtered_kernel.inl">
       <Filter>bruteforce\generators</Filter>
+    </None>
+    <None Include="algorithm\keeloq\keeloq_kernel.inl">
+      <Filter>algorithm\keeloq</Filter>
     </None>
   </ItemGroup>
 </Project>

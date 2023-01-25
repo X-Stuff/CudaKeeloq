@@ -1,7 +1,15 @@
 #pragma once
 
+#include "common.h"
+
 #include <type_traits>
-#include <stdint.h>
+#include <cuda_runtime_api.h>
+
+
+// Array of learning booleans
+// If value at index which equals KeeloqLearningType::Type is true
+// that means this learning type is enabled
+using KeeloqLearningMask = uint8_t[];
 
 /**
  * reference: https://github.com/DarkFlippers/unleashed-firmware/blob/dev/lib/subghz/protocols/keeloq_common.h
@@ -41,6 +49,8 @@ struct KeeloqLearningType
 		INVALID = 0xff,
 	};
 
+public:
+
 	static constexpr const char* ValueString(Type type)
 	{
 
@@ -61,6 +71,19 @@ struct KeeloqLearningType
 		}
 
 		return LearningNames[type];
+	}
+
+	// Checks if
+	template<Type type>
+	__device__ __host__ static inline bool OneEnabled(const KeeloqLearningMask mask)
+	{
+		static_assert(type <= KeeloqLearningType::LAST, "Invalid learning type provided! It Should be less or equal to LAST. LAST means all");
+		return mask[type];
+	}
+
+	__device__ __host__ static inline bool AllEnabled(const KeeloqLearningMask mask)
+	{
+		return OneEnabled<KeeloqLearningType::LAST>(mask);
 	}
 
 private:

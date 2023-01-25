@@ -16,6 +16,6 @@ struct BruteforceFiltersTestInputs
 namespace Tests
 {
 	bool FiltersGeneration();
-}
 
-extern "C" void Kernel_LaunchFiltersTests(BruteforceFiltersTestInputs * tests, uint8_t num);
+	__host__ void LaunchFiltersTests(BruteforceFiltersTestInputs* tests, uint8_t num);
+}

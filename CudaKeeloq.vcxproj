@@ -100,6 +100,7 @@
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="algorithm\keeloq\keeloq_kernel.h" />
     <ClInclude Include="algorithm\keeloq\keeloq_decryptor.h" />
     <ClInclude Include="algorithm\keeloq\keeloq_encrypted.h" />
     <ClInclude Include="algorithm\keeloq\keeloq_kernel_input.h" />
@@ -118,9 +119,8 @@
     <ClInclude Include="device\cuda_object.h" />
     <ClInclude Include="host\command_line_args.h" />
     <ClInclude Include="host\console.h" />
-    <ClInclude Include="kernels\bridge.h" />
-    <ClInclude Include="kernels\keeloq_main.cuh" />
     <ClInclude Include="kernels\kernel_result.h" />
+    <ClInclude Include="tests\test_all.h" />
     <ClInclude Include="tests\test_alphabet.h" />
     <ClInclude Include="tests\test_filters.h" />
   </ItemGroup>
@@ -141,12 +141,12 @@
     <ClCompile Include="tests\test_filters.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <CudaCompile Include="algorithm\keeloq\keeloq_kernel.cu" />
     <CudaCompile Include="bruteforce\generators\generator_kernel.cu" />
-    <CudaCompile Include="kernels\bridge.cu" />
-    <CudaCompile Include="kernels\keeloq_main.cu" />
     <CudaCompile Include="tests\test_kernel.cu" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="algorithm\keeloq\keeloq_kernel.inl" />
     <None Include="bruteforce\generators\generator_bruteforce_alphabet_kernel.inl" />
     <None Include="bruteforce\generators\generator_bruteforce_filtered_kernel.inl" />
     <None Include="bruteforce\generators\generator_bruteforce_simple_kernel.inl" />
