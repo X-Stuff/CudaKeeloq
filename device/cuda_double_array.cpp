@@ -1,0 +1,1 @@
+#include "cuda_double_array.h"

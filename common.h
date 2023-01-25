@@ -2,19 +2,15 @@
 
 #include "stdint.h"
 
-#if __CUDA_ARCH__
-	#define LOCATION
+#if defined(__CUDA_ARCH__) || defined(CU_FILE)
+	#define LOCATION	 /* C++ compiler via NVCC - should be global NS also */
 #else
-	#ifdef CU_FILE
-		#define LOCATION			// C++ compiler via NVCC - should be global NS also
-	#else
-		#define LOCATION CPU		// C++ compiler
-	#endif
+	#define LOCATION CPU /* C++ compiler */
 #endif
 
 
-#ifdef CU_FILE
-	/* .cu files should be all in global ns */
+#if defined(__CUDA_ARCH__) || defined(CU_FILE)
+	/* .cu files should be all in global namespace */
 
 	#define NS_LOCATION_BEGIN
 	#define NS_LOCATION_END
@@ -28,3 +24,27 @@
 	#define NS_LOCATION_BEGIN NS_LOCATION {
 	#define NS_LOCATION_END }
 #endif
+
+
+#include <assert.h>
+
+#define CUDA_CHECK(error) \
+    if (error != 0) { printf("\nASSERTION FAILED. CUDA ERROR!\n%s: %s\n", cudaGetErrorName((cudaError_t)error), cudaGetErrorString((cudaError_t)error)); }\
+    assert(error == 0)
+
+
+#define GENERATOR_KERNEL_NAME(name) \
+	Kernel_##name
+
+#define GENERATOR_KERNEL_GETTER_NAME(name) \
+	GetKernel_##name
+
+#define DECLARE_GENERATOR_KERNEL(name, ...) \
+	__global__ void GENERATOR_KERNEL_NAME(name)(__VA_ARGS__); \
+	extern "C" void* GENERATOR_KERNEL_GETTER_NAME(name)() { return &Kernel_##name; }
+
+#define DEFINE_GENERATOR_KERNEL(name, ...) \
+	GENERATOR_KERNEL_NAME(name)(__VA_ARGS__)
+
+#define GET_GENERATOR_KERNEL(name, type) \
+	(type)GENERATOR_KERNEL_GETTER_NAME(name)()

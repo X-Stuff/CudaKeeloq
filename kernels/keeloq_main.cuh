@@ -2,8 +2,13 @@
 
 #include "stdint.h"
 
-#include "keeloq_types.cuh"
-#include "CUDA_helpers.cuh"
+#include "device/kernel_input.h"
+#include "device/kernel_result.h"
+#include "device/cuda_context.h"
+
+#include <cuda_runtime_api.h>
+
+USE_NS_LOCATION
 
 #if _DEBUG
     #define STRICT_ANALYSIS 1
@@ -66,13 +71,13 @@ __device__ __host__ SingleResult::DecryptedArray keeloq_decrypt(uint64_t ota, ui
 
 
 // run decryption parallel per thread and find matches
-__device__ uint8_t keeloq_decryption_run(const CUDACtx& ctx, KernelInput& results);
+__device__ uint8_t keeloq_decryption_run(const CudaContext& ctx, KernelInput& results);
 
 // run from result[0] to result[num] tries to detect if there is a match (man key valid)
-__device__ uint8_t keeloq_find_matches(const CUDACtx& ctx, SingleResult* results, uint32_t num, const KeeloqLearningType::Type type_mask[]);
+__device__ uint8_t keeloq_find_matches(const CudaContext& ctx, SingleResult* results, uint32_t num, const KeeloqLearningType::Type type_mask[]);
 
 // aggregate matches into count
-__device__ uint8_t keeloq_analyze_results(const CUDACtx& ctx, const CUDA_Array<SingleResult>& results, uint32_t num_decryptors, uint32_t num_inputs);
+__device__ uint8_t keeloq_analyze_results(const CudaContext& ctx, const CudaArray<SingleResult>& results, uint32_t num_decryptors, uint32_t num_inputs);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 __global__ void CUDA_keeloq_test(KernelResult::TCudaPtr ret);

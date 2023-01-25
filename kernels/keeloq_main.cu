@@ -372,7 +372,7 @@ __device__ uint8_t analyze_results_btn(SingleResult* results, uint32_t num, Keel
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-__device__ uint8_t keeloq_find_matches(const CUDACtx& ctx, SingleResult* results, uint32_t num, const KeeloqLearningType::Type type_mask[])
+__device__ uint8_t keeloq_find_matches(const CudaContext& ctx, SingleResult* results, uint32_t num, const KeeloqLearningType::Type type_mask[])
 {
     uint8_t result_error = 0;
 
@@ -404,7 +404,7 @@ __device__ uint8_t keeloq_find_matches(const CUDACtx& ctx, SingleResult* results
     return result_error;
 }
 
-__device__ uint8_t keeloq_analyze_results(const CUDACtx& ctx, const CUDA_Array<SingleResult>& all_results, uint32_t num_decryptors, uint32_t num_inputs)
+__device__ uint8_t keeloq_analyze_results(const CudaContext& ctx, const CudaArray<SingleResult>& all_results, uint32_t num_decryptors, uint32_t num_inputs)
 {
     uint8_t num_matches = 0;
 
@@ -423,7 +423,7 @@ __device__ uint8_t keeloq_analyze_results(const CUDACtx& ctx, const CUDA_Array<S
     return num_matches;
 }
 
-__device__ uint8_t keeloq_decryption_run(const CUDACtx& ctx, KernelInput& input)
+__device__ uint8_t keeloq_decryption_run(const CudaContext& ctx, KernelInput& input)
 {
     auto& encrypted = *input.encdata;
     auto& decryptors = *input.decryptors;
@@ -480,7 +480,7 @@ __device__ __host__ SingleResult::DecryptedArray keeloq_decrypt(uint64_t ota, ui
 
 __global__ void CUDA_keeloq_test(KernelResult::TCudaPtr ret)
 {
-    CUDACtx ctx = GET_CUDA_CONTEXT();
+    CudaContext ctx = CudaContext::Get();
 
     if (ctx.thread_id == 0) {
 
@@ -500,7 +500,7 @@ __global__ void CUDA_keeloq_test(KernelResult::TCudaPtr ret)
 
 __global__ void CUDA_keeloq_main(KernelInput::TCudaPtr CUDA_inputs, KernelResult::TCudaPtr ret)
 {
-    CUDACtx ctx = GET_CUDA_CONTEXT();
+    CudaContext ctx = CudaContext::Get();
 
     auto& encoded_data = *CUDA_inputs->encdata;
     auto& decryptors = *CUDA_inputs->decryptors;

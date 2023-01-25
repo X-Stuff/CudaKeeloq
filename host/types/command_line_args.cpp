@@ -2,9 +2,6 @@
 
 #include <cuda_runtime_api.h>
 
-#pragma message ( "REMOVE ME" )
-#include "keeloq_types.cuh"
-
 
 bool CommandLineArgs::isValid()
 {

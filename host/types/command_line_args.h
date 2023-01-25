@@ -1,11 +1,15 @@
 #pragma once
 
+#include "common.h"
+
 #include <vector>
 
 #include "host/types/keeloq_learning_types.h"
+#include "host/types/bruteforce_config.h"
+
+USE_NS_LOCATION
 
 // Forward declarations
-struct BruteforceConfig;
 typedef uint64_t EncData;
 
 struct CommandLineArgs

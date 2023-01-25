@@ -1,40 +1,18 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <CudaCompile Include="kernel.cu" />
-    <CudaCompile Include="keeloq_generators.cu">
-      <Filter>keeloq</Filter>
-    </CudaCompile>
-    <CudaCompile Include="keeloq_main.cu">
-      <Filter>keeloq</Filter>
-    </CudaCompile>
-    <CudaCompile Include="keeloq_types.cu">
-      <Filter>keeloq</Filter>
-    </CudaCompile>
-    <CudaCompile Include="host\types\bruteforce_filters.cu">
+    <CudaCompile Include="kernels\bridge.cu">
       <Filter>kernels</Filter>
     </CudaCompile>
-    <CudaCompile Include="host\types\bruteforce_alphabet.cu">
+    <CudaCompile Include="kernels\keeloq_main.cu">
+      <Filter>kernels</Filter>
+    </CudaCompile>
+    <CudaCompile Include="kernels\generators.cu">
       <Filter>kernels</Filter>
     </CudaCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="keeloq_generators.cuh">
-      <Filter>keeloq</Filter>
-    </ClInclude>
-    <ClInclude Include="keeloq_main.cuh">
-      <Filter>keeloq</Filter>
-    </ClInclude>
-    <ClInclude Include="CUDA_check.cuh">
-      <Filter>CUDA</Filter>
-    </ClInclude>
-    <ClInclude Include="CUDA_helpers.cuh">
-      <Filter>CUDA</Filter>
-    </ClInclude>
     <ClInclude Include="kernel.cuh" />
-    <ClInclude Include="keeloq_types.cuh">
-      <Filter>keeloq</Filter>
-    </ClInclude>
     <ClInclude Include="host\console.h">
       <Filter>host</Filter>
     </ClInclude>
@@ -54,9 +32,6 @@
       <Filter>host\types</Filter>
     </ClInclude>
     <ClInclude Include="unroll.h" />
-    <ClInclude Include="kernels.cuh">
-      <Filter>kernels</Filter>
-    </ClInclude>
     <ClInclude Include="common.h" />
     <ClInclude Include="host\types\bruteforce_type.h">
       <Filter>host\types</Filter>
@@ -67,22 +42,73 @@
     <ClInclude Include="host\types\bruteforce_alphabet.h">
       <Filter>host\types</Filter>
     </ClInclude>
+    <ClInclude Include="host\types\bruteforce_round.h">
+      <Filter>host\types</Filter>
+    </ClInclude>
+    <ClInclude Include="host\types\keeloq_encrypted.h">
+      <Filter>host\types</Filter>
+    </ClInclude>
+    <ClInclude Include="device\cuda_array.h">
+      <Filter>device</Filter>
+    </ClInclude>
+    <ClInclude Include="device\kernel_input.h">
+      <Filter>device</Filter>
+    </ClInclude>
+    <ClInclude Include="device\cuda_object.h">
+      <Filter>device</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\test_alphabet.h">
+      <Filter>tests</Filter>
+    </ClInclude>
+    <ClInclude Include="device\kernel_result.h">
+      <Filter>device</Filter>
+    </ClInclude>
+    <ClInclude Include="device\generators\generator_bruteforce_simple.h">
+      <Filter>device\generators</Filter>
+    </ClInclude>
+    <ClInclude Include="device\generators\generator_bruteforce.h">
+      <Filter>device\generators</Filter>
+    </ClInclude>
+    <ClInclude Include="device\cuda_context.h">
+      <Filter>device</Filter>
+    </ClInclude>
+    <ClInclude Include="device\generators\generator_bruteforce_alphabet.h">
+      <Filter>device\generators</Filter>
+    </ClInclude>
+    <ClInclude Include="device\generators\generator_bruteforce_filtered.h">
+      <Filter>device\generators</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\test_filters.h">
+      <Filter>tests</Filter>
+    </ClInclude>
+    <ClInclude Include="device\cuda_double_array.h">
+      <Filter>device</Filter>
+    </ClInclude>
+    <ClInclude Include="kernels\bridge.h">
+      <Filter>kernels</Filter>
+    </ClInclude>
+    <ClInclude Include="kernels\keeloq_main.cuh">
+      <Filter>kernels</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <Filter Include="keeloq">
-      <UniqueIdentifier>{afe2570b-1691-4a25-9e8b-615c4d4013cf}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="CUDA">
-      <UniqueIdentifier>{829575b9-e9f3-4274-b335-f3069ce82e5f}</UniqueIdentifier>
-    </Filter>
     <Filter Include="host">
       <UniqueIdentifier>{d58c5d00-01d9-4cfc-a18f-6b503d35fa86}</UniqueIdentifier>
     </Filter>
     <Filter Include="host\types">
       <UniqueIdentifier>{cefd7d3d-1125-4b3d-8dfa-93e4b168010a}</UniqueIdentifier>
     </Filter>
+    <Filter Include="device">
+      <UniqueIdentifier>{6f725826-5f3f-4212-a3e6-09b22daf9f70}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests">
+      <UniqueIdentifier>{fce47547-1dd3-4acd-9dea-0f8ef13916f2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="device\generators">
+      <UniqueIdentifier>{748170a3-48f0-4263-8c7a-782d0244b1f8}</UniqueIdentifier>
+    </Filter>
     <Filter Include="kernels">
-      <UniqueIdentifier>{fbe89dea-8a15-45d3-9cfb-db5aef48167a}</UniqueIdentifier>
+      <UniqueIdentifier>{7bd23600-7bc8-4d11-a2cd-1f549100181e}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -107,5 +133,44 @@
     <ClCompile Include="host\types\bruteforce_alphabet.cpp">
       <Filter>host\types</Filter>
     </ClCompile>
+    <ClCompile Include="host\types\bruteforce_round.cpp">
+      <Filter>host\types</Filter>
+    </ClCompile>
+    <ClCompile Include="device\cuda_array.cpp">
+      <Filter>device</Filter>
+    </ClCompile>
+    <ClCompile Include="device\kernel_input.cpp">
+      <Filter>device</Filter>
+    </ClCompile>
+    <ClCompile Include="host\console.cpp">
+      <Filter>host</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\test_alphabet.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="device\generators\generator_bruteforce_simple.cpp">
+      <Filter>device\generators</Filter>
+    </ClCompile>
+    <ClCompile Include="device\generators\generator_bruteforce_alphabet.cpp">
+      <Filter>device\generators</Filter>
+    </ClCompile>
+    <ClCompile Include="device\generators\generator_bruteforce.cpp">
+      <Filter>device\generators</Filter>
+    </ClCompile>
+    <ClCompile Include="device\generators\generator_bruteforce_filtered.cpp">
+      <Filter>device\generators</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\test_filters.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="device\cuda_double_array.cpp">
+      <Filter>device</Filter>
+    </ClCompile>
+    <ClCompile Include="main.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="device\generators\generator_bruteforce_alphabet_kernel.inl">
+      <Filter>device\generators</Filter>
+    </None>
   </ItemGroup>
 </Project>
