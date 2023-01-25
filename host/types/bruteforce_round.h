@@ -13,7 +13,6 @@
 #include "device/kernel_input.h"
 #include "device/kernel_result.h"
 
-USE_NS_LOCATION
 
 /**
  *  Round is a set of bruteforce batches

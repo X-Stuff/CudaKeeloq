@@ -9,7 +9,6 @@
 
 #include "device/generators/generator_bruteforce.h"
 
-USE_NS_LOCATION
 
 bool Tests::AlphabetGeneration()
 {

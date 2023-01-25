@@ -23,8 +23,6 @@
 	};
 
 
-USE_NS_LOCATION
-
 template<typename TSelf>
 struct IGenerator
 {

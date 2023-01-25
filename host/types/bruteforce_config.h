@@ -14,7 +14,6 @@
 #include "host/types/bruteforce_type.h"
 #include "host/types/bruteforce_config.h"
 
-NS_LOCATION_BEGIN
 
 /**
  *  Single run attack configuration
@@ -77,5 +76,3 @@ private:
 	{
 	}
 };
-
-NS_LOCATION_END

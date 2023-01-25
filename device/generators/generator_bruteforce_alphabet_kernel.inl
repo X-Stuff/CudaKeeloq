@@ -3,8 +3,6 @@
 #include "device/kernel_input.h"
 #include "device/kernel_result.h"
 
-#include "unroll.h"
-
 
 __global__ void DEFINE_GENERATOR_KERNEL(GeneratorBruteforceAlphabet, KernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls)
 {

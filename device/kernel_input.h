@@ -12,7 +12,6 @@
 
 #include "host/types/bruteforce_config.h"
 
-USE_NS_LOCATION
 
 // Input data for main keeloq calculation kernel
 struct KernelInput : TGenericGpuObject<KernelInput>

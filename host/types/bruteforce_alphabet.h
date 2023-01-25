@@ -1,15 +1,12 @@
 #pragma once
 
 #include "common.h"
-#include "unroll.h"
 
 #include <vector>
 #include <string>
 
 #include <cuda_runtime_api.h>
 
-
-NS_LOCATION_BEGIN
 
 /**
  *
@@ -116,5 +113,3 @@ __host__ __device__ uint64_t BruteforceAlphabet::lookup(uint64_t value) const
 	}
 	return result;
 }
-
-NS_LOCATION_END

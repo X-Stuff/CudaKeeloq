@@ -1,8 +1,5 @@
 #include "bruteforce_config.h"
 
-NS_LOCATION_BEGIN
-
-
 BruteforceConfig BruteforceConfig::GetDictionary(std::vector<Decryptor>&& dictionary)
 {
 	BruteforceConfig result(0, BruteforceType::Dictionary, dictionary.size());
@@ -108,5 +105,3 @@ std::string BruteforceConfig::toString() const
 
 	return std::string(tmp);
 }
-
-NS_LOCATION_END

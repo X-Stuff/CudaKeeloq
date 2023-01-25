@@ -5,7 +5,6 @@
 
 #include <assert.h>
 
-NS_LOCATION_BEGIN
 
 const std::vector<std::tuple<BruteforceFilters::Flags::Type, const char*>> BruteforceFilters::FilterNames =
 {
@@ -54,5 +53,3 @@ std::string BruteforceFilters::toString() const
 
 	return "Include: '" + include_str + "'\tExclude: '" + exclude_str + "'";
 }
-
-NS_LOCATION_END

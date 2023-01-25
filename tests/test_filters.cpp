@@ -1,30 +1,19 @@
 #include "tests/test_filters.h"
 
 #include <cuda_runtime_api.h>
+#include "kernels/bridge.h"
 
 #include "device/generators/generator_bruteforce.h"
 #include "device/cuda_double_array.h"
 
 #include "host/types/bruteforce_filters.h"
 
-USE_NS_LOCATION
 
 namespace Tests
 {
-	__global__ void Kernel_RunFiltersTests(BruteforceFilters::Test::Inputs* tests, uint8_t num)
-	{
-		for (int i = 0; i < num; ++i)
-		{
-			bool value = BruteforceFilters::check_filters(tests[i].value, tests[i].flags);
-			assert(value == tests[i].result);
-
-			tests[i].value = value == tests[i].result;
-		}
-	}
-
 	bool FiltersGeneration()
 	{
-		BruteforceFilters::Test::Inputs test_cases[] = {
+		BruteforceFiltersTestInputs test_cases[] = {
 		   { 0x1111334404bbccee, BruteforceFilters::Flags::Max6ZerosInARow, true },
 		   { 0x11113344aabbccee, BruteforceFilters::Flags::Max6ZerosInARow, false },
 		   { 0x11113344aabbccee, BruteforceFilters::Flags::Max6OnesInARow, false },
@@ -60,7 +49,7 @@ namespace Tests
 		   { 0xceb6ae48b5c03aba, BruteforceFilters::Flags::BytesIncremental | BruteforceFilters::Flags::BytesRepeat4, false },
 		};
 
-		static uint8_t NumTests = sizeof(test_cases) / sizeof(BruteforceFilters::Test::Inputs);
+		static uint8_t NumTests = sizeof(test_cases) / sizeof(BruteforceFiltersTestInputs);
 		bool result_success = true;
 
 		// CPU tests
@@ -73,15 +62,13 @@ namespace Tests
 		}
 
 		// GPU tests
-		DoubleArray<BruteforceFilters::Test::Inputs> test_inputs(test_cases, NumTests);
-
-		void* args[] = { &test_inputs.CUDA_mem, &NumTests };
-		cudaLaunchKernel(&Kernel_RunFiltersTests, dim3(), dim3(), args, 0, nullptr);
+		DoubleArray<BruteforceFiltersTestInputs> test_inputs(test_cases, NumTests);
+		Bridge::Kernel_LaunchFiltersTests(test_inputs.CUDA_mem, NumTests);
 		test_inputs.read_GPU(); // for asserts
 
 		for (int i = 0; i < NumTests; ++i)
 		{
-			result_success &= (bool)test_inputs.HOST_mem[i].value;
+			result_success &= test_inputs.HOST_mem[i].value == 1;
 			assert(result_success);
 		}
 

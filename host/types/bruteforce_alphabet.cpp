@@ -1,10 +1,7 @@
 #include "bruteforce_alphabet.h"
 
-#include "unroll.h"
-
 #include <assert.h>
 
-NS_LOCATION_BEGIN
 
 BruteforceAlphabet::BruteforceAlphabet(const std::vector<uint8_t>& alphabet)
 {
@@ -35,5 +32,4 @@ __host__ std::string BruteforceAlphabet::toString() const
 	return std::string(tmp);
 }
 
-NS_LOCATION_END
 

@@ -31,7 +31,6 @@
     <ClInclude Include="host\types\bruteforce_filters.h">
       <Filter>host\types</Filter>
     </ClInclude>
-    <ClInclude Include="unroll.h" />
     <ClInclude Include="common.h" />
     <ClInclude Include="host\types\bruteforce_type.h">
       <Filter>host\types</Filter>

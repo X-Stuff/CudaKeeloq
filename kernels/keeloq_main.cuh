@@ -8,7 +8,6 @@
 
 #include <cuda_runtime_api.h>
 
-USE_NS_LOCATION
 
 #if _DEBUG
     #define STRICT_ANALYSIS 1

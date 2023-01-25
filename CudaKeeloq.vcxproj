@@ -128,7 +128,6 @@
     <ClInclude Include="kernels\keeloq_main.cuh" />
     <ClInclude Include="tests\test_alphabet.h" />
     <ClInclude Include="tests\test_filters.h" />
-    <ClInclude Include="unroll.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="device\cuda_array.cpp" />

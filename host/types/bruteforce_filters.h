@@ -9,9 +9,6 @@
 
 #include <cuda_runtime_api.h>
 
-#include "unroll.h"
-
-NS_LOCATION_BEGIN
 
 constexpr uint8_t KeySizeBytes = sizeof(uint64_t);
 
@@ -77,19 +74,6 @@ struct BruteforceFilters
 		{
 			return (test & check);
 		}
-	};
-
-public: // TODO: make private
-	struct Test
-	{
-		struct Inputs
-		{
-			uint64_t value;
-
-			BruteforceFilters::Flags::Type flags;
-
-			bool result;
-		};
 	};
 
 public:
@@ -350,5 +334,3 @@ __host__ __device__ inline bool BruteforceFilters::all_ascii_symbol(uint64_t key
 
 	return result;
 }
-
-NS_LOCATION_END

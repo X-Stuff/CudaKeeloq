@@ -2,30 +2,6 @@
 
 #include "stdint.h"
 
-#if defined(__CUDA_ARCH__) || defined(CU_FILE)
-	#define LOCATION	 /* C++ compiler via NVCC - should be global NS also */
-#else
-	#define LOCATION CPU /* C++ compiler */
-#endif
-
-
-#if defined(__CUDA_ARCH__) || defined(CU_FILE)
-	/* .cu files should be all in global namespace */
-
-	#define NS_LOCATION_BEGIN
-	#define NS_LOCATION_END
-
-	#define NS_LOCATION
-	#define USE_NS_LOCATION
-#else
-	#define NS_LOCATION namespace LOCATION
-	#define USE_NS_LOCATION using namespace LOCATION;
-
-	#define NS_LOCATION_BEGIN NS_LOCATION {
-	#define NS_LOCATION_END }
-#endif
-
-
 #include <assert.h>
 
 #define CUDA_CHECK(error) \
@@ -44,3 +20,10 @@
 
 #define DEFINE_GENERATOR_GETTER(name) \
 	extern "C" void* GENERATOR_KERNEL_GETTER_NAME(name)() { return &Kernel_##name; }
+
+
+#if __CUDA_ARCH__
+	#define UNROLL #pragma unroll
+#else
+	#define UNROLL
+#endif

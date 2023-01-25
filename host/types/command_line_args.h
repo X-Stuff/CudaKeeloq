@@ -7,8 +7,6 @@
 #include "host/types/keeloq_learning_types.h"
 #include "host/types/bruteforce_config.h"
 
-USE_NS_LOCATION
-
 // Forward declarations
 typedef uint64_t EncData;
 
