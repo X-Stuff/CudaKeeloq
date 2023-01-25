@@ -8,8 +8,22 @@
 #include "device/kernel_input.h"
 #include "device/kernel_result.h"
 
-USE_NS_LOCATION
 
+
+/**
+ * Declare new struct which represents a wrapper around cu implementation
+ */
+#define DECLARE_GENERATOR(name, ...) \
+	extern "C" void* GENERATOR_KERNEL_GETTER_NAME(name)(); \
+	__global__ void GENERATOR_KERNEL_NAME(name)(__VA_ARGS__); \
+	struct name : public IGenerator<name> \
+	{\
+		typedef void(*func)(__VA_ARGS__); \
+		inline static func GetKernelFunctionPtr() { return (func)GENERATOR_KERNEL_GETTER_NAME(name)(); } \
+	};
+
+
+USE_NS_LOCATION
 
 template<typename TSelf>
 struct IGenerator
@@ -33,3 +47,10 @@ struct GeneratorBruteforce
 	// Decryptors are generated on GPU and stored in GPU memory
 	static int PrepareDecryptors(KernelInput& inputs, uint16_t blocks, uint16_t threads);
 };
+
+
+// Extern cuda kernels - Implementation are in inl.file
+DECLARE_GENERATOR(GeneratorBruteforceAlphabet, KernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls);
+DECLARE_GENERATOR(GeneratorBruteforceFiltered, KernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls);
+DECLARE_GENERATOR(GeneratorBruteforceSimple, KernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls);
+

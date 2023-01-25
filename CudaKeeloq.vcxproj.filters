@@ -63,20 +63,11 @@
     <ClInclude Include="device\kernel_result.h">
       <Filter>device</Filter>
     </ClInclude>
-    <ClInclude Include="device\generators\generator_bruteforce_simple.h">
-      <Filter>device\generators</Filter>
-    </ClInclude>
     <ClInclude Include="device\generators\generator_bruteforce.h">
       <Filter>device\generators</Filter>
     </ClInclude>
     <ClInclude Include="device\cuda_context.h">
       <Filter>device</Filter>
-    </ClInclude>
-    <ClInclude Include="device\generators\generator_bruteforce_alphabet.h">
-      <Filter>device\generators</Filter>
-    </ClInclude>
-    <ClInclude Include="device\generators\generator_bruteforce_filtered.h">
-      <Filter>device\generators</Filter>
     </ClInclude>
     <ClInclude Include="tests\test_filters.h">
       <Filter>tests</Filter>
@@ -148,16 +139,7 @@
     <ClCompile Include="tests\test_alphabet.cpp">
       <Filter>tests</Filter>
     </ClCompile>
-    <ClCompile Include="device\generators\generator_bruteforce_simple.cpp">
-      <Filter>device\generators</Filter>
-    </ClCompile>
-    <ClCompile Include="device\generators\generator_bruteforce_alphabet.cpp">
-      <Filter>device\generators</Filter>
-    </ClCompile>
     <ClCompile Include="device\generators\generator_bruteforce.cpp">
-      <Filter>device\generators</Filter>
-    </ClCompile>
-    <ClCompile Include="device\generators\generator_bruteforce_filtered.cpp">
       <Filter>device\generators</Filter>
     </ClCompile>
     <ClCompile Include="tests\test_filters.cpp">
@@ -170,6 +152,12 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="device\generators\generator_bruteforce_alphabet_kernel.inl">
+      <Filter>device\generators</Filter>
+    </None>
+    <None Include="device\generators\generator_bruteforce_filtered_kernel.inl">
+      <Filter>device\generators</Filter>
+    </None>
+    <None Include="device\generators\generator_bruteforce_simple_kernel.inl">
       <Filter>device\generators</Filter>
     </None>
   </ItemGroup>

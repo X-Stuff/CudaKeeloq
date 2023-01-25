@@ -5,7 +5,6 @@
 
 #include "unroll.h"
 
-DECLARE_GENERATOR_KERNEL(GeneratorBruteforceAlphabet, KernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls);
 
 __global__ void DEFINE_GENERATOR_KERNEL(GeneratorBruteforceAlphabet, KernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls)
 {
@@ -50,3 +49,5 @@ __global__ void DEFINE_GENERATOR_KERNEL(GeneratorBruteforceAlphabet, KernelInput
 		}
 	}
 }
+
+DEFINE_GENERATOR_GETTER(GeneratorBruteforceAlphabet);

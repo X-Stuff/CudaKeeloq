@@ -1,5 +1,3 @@
-#include "generator_bruteforce_filtered.h"
-
 #include "device/cuda_context.h"
 
 #include <cuda.h>
@@ -7,19 +5,12 @@
 #include <device_atomic_functions.h>
 
 
-USE_NS_LOCATION
-
-inline uint64_t RequestNewBlock(uint64_t* from, uint32_t size)
+__device__ inline uint64_t RequestNewBlock(uint64_t* from, uint32_t size)
 {
-#if __CUDA_ARCH__
-	return atomicAdd(from, size)
-#else
-	assert(false && "This method is not supposed to be called on host");
-	return 0;
-#endif
+	return atomicAdd(from, size);
 }
 
-__global__ void Kernel_GeneratorBruteforceFiltered(KernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls)
+__global__ void DEFINE_GENERATOR_KERNEL(GeneratorBruteforceFiltered, KernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls)
 {
 	assert(input->generator.type == BruteforceType::Filtered);
 
@@ -117,7 +108,4 @@ __global__ void Kernel_GeneratorBruteforceFiltered(KernelInput::TCudaPtr input, 
 	}
 }
 
-GeneratorBruteforceFiltered::KernelFunc GeneratorBruteforceFiltered::GetKernelFunctionPtr()
-{
-	return &Kernel_GeneratorBruteforceFiltered;
-}
+DEFINE_GENERATOR_GETTER(GeneratorBruteforceFiltered);

@@ -39,12 +39,8 @@
 #define GENERATOR_KERNEL_GETTER_NAME(name) \
 	GetKernel_##name
 
-#define DECLARE_GENERATOR_KERNEL(name, ...) \
-	__global__ void GENERATOR_KERNEL_NAME(name)(__VA_ARGS__); \
-	extern "C" void* GENERATOR_KERNEL_GETTER_NAME(name)() { return &Kernel_##name; }
-
 #define DEFINE_GENERATOR_KERNEL(name, ...) \
 	GENERATOR_KERNEL_NAME(name)(__VA_ARGS__)
 
-#define GET_GENERATOR_KERNEL(name, type) \
-	(type)GENERATOR_KERNEL_GETTER_NAME(name)()
+#define DEFINE_GENERATOR_GETTER(name) \
+	extern "C" void* GENERATOR_KERNEL_GETTER_NAME(name)() { return &Kernel_##name; }

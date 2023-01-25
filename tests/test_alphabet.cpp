@@ -7,7 +7,7 @@
 #include "device/kernel_input.h"
 #include "device/kernel_result.h"
 
-#include "device/generators/generator_bruteforce_alphabet.h"
+#include "device/generators/generator_bruteforce.h"
 
 USE_NS_LOCATION
 

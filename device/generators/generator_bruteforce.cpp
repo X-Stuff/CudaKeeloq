@@ -1,8 +1,5 @@
 #include "generator_bruteforce.h"
 
-#include "generator_bruteforce_simple.h"
-#include "generator_bruteforce_alphabet.h"
-#include "generator_bruteforce_filtered.h"
 
 int GeneratorBruteforce::PrepareDecryptors(KernelInput& inputs, uint16_t blocks, uint16_t threads)
 {

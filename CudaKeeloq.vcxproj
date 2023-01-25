@@ -68,9 +68,9 @@
       </AdditionalCompilerOptions>
       <FastMath>true</FastMath>
       <GenerateRelocatableDeviceCode>false</GenerateRelocatableDeviceCode>
-      <ExtensibleWholeProgramCompilation>true</ExtensibleWholeProgramCompilation>
+      <ExtensibleWholeProgramCompilation>false</ExtensibleWholeProgramCompilation>
       <NvccCompilation>compile</NvccCompilation>
-      <Keep>true</Keep>
+      <Keep>false</Keep>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -109,9 +109,6 @@
     <ClInclude Include="device\cuda_context.h" />
     <ClInclude Include="device\cuda_double_array.h" />
     <ClInclude Include="device\cuda_object.h" />
-    <ClInclude Include="device\generators\generator_bruteforce_alphabet.h" />
-    <ClInclude Include="device\generators\generator_bruteforce_filtered.h" />
-    <ClInclude Include="device\generators\generator_bruteforce_simple.h" />
     <ClInclude Include="device\generators\generator_bruteforce.h" />
     <ClInclude Include="device\kernel_input.h" />
     <ClInclude Include="device\kernel_result.h" />
@@ -137,9 +134,6 @@
     <ClCompile Include="device\cuda_array.cpp" />
     <ClCompile Include="device\cuda_double_array.cpp" />
     <ClCompile Include="device\generators\generator_bruteforce.cpp" />
-    <ClCompile Include="device\generators\generator_bruteforce_alphabet.cpp" />
-    <ClCompile Include="device\generators\generator_bruteforce_filtered.cpp" />
-    <ClCompile Include="device\generators\generator_bruteforce_simple.cpp" />
     <ClCompile Include="device\kernel_input.cpp" />
     <ClCompile Include="host\console.cpp" />
     <ClCompile Include="host\types\bruteforce_round.cpp" />
@@ -156,6 +150,8 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="device\generators\generator_bruteforce_alphabet_kernel.inl" />
+    <None Include="device\generators\generator_bruteforce_filtered_kernel.inl" />
+    <None Include="device\generators\generator_bruteforce_simple_kernel.inl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

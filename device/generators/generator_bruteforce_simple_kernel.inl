@@ -1,10 +1,6 @@
-#include "generator_bruteforce_simple.h"
-
 #include "device/cuda_context.h"
 
-USE_NS_LOCATION
-
-__global__ void Kernel_GeneratorBruteforceSimple(KernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls)
+__global__ void DEFINE_GENERATOR_KERNEL(GeneratorBruteforceSimple, KernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls)
 {
 	CudaContext ctx = CudaContext::Get();
 
@@ -22,7 +18,4 @@ __global__ void Kernel_GeneratorBruteforceSimple(KernelInput::TCudaPtr input, Ke
 	}
 }
 
-GeneratorBruteforceSimple::KernelFunc GeneratorBruteforceSimple::GetKernelFunctionPtr()
-{
-	return &Kernel_GeneratorBruteforceSimple;
-}
+DEFINE_GENERATOR_GETTER(GeneratorBruteforceSimple);
