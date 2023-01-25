@@ -144,8 +144,11 @@
     <CudaCompile Include="kernels\keeloq_main.cu">
       <Filter>kernels</Filter>
     </CudaCompile>
-    <CudaCompile Include="bruteforce\generators\kernel.cu">
+    <CudaCompile Include="bruteforce\generators\generator_kernel.cu">
       <Filter>bruteforce\generators</Filter>
+    </CudaCompile>
+    <CudaCompile Include="tests\test_kernel.cu">
+      <Filter>tests</Filter>
     </CudaCompile>
   </ItemGroup>
   <ItemGroup>

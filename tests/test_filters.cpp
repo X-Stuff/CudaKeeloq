@@ -63,7 +63,7 @@ namespace Tests
 
 		// GPU tests
 		DoubleArray<BruteforceFiltersTestInputs> test_inputs(test_cases, NumTests);
-		Bridge::Kernel_LaunchFiltersTests(test_inputs.CUDA_mem, NumTests);
+		Kernel_LaunchFiltersTests(test_inputs.CUDA_mem, NumTests);
 		test_inputs.read_GPU(); // for asserts
 
 		for (int i = 0; i < NumTests; ++i)

@@ -4,11 +4,6 @@
 
 #include "bruteforce/bruteforce_filters.h"
 
-namespace Tests
-{
-	bool FiltersGeneration();
-}
-
 struct BruteforceFiltersTestInputs
 {
 	uint64_t value;
@@ -17,3 +12,10 @@ struct BruteforceFiltersTestInputs
 
 	bool result;
 };
+
+namespace Tests
+{
+	bool FiltersGeneration();
+}
+
+extern "C" void Kernel_LaunchFiltersTests(BruteforceFiltersTestInputs * tests, uint8_t num);

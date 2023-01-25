@@ -21,6 +21,4 @@ namespace Bridge
 		Kernel_KeeloqBruteMain(inputs, results, blocks, threads);
 		return results;
 	}
-
-	extern "C" void Kernel_LaunchFiltersTests(BruteforceFiltersTestInputs* tests, uint8_t num);
 }

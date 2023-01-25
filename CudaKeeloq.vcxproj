@@ -96,6 +96,7 @@
       <FastMath>true</FastMath>
       <AdditionalCompilerOptions>
       </AdditionalCompilerOptions>
+      <CodeGeneration>compute_80,sm_80</CodeGeneration>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -140,9 +141,10 @@
     <ClCompile Include="tests\test_filters.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <CudaCompile Include="bruteforce\generators\kernel.cu" />
+    <CudaCompile Include="bruteforce\generators\generator_kernel.cu" />
     <CudaCompile Include="kernels\bridge.cu" />
     <CudaCompile Include="kernels\keeloq_main.cu" />
+    <CudaCompile Include="tests\test_kernel.cu" />
   </ItemGroup>
   <ItemGroup>
     <None Include="bruteforce\generators\generator_bruteforce_alphabet_kernel.inl" />

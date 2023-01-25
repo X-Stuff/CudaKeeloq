@@ -1,5 +1,3 @@
-#define CU_FILE
-
 #include "keeloq_main.cuh"
 
 namespace
