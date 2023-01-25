@@ -7,12 +7,12 @@
 
 #include <cuda_runtime_api.h>
 
-#include "host/types/keeloq_decryptor.h"
+#include "algorithm/keeloq/keeloq_decryptor.h"
 
-#include "host/types/bruteforce_alphabet.h"
-#include "host/types/bruteforce_filters.h"
-#include "host/types/bruteforce_type.h"
-#include "host/types/bruteforce_config.h"
+#include "bruteforce/bruteforce_alphabet.h"
+#include "bruteforce/bruteforce_filters.h"
+#include "bruteforce/bruteforce_type.h"
+#include "bruteforce/bruteforce_config.h"
 
 
 /**
@@ -50,25 +50,25 @@ public:
 
 public:
 
-	__host__ static BruteforceConfig GetDictionary(std::vector<Decryptor>&& dictionary);
+	static BruteforceConfig GetDictionary(std::vector<Decryptor>&& dictionary);
 
-	__host__ static BruteforceConfig GetBruteforce(Decryptor first, size_t size);
+	static BruteforceConfig GetBruteforce(Decryptor first, size_t size);
 
-	__host__ static BruteforceConfig GetBruteforce(Decryptor first, size_t size, const BruteforceFilters& filters);
+	static BruteforceConfig GetBruteforce(Decryptor first, size_t size, const BruteforceFilters& filters);
 
-	__host__ static BruteforceConfig GetAlphabet(Decryptor first, const BruteforceAlphabet& alphabet, size_t num = (size_t)-1);
+	static BruteforceConfig GetAlphabet(Decryptor first, const BruteforceAlphabet& alphabet, size_t num = (size_t)-1);
 
-	__host__ static BruteforceConfig GetPattern(Decryptor first);
+	static BruteforceConfig GetPattern(Decryptor first);
 
 public:
 
-	__host__ uint64_t dict_size() const;
+	uint64_t dict_size() const;
 
-	__host__ uint64_t brute_size() const;
+	uint64_t brute_size() const;
 
-	__host__ std::string toString() const;
+	std::string toString() const;
 
-	__host__ void next_decryptor();
+	void next_decryptor();
 
 private:
 	BruteforceConfig(Decryptor start, BruteforceType::Type t, size_t num) :

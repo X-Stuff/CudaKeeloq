@@ -1,8 +1,13 @@
 #include "bruteforce_round.h"
 
-#include <cuda_runtime_api.h>
+#include "common.h"
+#include "bruteforce_config.h"
+#include "kernels/kernel_result.h"
+#include "algorithm/keeloq/keeloq_encrypted.h"
+#include "algorithm/keeloq/keeloq_learning_types.h"
+#include "algorithm/keeloq/keeloq_single_result.h"
 
-#include <assert.h>
+#include <cuda_runtime_api.h>
 
 
 BruteforceRound::BruteforceRound(const std::vector<EncData>& data, const BruteforceConfig& gen, std::vector<KeeloqLearningType::Type> selected_learning,
@@ -76,11 +81,6 @@ bool BruteforceRound::CheckResults(const KernelResult& result)
 	}
 
 	return false;
-}
-
-void BruteforceRound::PrintResults(const KernelResult& result) const
-{
-
 }
 
 size_t BruteforceRound::NumBatches() const

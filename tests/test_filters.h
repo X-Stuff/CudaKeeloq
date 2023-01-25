@@ -2,7 +2,7 @@
 
 #include "common.h"
 
-#include "host/types/bruteforce_filters.h"
+#include "bruteforce/bruteforce_filters.h"
 
 namespace Tests
 {

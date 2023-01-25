@@ -1,9 +1,8 @@
 #include "bruteforce_filters.h"
+#include "common.h"
 
 #include <cuda_runtime.h>
 #include <cuda_runtime_api.h>
-
-#include <assert.h>
 
 
 const std::vector<std::tuple<BruteforceFilters::Flags::Type, const char*>> BruteforceFilters::FilterNames =

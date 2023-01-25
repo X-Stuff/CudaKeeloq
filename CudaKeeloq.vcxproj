@@ -99,58 +99,55 @@
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <CudaCompile Include="kernels\bridge.cu" />
-    <CudaCompile Include="kernels\generators.cu" />
-    <CudaCompile Include="kernels\keeloq_main.cu" />
-  </ItemGroup>
-  <ItemGroup>
+    <ClInclude Include="algorithm\keeloq\keeloq_decryptor.h" />
+    <ClInclude Include="algorithm\keeloq\keeloq_encrypted.h" />
+    <ClInclude Include="algorithm\keeloq\keeloq_kernel_input.h" />
+    <ClInclude Include="algorithm\keeloq\keeloq_learning_types.h" />
+    <ClInclude Include="algorithm\keeloq\keeloq_single_result.h" />
+    <ClInclude Include="bruteforce\bruteforce_alphabet.h" />
+    <ClInclude Include="bruteforce\bruteforce_config.h" />
+    <ClInclude Include="bruteforce\bruteforce_filters.h" />
+    <ClInclude Include="bruteforce\bruteforce_round.h" />
+    <ClInclude Include="bruteforce\bruteforce_type.h" />
+    <ClInclude Include="bruteforce\generators\generator_bruteforce.h" />
     <ClInclude Include="common.h" />
     <ClInclude Include="device\cuda_array.h" />
     <ClInclude Include="device\cuda_context.h" />
     <ClInclude Include="device\cuda_double_array.h" />
     <ClInclude Include="device\cuda_object.h" />
-    <ClInclude Include="device\generators\generator_bruteforce.h" />
-    <ClInclude Include="device\kernel_input.h" />
-    <ClInclude Include="device\kernel_result.h" />
+    <ClInclude Include="host\command_line_args.h" />
     <ClInclude Include="host\console.h" />
-    <ClInclude Include="host\types\bruteforce_round.h" />
-    <ClInclude Include="host\types\bruteforce_alphabet.h" />
-    <ClInclude Include="host\types\bruteforce_config.h" />
-    <ClInclude Include="host\types\bruteforce_filters.h" />
-    <ClInclude Include="host\types\bruteforce_type.h" />
-    <ClInclude Include="host\types\command_line_args.h" />
-    <ClInclude Include="host\types\keeloq_decryptor.h" />
-    <ClInclude Include="host\types\keeloq_encrypted.h" />
-    <ClInclude Include="host\types\keeloq_learning_types.h" />
-    <ClInclude Include="host\types\keeloq_single_result.h" />
-    <ClInclude Include="kernel.cuh" />
     <ClInclude Include="kernels\bridge.h" />
     <ClInclude Include="kernels\keeloq_main.cuh" />
+    <ClInclude Include="kernels\kernel_result.h" />
     <ClInclude Include="tests\test_alphabet.h" />
     <ClInclude Include="tests\test_filters.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="device\cuda_array.cpp" />
-    <ClCompile Include="device\cuda_double_array.cpp" />
-    <ClCompile Include="device\generators\generator_bruteforce.cpp" />
-    <ClCompile Include="device\kernel_input.cpp" />
+    <ClCompile Include="algorithm\keeloq\keeloq_kernel_input.cpp" />
+    <ClCompile Include="algorithm\keeloq\keeloq_learning_types.cpp" />
+    <ClCompile Include="algorithm\keeloq\keeloq_single_result.cpp" />
+    <ClCompile Include="bruteforce\bruteforce_alphabet.cpp" />
+    <ClCompile Include="bruteforce\bruteforce_config.cpp" />
+    <ClCompile Include="bruteforce\bruteforce_filters.cpp" />
+    <ClCompile Include="bruteforce\bruteforce_round.cpp" />
+    <ClCompile Include="bruteforce\bruteforce_type.cpp" />
+    <ClCompile Include="bruteforce\generators\generator_bruteforce.cpp" />
+    <ClCompile Include="host\command_line_args.cpp" />
     <ClCompile Include="host\console.cpp" />
-    <ClCompile Include="host\types\bruteforce_round.cpp" />
-    <ClCompile Include="host\types\bruteforce_alphabet.cpp" />
-    <ClCompile Include="host\types\bruteforce_config.cpp" />
-    <ClCompile Include="host\types\bruteforce_filters.cpp" />
-    <ClCompile Include="host\types\bruteforce_type.cpp" />
-    <ClCompile Include="host\types\command_line_args.cpp" />
-    <ClCompile Include="host\types\keeloq_learning_types.cpp" />
-    <ClCompile Include="host\types\keeloq_single_result.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="tests\test_alphabet.cpp" />
     <ClCompile Include="tests\test_filters.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="device\generators\generator_bruteforce_alphabet_kernel.inl" />
-    <None Include="device\generators\generator_bruteforce_filtered_kernel.inl" />
-    <None Include="device\generators\generator_bruteforce_simple_kernel.inl" />
+    <CudaCompile Include="bruteforce\generators\kernel.cu" />
+    <CudaCompile Include="kernels\bridge.cu" />
+    <CudaCompile Include="kernels\keeloq_main.cu" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="bruteforce\generators\generator_bruteforce_alphabet_kernel.inl" />
+    <None Include="bruteforce\generators\generator_bruteforce_filtered_kernel.inl" />
+    <None Include="bruteforce\generators\generator_bruteforce_simple_kernel.inl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

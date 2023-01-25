@@ -53,7 +53,7 @@ bool Bridge::Kernel_CheckKeeloqIsWorking()
 	return CUDA_check_keeloq_works();
 }
 
-void Bridge::Kernel_KeeloqBruteMain(KernelInput& inputs, KernelResult& result, uint32_t blocks, uint32_t threads)
+void Bridge::Kernel_KeeloqBruteMain(KeeloqKernelInput& inputs, KernelResult& result, uint32_t blocks, uint32_t threads)
 {
 	result = std::move(CUDA_keeloq_main_wrapper(inputs, blocks, threads));
 }

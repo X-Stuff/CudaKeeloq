@@ -1,16 +1,20 @@
 #include "device/cuda_context.h"
 
-#include <cuda.h>
 #include <cuda_runtime.h>
 #include <device_atomic_functions.h>
 
+#include "kernels/kernel_result.h"
+#include "algorithm/keeloq/keeloq_kernel_input.h"
+
+#include "bruteforce/bruteforce_type.h"
+#include "bruteforce/bruteforce_filters.h"
 
 __device__ inline uint64_t RequestNewBlock(uint64_t* from, uint32_t size)
 {
 	return atomicAdd(from, size);
 }
 
-__global__ void DEFINE_GENERATOR_KERNEL(GeneratorBruteforceFiltered, KernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls)
+__global__ void DEFINE_GENERATOR_KERNEL(GeneratorBruteforceFiltered, KeeloqKernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls)
 {
 	assert(input->generator.type == BruteforceType::Filtered);
 

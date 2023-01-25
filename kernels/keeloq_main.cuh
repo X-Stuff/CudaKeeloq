@@ -2,9 +2,9 @@
 
 #include "stdint.h"
 
-#include "device/kernel_input.h"
-#include "device/kernel_result.h"
 #include "device/cuda_context.h"
+#include "kernels/kernel_result.h"
+#include "algorithm/keeloq/keeloq_kernel_input.h"
 
 #include <cuda_runtime_api.h>
 
@@ -70,7 +70,7 @@ __device__ __host__ SingleResult::DecryptedArray keeloq_decrypt(uint64_t ota, ui
 
 
 // run decryption parallel per thread and find matches
-__device__ uint8_t keeloq_decryption_run(const CudaContext& ctx, KernelInput& results);
+__device__ uint8_t keeloq_decryption_run(const CudaContext& ctx, KeeloqKernelInput& results);
 
 // run from result[0] to result[num] tries to detect if there is a match (man key valid)
 __device__ uint8_t keeloq_find_matches(const CudaContext& ctx, SingleResult* results, uint32_t num, const KeeloqLearningType::Type type_mask[]);
@@ -81,11 +81,11 @@ __device__ uint8_t keeloq_analyze_results(const CudaContext& ctx, const CudaArra
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 __global__ void CUDA_keeloq_test(KernelResult::TCudaPtr ret);
 
-__global__ void CUDA_keeloq_main(KernelInput::TCudaPtr CUDA_inputs, KernelResult::TCudaPtr ret);
+__global__ void CUDA_keeloq_main(KeeloqKernelInput::TCudaPtr CUDA_inputs, KernelResult::TCudaPtr ret);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-KernelResult CUDA_keeloq_main_wrapper(KernelInput& mainInputs, uint16_t ThreadBlocks, uint16_t ThreadsInBlock);
+KernelResult CUDA_keeloq_main_wrapper(KeeloqKernelInput& mainInputs, uint16_t ThreadBlocks, uint16_t ThreadsInBlock);
 
 
 inline bool CUDA_check_keeloq_works()

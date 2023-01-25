@@ -5,16 +5,16 @@
 #include <stdio.h>
 #include <chrono>
 
-#include "host/types/command_line_args.h"
+#include "host/command_line_args.h"
+
+#define CXXOPTS_NO_EXCEPTIONS
+#include "cxxopts/include/cxxopts.hpp"
 
 
 constexpr char WAIT_SPIN[] = "|/-\\";
 #define WAIT_CHAR(i) (WAIT_SPIN[i % (sizeof(WAIT_SPIN) - 1)])
 
 #define CONSOLE_WIDTH 160
-
-#define CXXOPTS_NO_EXCEPTIONS
-#include "cxxopts/include/cxxopts.hpp"
 
 #define console_hide_cursor() printf("\033[?25l")
 #define console_clear() printf("\033[H\033[J")
@@ -58,5 +58,4 @@ namespace tests
 {
 	CommandLineArgs run();
 }
-
 }

@@ -1,6 +1,6 @@
 #include "bruteforce_alphabet.h"
 
-#include <assert.h>
+#include "common.h"
 
 
 BruteforceAlphabet::BruteforceAlphabet(const std::vector<uint8_t>& alphabet)

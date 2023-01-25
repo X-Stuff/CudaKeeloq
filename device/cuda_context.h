@@ -4,6 +4,7 @@
 
 #include <device_launch_parameters.h>
 
+
 #define CUDA_FOR_THREAD_ID(ctx, i, count) for(uint32_t i = ctx.thread_id; i < count; i += ctx.thread_max)
 
 struct CudaContext

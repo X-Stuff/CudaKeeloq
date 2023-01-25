@@ -5,16 +5,16 @@
 #include "device/cuda_array.h"
 #include "device/cuda_object.h"
 
-#include "host/types/keeloq_encrypted.h"
-#include "host/types/keeloq_decryptor.h"
-#include "host/types/keeloq_single_result.h"
-#include "host/types/keeloq_learning_types.h"
+#include "algorithm/keeloq/keeloq_encrypted.h"
+#include "algorithm/keeloq/keeloq_decryptor.h"
+#include "algorithm/keeloq/keeloq_single_result.h"
+#include "algorithm/keeloq/keeloq_learning_types.h"
 
-#include "host/types/bruteforce_config.h"
+#include "bruteforce/bruteforce_config.h"
 
 
 // Input data for main keeloq calculation kernel
-struct KernelInput : TGenericGpuObject<KernelInput>
+struct KeeloqKernelInput : TGenericGpuObject<KeeloqKernelInput>
 {
 	// Constant per-run input data (captured encoded)
 	CudaArray<EncData>* encdata;
@@ -31,16 +31,16 @@ struct KernelInput : TGenericGpuObject<KernelInput>
 	// from this decryptor generation will start
 	BruteforceConfig generator;
 
-	KernelInput() : KernelInput(nullptr, nullptr, nullptr, BruteforceConfig())
+	KeeloqKernelInput() : KeeloqKernelInput(nullptr, nullptr, nullptr, BruteforceConfig())
 	{
 	}
 
-	KernelInput(CudaArray<EncData>* enc, CudaArray<Decryptor>* dec, CudaArray<SingleResult>* res, const BruteforceConfig& config)
-		: TGenericGpuObject<KernelInput>(this), encdata(enc), decryptors(dec), results(res), generator(config), learning_types()
+	KeeloqKernelInput(CudaArray<EncData>* enc, CudaArray<Decryptor>* dec, CudaArray<SingleResult>* res, const BruteforceConfig& config)
+		: TGenericGpuObject<KeeloqKernelInput>(this), encdata(enc), decryptors(dec), results(res), generator(config), learning_types()
 	{
 	}
 
-	KernelInput(KernelInput&& other) noexcept : TGenericGpuObject<KernelInput>(this) {
+	KeeloqKernelInput(KeeloqKernelInput&& other) noexcept : TGenericGpuObject<KeeloqKernelInput>(this) {
 		encdata = other.encdata;
 		decryptors = other.decryptors;
 		results = other.results;
@@ -48,8 +48,8 @@ struct KernelInput : TGenericGpuObject<KernelInput>
 		memcpy(learning_types, other.learning_types, sizeof(learning_types));
 	}
 
-	KernelInput& operator=(KernelInput&& other) = delete;
-	KernelInput& operator=(const KernelInput& other) = delete;
+	KeeloqKernelInput& operator=(KeeloqKernelInput&& other) = delete;
+	KeeloqKernelInput& operator=(const KeeloqKernelInput& other) = delete;
 
 public:
 	void WriteDecryptors(const std::vector<Decryptor>& source, size_t from, size_t num);

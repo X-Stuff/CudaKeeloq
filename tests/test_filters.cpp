@@ -1,12 +1,12 @@
 #include "tests/test_filters.h"
 
 #include <cuda_runtime_api.h>
-#include "kernels/bridge.h"
 
-#include "device/generators/generator_bruteforce.h"
+#include "kernels/bridge.h"
 #include "device/cuda_double_array.h"
 
-#include "host/types/bruteforce_filters.h"
+#include "bruteforce/bruteforce_filters.h"
+#include "bruteforce/generators/generator_bruteforce.h"
 
 
 namespace Tests
@@ -86,7 +86,7 @@ namespace Tests
 
 		std::vector<Decryptor> decryptors(NumToGenerate);
 		memset(decryptors.data(), 0, decryptors.size() * sizeof(Decryptor));
-		KernelInput generatorInputs(nullptr, CudaArray<Decryptor>::allocate(decryptors), nullptr, testConfig);
+		KeeloqKernelInput generatorInputs(nullptr, CudaArray<Decryptor>::allocate(decryptors), nullptr, testConfig);
 		KernelResult result;
 
 		auto error = GeneratorBruteforce::PrepareDecryptors(generatorInputs, NumBlocks, NumThreads);

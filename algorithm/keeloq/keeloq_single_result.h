@@ -4,9 +4,14 @@
 
 #include <stdint.h>
 
-#include "host/types/keeloq_learning_types.h"
+#include "algorithm/keeloq/keeloq_learning_types.h"
 
 
+/**
+ *  For each testing manufacturer key we retrieve this results
+ * Depending on selected learning type you may have from 1 to 16 (now it the last)
+ * decrypted results for further analysis
+ */
 struct SingleResult
 {
 	static constexpr uint8_t ResultsCount = KeeloqLearningType::LAST;

@@ -1,4 +1,10 @@
 #include "bruteforce_config.h"
+#include "bruteforce_type.h"
+#include "bruteforce_filters.h"
+#include "bruteforce_alphabet.h"
+
+#include "algorithm/keeloq/keeloq_decryptor.h"
+
 
 BruteforceConfig BruteforceConfig::GetDictionary(std::vector<Decryptor>&& dictionary)
 {

@@ -5,13 +5,13 @@
 #include <vector>
 #include <string>
 
-#include "host/types/keeloq_learning_types.h"
-#include "host/types/keeloq_single_result.h"
-#include "host/types/keeloq_encrypted.h"
-#include "host/types/bruteforce_config.h"
+#include "algorithm/keeloq/keeloq_learning_types.h"
+#include "algorithm/keeloq/keeloq_single_result.h"
+#include "algorithm/keeloq/keeloq_encrypted.h"
+#include "algorithm/keeloq/keeloq_kernel_input.h"
 
-#include "device/kernel_input.h"
-#include "device/kernel_result.h"
+#include "bruteforce/bruteforce_config.h"
+#include "kernels/kernel_result.h"
 
 
 /**
@@ -48,8 +48,6 @@ public:
 	// Return true if Round should be finished
 	bool CheckResults(const KernelResult& result);
 
-	void PrintResults(const KernelResult& result) const;
-
 	size_t NumBatches() const;
 
 	size_t ResultsPerBatch() const;
@@ -70,7 +68,7 @@ public:
 
 	inline BruteforceType::Type Type() const { assert(inited); return Config().type; }
 
-	inline KernelInput& Inputs() { assert(inited); return kernel_inputs; }
+	inline KeeloqKernelInput& Inputs() { assert(inited); return kernel_inputs; }
 
 private:
 
@@ -87,7 +85,7 @@ private:
 	uint32_t num_decryptors_per_batch = 0;
 
 	//
-	KernelInput kernel_inputs;
+	KeeloqKernelInput kernel_inputs;
 
 	// Constant per run
 	std::vector<EncData> encrypted_data;

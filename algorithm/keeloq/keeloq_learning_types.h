@@ -3,7 +3,9 @@
 #include <type_traits>
 #include <stdint.h>
 
-
+/**
+ * reference: https://github.com/DarkFlippers/unleashed-firmware/blob/dev/lib/subghz/protocols/keeloq_common.h
+ */
 struct KeeloqLearningType
 {
 	using Type = uint8_t;

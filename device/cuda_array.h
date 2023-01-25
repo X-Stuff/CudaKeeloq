@@ -3,7 +3,6 @@
 #include "common.h"
 
 #include <vector>
-
 #include <cuda_runtime_api.h>
 
 

@@ -423,7 +423,7 @@ __device__ uint8_t keeloq_analyze_results(const CudaContext& ctx, const CudaArra
     return num_matches;
 }
 
-__device__ uint8_t keeloq_decryption_run(const CudaContext& ctx, KernelInput& input)
+__device__ uint8_t keeloq_decryption_run(const CudaContext& ctx, KeeloqKernelInput& input)
 {
     auto& encrypted = *input.encdata;
     auto& decryptors = *input.decryptors;
@@ -498,7 +498,7 @@ __global__ void CUDA_keeloq_test(KernelResult::TCudaPtr ret)
     }
 }
 
-__global__ void CUDA_keeloq_main(KernelInput::TCudaPtr CUDA_inputs, KernelResult::TCudaPtr ret)
+__global__ void CUDA_keeloq_main(KeeloqKernelInput::TCudaPtr CUDA_inputs, KernelResult::TCudaPtr ret)
 {
     CudaContext ctx = CudaContext::Get();
 
@@ -516,7 +516,7 @@ __global__ void CUDA_keeloq_main(KernelInput::TCudaPtr CUDA_inputs, KernelResult
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-KernelResult CUDA_keeloq_main_wrapper(KernelInput& mainInputs, uint16_t ThreadBlocks, uint16_t ThreadsInBlock)
+KernelResult CUDA_keeloq_main_wrapper(KeeloqKernelInput& mainInputs, uint16_t ThreadBlocks, uint16_t ThreadsInBlock)
 {
     KernelResult kernel_results;
 

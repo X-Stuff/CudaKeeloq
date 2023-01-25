@@ -2,12 +2,11 @@
 
 #include "stdio.h"
 
+#include "host/console.h"
 #include "kernels/bridge.h"
 
-#include "host/console.h"
-#include "host/types/bruteforce_round.h"
-
-#include "device/generators/generator_bruteforce.h"
+#include "bruteforce/bruteforce_round.h"
+#include "bruteforce/generators/generator_bruteforce.h"
 
 #include "tests/test_filters.h"
 #include "tests/test_alphabet.h"
@@ -41,7 +40,7 @@ void bruteforce(const CommandLineArgs& args)
 		{
 			auto batchStartTime = std::chrono::high_resolution_clock::now();
 
-			KernelInput& kernelInput = attackRound.Inputs();
+			KeeloqKernelInput& kernelInput = attackRound.Inputs();
 
 			if (attackRound.Type() == BruteforceType::Dictionary)
 			{

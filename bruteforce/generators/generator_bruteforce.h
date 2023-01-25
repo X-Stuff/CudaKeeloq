@@ -2,12 +2,10 @@
 
 #include "common.h"
 
-#include <functional>
 #include <cuda_runtime.h>
 
-#include "device/kernel_input.h"
-#include "device/kernel_result.h"
-
+#include "algorithm/keeloq/keeloq_kernel_input.h"
+#include "kernels/kernel_result.h"
 
 
 /**
@@ -26,9 +24,9 @@
 template<typename TSelf>
 struct IGenerator
 {
-	typedef void(*KernelFunc)(KernelInput::TCudaPtr input, KernelResult::TCudaPtr results);
+	typedef void(*KernelFunc)(KeeloqKernelInput::TCudaPtr input, KernelResult::TCudaPtr results);
 
-	static inline void LaunchKernel(uint16_t blocks, uint16_t threads, KernelInput::TCudaPtr input, KernelResult::TCudaPtr results)
+	static inline void LaunchKernel(uint16_t blocks, uint16_t threads, KeeloqKernelInput::TCudaPtr input, KernelResult::TCudaPtr results)
 	{
 		void* args[] = { &input, &results };
 
@@ -43,12 +41,12 @@ struct GeneratorBruteforce
 {
 	// Checks type of used generator in inputs and launches kernel to generate next batch of decryptors
 	// Decryptors are generated on GPU and stored in GPU memory
-	static int PrepareDecryptors(KernelInput& inputs, uint16_t blocks, uint16_t threads);
+	static int PrepareDecryptors(KeeloqKernelInput& inputs, uint16_t blocks, uint16_t threads);
 };
 
 
 // Extern cuda kernels - Implementation are in inl.file
-DECLARE_GENERATOR(GeneratorBruteforceAlphabet, KernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls);
-DECLARE_GENERATOR(GeneratorBruteforceFiltered, KernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls);
-DECLARE_GENERATOR(GeneratorBruteforceSimple, KernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls);
+DECLARE_GENERATOR(GeneratorBruteforceAlphabet, KeeloqKernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls);
+DECLARE_GENERATOR(GeneratorBruteforceFiltered, KeeloqKernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls);
+DECLARE_GENERATOR(GeneratorBruteforceSimple, KeeloqKernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls);
 

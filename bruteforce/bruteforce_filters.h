@@ -5,7 +5,6 @@
 #include <vector>
 #include <tuple>
 #include <string>
-#include <assert.h>
 
 #include <cuda_runtime_api.h>
 

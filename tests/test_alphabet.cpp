@@ -1,13 +1,11 @@
 #include "tests/test_alphabet.h"
 
-#include "host/types/bruteforce_config.h"
-#include "host/types/keeloq_decryptor.h"
-
 #include "device/cuda_array.h"
-#include "device/kernel_input.h"
-#include "device/kernel_result.h"
-
-#include "device/generators/generator_bruteforce.h"
+#include "kernels/kernel_result.h"
+#include "bruteforce/bruteforce_config.h"
+#include "bruteforce/generators/generator_bruteforce.h"
+#include "algorithm/keeloq/keeloq_kernel_input.h"
+#include "algorithm/keeloq/keeloq_decryptor.h"
 
 
 bool Tests::AlphabetGeneration()
@@ -19,7 +17,7 @@ bool Tests::AlphabetGeneration()
 	auto testConfig = BruteforceConfig::GetAlphabet(0x6262626262626262, "abcd"_b, 0xFFFFFFFF);
 
 	std::vector<Decryptor> decryptors(NumBlocks * NumThreads);
-	KernelInput generatorInputs(nullptr, CudaArray<Decryptor>::allocate(decryptors), nullptr, testConfig);
+	KeeloqKernelInput generatorInputs(nullptr, CudaArray<Decryptor>::allocate(decryptors), nullptr, testConfig);
 	KernelResult result;
 
 	GeneratorBruteforceAlphabet::LaunchKernel(NumBlocks, NumThreads, generatorInputs.ptr(), result.ptr());

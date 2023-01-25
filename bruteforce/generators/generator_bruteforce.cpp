@@ -1,7 +1,10 @@
 #include "generator_bruteforce.h"
 
+#include "algorithm/keeloq/keeloq_kernel_input.h"
+#include "kernels/kernel_result.h"
 
-int GeneratorBruteforce::PrepareDecryptors(KernelInput& inputs, uint16_t blocks, uint16_t threads)
+
+int GeneratorBruteforce::PrepareDecryptors(KeeloqKernelInput& inputs, uint16_t blocks, uint16_t threads)
 {
 	KernelResult generator_results;
 

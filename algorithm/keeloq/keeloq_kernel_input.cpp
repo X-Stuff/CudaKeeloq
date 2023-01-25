@@ -1,9 +1,7 @@
-#include "kernel_input.h"
+#include "keeloq_kernel_input.h"
+#include "common.h"
 
-#include <algorithm>
-
-
-void KernelInput::WriteDecryptors(const std::vector<Decryptor>& source, size_t from, size_t num)
+void KeeloqKernelInput::WriteDecryptors(const std::vector<Decryptor>& source, size_t from, size_t num)
 {
 	if (decryptors != nullptr)
 	{
@@ -15,7 +13,7 @@ void KernelInput::WriteDecryptors(const std::vector<Decryptor>& source, size_t f
 }
 
 
-void KernelInput::NextDecryptor()
+void KeeloqKernelInput::NextDecryptor()
 {
 	assert(generator.type != BruteforceType::Dictionary);
 	generator.next_decryptor();

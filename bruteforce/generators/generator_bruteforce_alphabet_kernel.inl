@@ -1,10 +1,13 @@
 #include "device/cuda_context.h"
 
-#include "device/kernel_input.h"
-#include "device/kernel_result.h"
+#include "kernels/kernel_result.h"
+#include "algorithm/keeloq/keeloq_kernel_input.h"
+
+#include "bruteforce/bruteforce_alphabet.h"
+#include "bruteforce/bruteforce_type.h"
 
 
-__global__ void DEFINE_GENERATOR_KERNEL(GeneratorBruteforceAlphabet, KernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls)
+__global__ void DEFINE_GENERATOR_KERNEL(GeneratorBruteforceAlphabet, KeeloqKernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls)
 {
 	CudaContext ctx = CudaContext::Get();
 
