@@ -1,4 +1,5 @@
 #include "bruteforce_pattern.h"
+#include "bruteforce_alphabet.h"
 
 
 namespace

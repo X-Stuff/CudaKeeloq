@@ -91,6 +91,7 @@ protected:
 		// return count of possible numerals for that digit
 		__host__ __device__ inline uint8_t count() const { return size; }
 
+		__host__ inline std::vector<uint8_t> as_bytes() const { return std::vector<uint8_t>(&num[0], &num[0] + size); }
 	private:
 		DigitConfig() = default;
 

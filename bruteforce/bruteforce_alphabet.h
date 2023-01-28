@@ -29,6 +29,8 @@ struct BruteforceAlphabet
 
 	__host__ std::string toString() const;
 
+	__host__ std::vector<uint8_t> as_bytes() const { return system.as_bytes(); }
+
 private:
 
 	struct AlphabetSystem : public MultibaseSystem<8>
@@ -44,6 +46,8 @@ private:
 		__host__ __device__ size_t num_digits() const { return Digits[0].count(); }
 
 		__host__ __device__ uint8_t get_digit(uint8_t index) const { return Digits[0].numeral(index); }
+
+		__host__ std::vector<uint8_t> as_bytes() const { return Digits[0].as_bytes(); }
 	};
 
 	AlphabetSystem system;

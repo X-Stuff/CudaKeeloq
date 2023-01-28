@@ -21,6 +21,9 @@ struct CommandLineArgs
 	// Do not do all 16 calculations, use predefined one
 	std::vector<KeeloqLearningType::Type> selected_learning = {};
 
+	// Alphabets could be shared between attacks
+	std::vector<BruteforceAlphabet> alphabets;
+
 	// Stop on first match
 	bool match_stop;
 
