@@ -7,16 +7,18 @@
 
 #include <cuda_runtime_api.h>
 
+#include "algorithm/singlebase_number.h"
+
 
 /**
  *
  */
-struct BruteforceAlphabet
+struct BruteforceAlphabet_old
 {
-	BruteforceAlphabet() = default;
+	BruteforceAlphabet_old() = default;
 
 	// Duplicates will be removed
-	BruteforceAlphabet(const std::vector<uint8_t>& alphabet);
+	BruteforceAlphabet_old(const std::vector<uint8_t>& alphabet);
 
 	// size of the alphabet
 	__host__ __device__ inline size_t size() const { return num; }
@@ -57,7 +59,7 @@ private:
 	uint8_t num = 0;
 };
 
-__host__ __device__ inline uint64_t BruteforceAlphabet::add(uint64_t number, uint64_t value) const
+__host__ __device__ inline uint64_t BruteforceAlphabet_old::add(uint64_t number, uint64_t value) const
 {
 	uint8_t result[8] = {};
 	*(uint64_t*)result = number;
@@ -67,7 +69,7 @@ __host__ __device__ inline uint64_t BruteforceAlphabet::add(uint64_t number, uin
 	return *(uint64_t*)result;
 }
 
-__host__ __device__ inline void BruteforceAlphabet::add(uint8_t number[sizeof(uint64_t)], uint64_t value) const
+__host__ __device__ inline void BruteforceAlphabet_old::add(uint8_t number[sizeof(uint64_t)], uint64_t value) const
 {
 	UNROLL
 	for (int i = 0; i < sizeof(uint64_t); ++i)
@@ -83,7 +85,7 @@ __host__ __device__ inline void BruteforceAlphabet::add(uint8_t number[sizeof(ui
 	}
 }
 
-__host__ __device__ inline uint64_t BruteforceAlphabet::value(uint64_t index) const
+__host__ __device__ inline uint64_t BruteforceAlphabet_old::value(uint64_t index) const
 {
 	uint8_t* pIndex = (uint8_t*)&index;
 	uint8_t result[8] = {
@@ -99,7 +101,7 @@ __host__ __device__ inline uint64_t BruteforceAlphabet::value(uint64_t index) co
 	return *(uint64_t*)result;
 }
 
-__host__ __device__ uint64_t BruteforceAlphabet::lookup(uint64_t value) const
+__host__ __device__ uint64_t BruteforceAlphabet_old::lookup(uint64_t value) const
 {
 	uint64_t result = 0;
 	uint8_t* pResult = (uint8_t*)&result;
@@ -113,3 +115,43 @@ __host__ __device__ uint64_t BruteforceAlphabet::lookup(uint64_t value) const
 	}
 	return result;
 }
+
+
+
+struct BruteforceAlphabet_new
+{
+	BruteforceAlphabet_new(const std::vector<uint8_t>& alphabet)
+		: number_repesentation(alphabet)
+	{
+	}
+
+	BruteforceAlphabet_new()
+	{
+	}
+
+	// Set start value for generation round
+	__host__ void set_start(uint64_t value) { number_repesentation.set(value); }
+
+	// Return underlying singlebase number
+	__host__ __device__ const SinglebaseNumber& number() const { return number_repesentation; }
+
+	// will find first valid SingleBase number for input base10 number
+	// e.g.
+	//  number's base is: { 0x11, 0x22, 0x33 }
+	//  number's value is not important
+	//  base10 number is: 0x11 22 11 BB 10 23 33 33
+	//  the result will : 0x11 22 11 11 11 11 33 33
+	//		0xbb 0x10 0x23 were not found - thus replaced with first numeral
+	__host__ __device__ uint64_t cast(uint64_t base10number) const { return number_repesentation.convert(base10number); }
+
+	__host__ __device__ size_t size() const { return number_repesentation.base_count(); }
+
+	__host__ std::string toString() const;
+
+private:
+
+	SinglebaseNumber number_repesentation;
+};
+
+
+using BruteforceAlphabet = BruteforceAlphabet_new;

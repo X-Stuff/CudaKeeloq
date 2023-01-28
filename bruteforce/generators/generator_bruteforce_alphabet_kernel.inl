@@ -13,10 +13,10 @@ __global__ void DEFINE_GENERATOR_KERNEL(GeneratorBruteforceAlphabet, KeeloqKerne
 
 	assert(input->generator.type == BruteforceType::Alphabet);
 
-	BruteforceAlphabet& alphabet = input->generator.alphabet;
+	const BruteforceAlphabet& alphabet = input->generator.alphabet;
 	assert(alphabet.size() > 0);
 
-	Decryptor& start = input->generator.start;
+	//const Decryptor& start = input->generator.start;
 
 	CudaArray<Decryptor>& decryptors = *input->decryptors;
 
@@ -25,13 +25,17 @@ __global__ void DEFINE_GENERATOR_KERNEL(GeneratorBruteforceAlphabet, KeeloqKerne
 	// indexes are per-byte and shows how much ring is rotated
 	// and what 'letter' it should have.
 	// Or also it can be considered as 8-digit N-based number
-	uint64_t start_indexer = alphabet.lookup(start.man);
+	//uint64_t start_indexer = alphabet.cast(start.man);
 
 	// decomposed uint64 indexer for inner loop
-	uint8_t curr_indexer[8];
+	//uint8_t curr_indexer[8];
 
 	CUDA_FOR_THREAD_ID(ctx, decryptor_index, decryptors.num)
 	{
+		decryptors[decryptor_index].man = alphabet.number() + decryptor_index;
+
+		/*
+
 		// Set current indexer to initial value first
 
 		*(uint64_t*)curr_indexer = start_indexer;
@@ -48,6 +52,8 @@ __global__ void DEFINE_GENERATOR_KERNEL(GeneratorBruteforceAlphabet, KeeloqKerne
 		{
 			pCurrentKey[i] = alphabet[curr_indexer[i]];
 		}
+
+		*/
 	}
 }
 

@@ -3,7 +3,7 @@
 #include "common.h"
 
 
-BruteforceAlphabet::BruteforceAlphabet(const std::vector<uint8_t>& alphabet)
+BruteforceAlphabet_old::BruteforceAlphabet_old(const std::vector<uint8_t>& alphabet)
 {
 	num = 0;
 
@@ -18,16 +18,28 @@ BruteforceAlphabet::BruteforceAlphabet(const std::vector<uint8_t>& alphabet)
 		}
 	}
 
-	assert(num < BruteforceAlphabet::Size && "Using all bytes values as alphabet is not efficient");
+	assert(num < BruteforceAlphabet_old::Size && "Using all bytes values as alphabet is not efficient");
 }
 
-__host__ std::string BruteforceAlphabet::toString() const
+__host__ std::string BruteforceAlphabet_old::toString() const
 {
 	char tmp[255 * 3] = { 0 }; // one byte is 'XX:' last is XX\0
 	int write_index = 0;
 	for (int i = 0; i < num; ++i)
 	{
 		write_index += sprintf_s(&tmp[write_index], sizeof(tmp) - write_index, i == 0 ? "%X" : ":%X", alp[i]);
+	}
+	return std::string(tmp);
+}
+
+
+__host__ std::string BruteforceAlphabet_new::toString() const
+{
+	char tmp[255 * 3] = { 0 }; // one byte is 'XX:' last is XX\0
+	int write_index = 0;
+	for (int i = 0; i < number().base_count(); ++i)
+	{
+		write_index += sprintf_s(&tmp[write_index], sizeof(tmp) - write_index, i == 0 ? "%X" : ":%X", number().base_number(i));
 	}
 	return std::string(tmp);
 }

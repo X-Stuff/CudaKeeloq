@@ -28,7 +28,7 @@ BruteforceConfig BruteforceConfig::GetBruteforce(Decryptor first, size_t size, c
 BruteforceConfig BruteforceConfig::GetAlphabet(Decryptor first, const BruteforceAlphabet& alphabet, size_t num)
 {
 	// max operation take to check all keys with alphabet of size
-	num = std::min(alphabet.invariants(), num);
+	num = std::min(alphabet.number().invariants() - 1, num);
 
 	BruteforceConfig result(first, BruteforceType::Alphabet, num);
 	result.alphabet = alphabet;
@@ -86,10 +86,12 @@ std::string BruteforceConfig::toString() const
 	}
 	case BruteforceType::Alphabet:
 	{
-		uint64_t first = alphabet.value(alphabet.lookup(start.man));
-		uint64_t last = alphabet.add(first, brute_size());
+		Multibase8Digits copy(alphabet.number(), start.man);
+
+		uint64_t first = copy.value();
+		uint64_t last = copy + brute_size();
 		sprintf_s(tmp, "Type: %s. First: 0x%llX (seed:%u). Last: 0x%llX. (Count: %zd)  All invariants: %zd.\n\tAlphabet: %s",
-			pGeneratorName, first, start.seed, last, brute_size(), alphabet.invariants(), alphabet.toString().c_str());
+			pGeneratorName, first, start.seed, last, brute_size(), alphabet.number().invariants(), alphabet.toString().c_str());
 		break;
 	}
 	case BruteforceType::Pattern:

@@ -68,6 +68,12 @@
     <ClInclude Include="tests\test_all.h">
       <Filter>tests</Filter>
     </ClInclude>
+    <ClInclude Include="algorithm\multibase_number.h">
+      <Filter>algorithm</Filter>
+    </ClInclude>
+    <ClInclude Include="algorithm\singlebase_number.h">
+      <Filter>algorithm</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
