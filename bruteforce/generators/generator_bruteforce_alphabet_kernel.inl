@@ -9,14 +9,14 @@
 
 __global__ void DEFINE_GENERATOR_KERNEL(GeneratorBruteforceAlphabet, KeeloqKernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls)
 {
-	assert(input->generator.type == BruteforceType::Alphabet);
+	assert(input->config.type == BruteforceType::Alphabet);
 
 	CudaContext ctx = CudaContext::Get();
 
-	const BruteforceAlphabet& alphabet = input->generator.alphabet;
+	const BruteforceAlphabet& alphabet = input->config.alphabet;
 	assert(alphabet.valid());
 
-	const Decryptor& begin = input->generator.start;
+	const Decryptor& begin = input->config.start;
 
 	CudaArray<Decryptor>& decryptors = *input->decryptors;
 
@@ -26,7 +26,6 @@ __global__ void DEFINE_GENERATOR_KERNEL(GeneratorBruteforceAlphabet, KeeloqKerne
 	// and what 'letter' it should have.
 	// Or also it can be considered as 8-digit N-based number
 	MultibaseNumber start = alphabet.cast(begin.man);
-
 
 	CUDA_FOR_THREAD_ID(ctx, decryptor_index, decryptors.num)
 	{

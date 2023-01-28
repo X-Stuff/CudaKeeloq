@@ -20,7 +20,7 @@ BruteforceRound::BruteforceRound(const std::vector<EncData>& data, const Brutefo
 
 	num_decryptors_per_batch = iterations * threads * blocks;
 
-	kernel_inputs.generator = gen;
+	kernel_inputs.config = gen;
 	memset(kernel_inputs.learning_types, 0, sizeof(kernel_inputs.learning_types));
 
 	if (selected_learning.size() > 0)

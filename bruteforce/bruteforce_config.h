@@ -41,7 +41,7 @@ struct BruteforceConfig
 	BruteforceAlphabet alphabet;
 
 	// GPU SET. UPDATING. Last generated decryptor (will be initial for next block run)
-	Decryptor next;
+	Decryptor last;
 
 public:
 
@@ -72,7 +72,7 @@ public:
 
 private:
 	BruteforceConfig(Decryptor start, BruteforceType::Type t, size_t num) :
-		start(start), type(t), next(start), size(num)
+		start(start), type(t), last(start), size(num)
 	{
 	}
 };

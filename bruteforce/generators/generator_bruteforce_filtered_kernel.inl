@@ -16,19 +16,19 @@ __device__ inline uint64_t RequestNewBlock(uint64_t* from, uint32_t size)
 
 __global__ void DEFINE_GENERATOR_KERNEL(GeneratorBruteforceFiltered, KeeloqKernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls)
 {
-	assert(input->generator.type == BruteforceType::Filtered);
+	assert(input->config.type == BruteforceType::Filtered);
 
-	assert(input->generator.start.man > 0x100000000000 && "Starting key should be big enough to start bruteforcing. Consider pattern brute.");
+	assert(input->config.start.man > 0x100000000000 && "Starting key should be big enough to start bruteforcing. Consider pattern brute.");
 
-	assert(input->generator.filters.include != BruteforceFilters::Flags::None && "Include filter None is invalid - will lead to infinite loop!");
-	assert(input->generator.filters.exclude != BruteforceFilters::Flags::All && "Exclude filter All is invalid - will lead to infinite loop!");
+	assert(input->config.filters.include != BruteforceFilters::Flags::None && "Include filter None is invalid - will lead to infinite loop!");
+	assert(input->config.filters.exclude != BruteforceFilters::Flags::All && "Exclude filter All is invalid - will lead to infinite loop!");
 
 	CudaContext ctx = CudaContext::Get();
 
 	CudaArray<Decryptor>& decryptors = *input->decryptors;
 	size_t num_decryptors = decryptors.num;
 
-	BruteforceFilters& filters = input->generator.filters;
+	BruteforceFilters& filters = input->config.filters;
 
 
 	// if we need to generate 24 keys, and we have 64 threads, 40 last should do nothing
@@ -76,7 +76,7 @@ __global__ void DEFINE_GENERATOR_KERNEL(GeneratorBruteforceFiltered, KeeloqKerne
 				//   thread 1 adds 12 to `next.man` and get previous value
 				//   so now it starts check 12 keys from 6383 to 6395
 				//
-				man_block_begin = RequestNewBlock(&input->generator.next.man, block_size);
+				man_block_begin = RequestNewBlock(&input->config.last.man, block_size);
 
 				// TODO: Check how overflow behaves
 				man_block_end = man_block_begin + block_size;

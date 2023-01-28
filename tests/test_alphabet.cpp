@@ -11,21 +11,26 @@
 bool Tests::AlphabetGeneration()
 {
 	// Filtered generator test itself
-	constexpr auto NumBlocks = 16;
-	constexpr auto NumThreads = 32;
+	constexpr auto NumBlocks = 64;
+	constexpr auto NumThreads = 64;
 
-	auto testConfig = BruteforceConfig::GetAlphabet(0x6262626262626262, "abcd"_b, 0xFFFFFFFF);
+	auto testConfig = BruteforceConfig::GetAlphabet(0x0, "abcd"_b, 0xFFFFFFFF);
 
 	std::vector<Decryptor> decryptors(NumBlocks * NumThreads);
+
 	KeeloqKernelInput generatorInputs(nullptr, CudaArray<Decryptor>::allocate(decryptors), nullptr, testConfig);
-	KernelResult result;
 
-	GeneratorBruteforceAlphabet::LaunchKernel(NumBlocks, NumThreads, generatorInputs.ptr(), result.ptr());
+	for (int i = 0; i < 16; ++i)
+	{
+		GeneratorBruteforce::PrepareDecryptors(generatorInputs, NumBlocks, NumThreads);
 
-	generatorInputs.read();
-	generatorInputs.decryptors->copy(decryptors);
+		generatorInputs.decryptors->copy(decryptors);
 
-	result.read();
+		assert((decryptors[0].man & 0x0000FFFFFFFFFFFF) == 0x616161616161);
 
+		generatorInputs.NextDecryptor();
+	}
+
+	assert(decryptors[4095].man == 0x6464646464646464);
 	return true;
 }

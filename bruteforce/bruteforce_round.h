@@ -64,7 +64,7 @@ public:
 
 	inline uint32_t CudaThreadIterations() const { return CUDASetup[2]; }
 
-	inline const BruteforceConfig& Config() const { assert(inited); return kernel_inputs.generator; }
+	inline const BruteforceConfig& Config() const { assert(inited); return kernel_inputs.config; }
 
 	inline BruteforceType::Type Type() const { assert(inited); return Config().type; }
 

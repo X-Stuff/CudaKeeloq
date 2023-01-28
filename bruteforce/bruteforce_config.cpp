@@ -63,7 +63,18 @@ void BruteforceConfig::next_decryptor()
 {
 	if (type != BruteforceType::Dictionary)
 	{
-		start = next;
+		start = last;
+
+		if (type == BruteforceType::Alphabet || type == BruteforceType::Pattern)
+		{
+			// +1 for these attacks cause next here is the last *checked*
+			auto startnum = alphabet.cast(start.man);
+			start.man = alphabet.add(startnum, 1).number();
+		}
+		else if (type == BruteforceType::Simple || type == BruteforceType::Filtered)
+		{
+			start.man++;
+		}
 	}
 }
 

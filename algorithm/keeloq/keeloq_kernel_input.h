@@ -29,14 +29,14 @@ struct KeeloqKernelInput : TGenericGpuObject<KeeloqKernelInput>
 	KeeloqLearningType::Type learning_types[KeeloqLearningType::LAST + 1];
 
 	// from this decryptor generation will start
-	BruteforceConfig generator;
+	BruteforceConfig config;
 
 	KeeloqKernelInput() : KeeloqKernelInput(nullptr, nullptr, nullptr, BruteforceConfig())
 	{
 	}
 
 	KeeloqKernelInput(CudaArray<EncData>* enc, CudaArray<Decryptor>* dec, CudaArray<SingleResult>* res, const BruteforceConfig& config)
-		: TGenericGpuObject<KeeloqKernelInput>(this), encdata(enc), decryptors(dec), results(res), generator(config), learning_types()
+		: TGenericGpuObject<KeeloqKernelInput>(this), encdata(enc), decryptors(dec), results(res), config(config), learning_types()
 	{
 	}
 
@@ -44,7 +44,7 @@ struct KeeloqKernelInput : TGenericGpuObject<KeeloqKernelInput>
 		encdata = other.encdata;
 		decryptors = other.decryptors;
 		results = other.results;
-		generator = other.generator;
+		config = other.config;
 		memcpy(learning_types, other.learning_types, sizeof(learning_types));
 	}
 
