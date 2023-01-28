@@ -107,7 +107,7 @@
     <ClInclude Include="algorithm\keeloq\keeloq_learning_types.h" />
     <ClInclude Include="algorithm\keeloq\keeloq_single_result.h" />
     <ClInclude Include="algorithm\multibase_number.h" />
-    <ClInclude Include="algorithm\singlebase_number.h" />
+    <ClInclude Include="algorithm\multibase_system.h" />
     <ClInclude Include="bruteforce\bruteforce_alphabet.h" />
     <ClInclude Include="bruteforce\bruteforce_config.h" />
     <ClInclude Include="bruteforce\bruteforce_filters.h" />

@@ -71,7 +71,7 @@
     <ClInclude Include="algorithm\multibase_number.h">
       <Filter>algorithm</Filter>
     </ClInclude>
-    <ClInclude Include="algorithm\singlebase_number.h">
+    <ClInclude Include="algorithm\multibase_system.h">
       <Filter>algorithm</Filter>
     </ClInclude>
   </ItemGroup>

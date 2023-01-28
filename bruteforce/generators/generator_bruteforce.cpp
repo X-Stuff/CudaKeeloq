@@ -23,9 +23,6 @@ int GeneratorBruteforce::PrepareDecryptors(KeeloqKernelInput& inputs, uint16_t b
 	}
 	case BruteforceType::Alphabet:
 	{
-		// updating start value in alphabet
-		inputs.generator.alphabet.set_start(inputs.generator.start.man);
-
 		GeneratorBruteforceAlphabet::LaunchKernel(blocks, threads, inputs.ptr(), generator_results.ptr());
 		break;
 	}
