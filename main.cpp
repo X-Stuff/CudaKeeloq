@@ -42,20 +42,23 @@ void bruteforce(const CommandLineArgs& args)
 
 			KeeloqKernelInput& kernelInput = attackRound.Inputs();
 
-			if (attackRound.Type() == BruteforceType::Dictionary)
+			if (attackRound.Type() != BruteforceType::Dictionary)
+			{
+				if (batch > 0)
+				{
+					// Make previous last generated key be an initial for current generation batch
+					kernelInput.NextDecryptor();
+				}
+
+				// Generate decryptors (if available)
+				int error = GeneratorBruteforce::PrepareDecryptors(kernelInput, attackRound.CudaBlocks(), attackRound.CudaThreads());
+				assert(error == 0);
+			}
+			else
 			{
 				// Write next batch of keys from dictionary
 				kernelInput.WriteDecryptors(config.decryptors, batch * keysInBatch, keysInBatch);
 			}
-			else
-			{
-				// Make previous last generated key be an initial for current generation batch
-				kernelInput.NextDecryptor();
-			}
-
-			// Generate decryptors (if available)
-			int error = GeneratorBruteforce::PrepareDecryptors(kernelInput, attackRound.CudaBlocks(), attackRound.CudaThreads());
-			assert(error == 0);
 
 			// do the bruteforce
 			auto kernelResults = LaunchKeeloqBruteMain(kernelInput, attackRound.CudaBlocks(), attackRound.CudaThreads());
@@ -77,10 +80,10 @@ void bruteforce(const CommandLineArgs& args)
 
 				console_cursor_ret_up(2);
 
-				printf("[%c][%zd/%zd]\t %llu(ms)/batch Speed: %llu KKeys/s\tNext key:0x%llX (%ul)\n", WAIT_CHAR(batch),
+				printf("[%c][%zd/%zd]\t %llu(ms)/batch Speed: %llu KKeys/s\tLast key:0x%llX (%ul)\n", WAIT_CHAR(batch),
 					batch, batchesInRound, duration.count(),
 					kilo_result_per_second,
-					kernelInput.generator.next.man, kernelInput.generator.next.seed);
+					kernelInput.config.last.man, kernelInput.config.last.seed);
 
 				auto overall = std::chrono::duration_cast<std::chrono::seconds>(
 					std::chrono::system_clock::now() - roundStartTime);
@@ -108,15 +111,15 @@ int main(int argc, const char** argv)
 	const char* commandline[] = {
 		"tests",
 		"--" ARG_INPUTS"=0xC65D52A0A81FD504,0xCCA9B335A81FD504,0xE0DA7372A81FD504",
-		"--" ARG_MODE"=2,0,1,3",
-		//"--" ARG_LTYPE"=6",
+		"--" ARG_MODE"=3",//,2,0,1",
+		//"--" ARG_LTYPE"=6,1,3",
 
 		"--" ARG_WORDDICT"=0xCEB6AE48B5C63ED1,0xCEB6AE48B5C63ED2,0xCEB6AE48B5C63ED3",
 
 #if _DEBUG
 		"--" ARG_BLOCKS"=512",
 		"--" ARG_LOOPS"=2",
-		"--" ARG_START"=0xCEB6AE48B0000000",
+		//"--" ARG_START"=0xCEB6AE48B0000000",
 #else
 		"--" ARG_BLOCKS"=1024",
 		"--" ARG_LOOPS"=2",
@@ -125,9 +128,9 @@ int main(int argc, const char** argv)
 		"--" ARG_COUNT"=0xFFFFFFFF",
 
 		// "--" ARG_IFILTER"=0x2", include filter let be all (otherwise will have big impact)
-		"--" ARG_EFILTER"=96",  // BytesRepeat4 | BytesIncremental should increse performance(?)
+		"--" ARG_EFILTER"=96",  // BytesRepeat4 | BytesIncremental should increase performance(?)
 
-		"--" ARG_ALPHABET"=examples/alphabet.bin,CE:B6:AE:48:B5:C6:3E:D2",//:AA:BB:CC:DD:EE:FF:00:11",
+		"--" ARG_ALPHABET"=CE:B6:AE:48:B5:C6:3E:D2:AA:BB:CC:DD:EE:FF:00:11,examples/alphabet.bin,CE:B6:AE:48:B5:C6:3E:D2",//:AA:BB:CC:DD:EE:FF:00:11",
 
 		"--" ARG_FMATCH"=0",
 
@@ -147,7 +150,7 @@ int main(int argc, const char** argv)
 
 		printf("\n...TESTS FINISHED...\n");
 
-		//return;
+		return 0;
 		console_clear();
 	}
 

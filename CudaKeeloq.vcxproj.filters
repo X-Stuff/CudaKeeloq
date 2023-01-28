@@ -74,6 +74,9 @@
     <ClInclude Include="algorithm\multibase_system.h">
       <Filter>algorithm</Filter>
     </ClInclude>
+    <ClInclude Include="bruteforce\bruteforce_pattern.h">
+      <Filter>bruteforce</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
@@ -115,6 +118,9 @@
     </ClCompile>
     <ClCompile Include="algorithm\keeloq\keeloq_kernel_input.cpp">
       <Filter>algorithm\keeloq</Filter>
+    </ClCompile>
+    <ClCompile Include="bruteforce\bruteforce_pattern.cpp">
+      <Filter>bruteforce</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

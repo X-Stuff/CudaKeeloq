@@ -111,6 +111,7 @@
     <ClInclude Include="bruteforce\bruteforce_alphabet.h" />
     <ClInclude Include="bruteforce\bruteforce_config.h" />
     <ClInclude Include="bruteforce\bruteforce_filters.h" />
+    <ClInclude Include="bruteforce\bruteforce_pattern.h" />
     <ClInclude Include="bruteforce\bruteforce_round.h" />
     <ClInclude Include="bruteforce\bruteforce_type.h" />
     <ClInclude Include="bruteforce\generators\generator_bruteforce.h" />
@@ -133,6 +134,7 @@
     <ClCompile Include="bruteforce\bruteforce_alphabet.cpp" />
     <ClCompile Include="bruteforce\bruteforce_config.cpp" />
     <ClCompile Include="bruteforce\bruteforce_filters.cpp" />
+    <ClCompile Include="bruteforce\bruteforce_pattern.cpp" />
     <ClCompile Include="bruteforce\bruteforce_round.cpp" />
     <ClCompile Include="bruteforce\bruteforce_type.cpp" />
     <ClCompile Include="bruteforce\generators\generator_bruteforce.cpp" />
