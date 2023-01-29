@@ -106,9 +106,9 @@
     <ClInclude Include="algorithm\keeloq\keeloq_kernel_input.h" />
     <ClInclude Include="algorithm\keeloq\keeloq_learning_types.h" />
     <ClInclude Include="algorithm\keeloq\keeloq_single_result.h" />
+    <ClInclude Include="algorithm\multibase_digit.h" />
     <ClInclude Include="algorithm\multibase_number.h" />
     <ClInclude Include="algorithm\multibase_system.h" />
-    <ClInclude Include="bruteforce\bruteforce_alphabet.h" />
     <ClInclude Include="bruteforce\bruteforce_config.h" />
     <ClInclude Include="bruteforce\bruteforce_filters.h" />
     <ClInclude Include="bruteforce\bruteforce_pattern.h" />
@@ -131,7 +131,6 @@
     <ClCompile Include="algorithm\keeloq\keeloq_kernel_input.cpp" />
     <ClCompile Include="algorithm\keeloq\keeloq_learning_types.cpp" />
     <ClCompile Include="algorithm\keeloq\keeloq_single_result.cpp" />
-    <ClCompile Include="bruteforce\bruteforce_alphabet.cpp" />
     <ClCompile Include="bruteforce\bruteforce_config.cpp" />
     <ClCompile Include="bruteforce\bruteforce_filters.cpp" />
     <ClCompile Include="bruteforce\bruteforce_pattern.cpp" />
@@ -151,7 +150,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="algorithm\keeloq\keeloq_kernel.inl" />
-    <None Include="bruteforce\generators\generator_bruteforce_alphabet_kernel.inl" />
+    <None Include="bruteforce\generators\generator_bruteforce_pattern_kernel.inl" />
     <None Include="bruteforce\generators\generator_bruteforce_filtered_kernel.inl" />
     <None Include="bruteforce\generators\generator_bruteforce_simple_kernel.inl" />
   </ItemGroup>

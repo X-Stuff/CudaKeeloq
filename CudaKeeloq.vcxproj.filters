@@ -29,9 +29,6 @@
     <ClInclude Include="bruteforce\bruteforce_filters.h">
       <Filter>bruteforce</Filter>
     </ClInclude>
-    <ClInclude Include="bruteforce\bruteforce_alphabet.h">
-      <Filter>bruteforce</Filter>
-    </ClInclude>
     <ClInclude Include="bruteforce\bruteforce_config.h">
       <Filter>bruteforce</Filter>
     </ClInclude>
@@ -77,6 +74,9 @@
     <ClInclude Include="bruteforce\bruteforce_pattern.h">
       <Filter>bruteforce</Filter>
     </ClInclude>
+    <ClInclude Include="algorithm\multibase_digit.h">
+      <Filter>algorithm</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
@@ -91,9 +91,6 @@
     </ClCompile>
     <ClCompile Include="host\console.cpp">
       <Filter>host</Filter>
-    </ClCompile>
-    <ClCompile Include="bruteforce\bruteforce_alphabet.cpp">
-      <Filter>bruteforce</Filter>
     </ClCompile>
     <ClCompile Include="bruteforce\bruteforce_filters.cpp">
       <Filter>bruteforce</Filter>
@@ -161,7 +158,7 @@
     </CudaCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="bruteforce\generators\generator_bruteforce_alphabet_kernel.inl">
+    <None Include="bruteforce\generators\generator_bruteforce_pattern_kernel.inl">
       <Filter>bruteforce\generators</Filter>
     </None>
     <None Include="bruteforce\generators\generator_bruteforce_simple_kernel.inl">

@@ -150,7 +150,7 @@ std::string BruteforceRound::ToString() const
 {
 	assert(inited);
 
-	char tmp[1024];
+	char tmp[8196];
 	sprintf_s(tmp, "Setup:\n"
 		"\tCUDA: Blocks:%u Threads:%u Iterations:%u\n"
 		"\tEncrypted data size:%zd\n"

@@ -1,7 +1,6 @@
 #include "bruteforce_config.h"
 #include "bruteforce_type.h"
 #include "bruteforce_filters.h"
-#include "bruteforce_alphabet.h"
 
 #include "algorithm/keeloq/keeloq_decryptor.h"
 
@@ -25,20 +24,20 @@ BruteforceConfig BruteforceConfig::GetBruteforce(Decryptor first, size_t size, c
 	return result;
 }
 
-BruteforceConfig BruteforceConfig::GetAlphabet(Decryptor first, const BruteforceAlphabet& alphabet, size_t num)
+BruteforceConfig BruteforceConfig::GetAlphabet(Decryptor first, const MultibaseDigit& alphabet, size_t num)
 {
-	// max operation take to check all keys with alphabet of size
-	num = std::min(alphabet.size() - 1, num);
-
-	BruteforceConfig result(first, BruteforceType::Alphabet, num);
-	result.alphabet = alphabet;
+	auto result = GetPattern(first, BruteforcePattern(alphabet), num);
+	result.type = BruteforceType::Alphabet;
 	return result;
 }
 
-BruteforceConfig BruteforceConfig::GetPattern(Decryptor first)
+BruteforceConfig BruteforceConfig::GetPattern(Decryptor first, const BruteforcePattern& pattern, size_t num)
 {
-	// not implemented
-	return BruteforceConfig(0, BruteforceType::LAST, 0);
+	num = std::min(pattern.size() - 1, num);
+
+	BruteforceConfig result(first, BruteforceType::Pattern, num);
+	result.pattern = pattern;
+	return result;
 }
 
 uint64_t BruteforceConfig::dict_size() const
@@ -68,8 +67,8 @@ void BruteforceConfig::next_decryptor()
 		if (type == BruteforceType::Alphabet || type == BruteforceType::Pattern)
 		{
 			// +1 for these attacks cause next here is the last *checked*
-			auto startnum = alphabet.cast(start.man);
-			start.man = alphabet.add(startnum, 1).number();
+			auto startnum = pattern.init(start.man);
+			start.man = pattern.next(startnum, 1).number();
 		}
 		else if (type == BruteforceType::Simple || type == BruteforceType::Filtered)
 		{
@@ -80,7 +79,7 @@ void BruteforceConfig::next_decryptor()
 
 std::string BruteforceConfig::toString() const
 {
-	char tmp[384];
+	char tmp[8196];
 	const char* pGeneratorName = BruteforceType::Name(type);
 	switch (type)
 	{
@@ -96,17 +95,24 @@ std::string BruteforceConfig::toString() const
 		break;
 	}
 	case BruteforceType::Alphabet:
-	{
-		MultibaseNumber begin = alphabet.cast(start.man);
-		MultibaseNumber end = alphabet.add(begin, brute_size());
-
-		sprintf_s(tmp, "Type: %s. First: 0x%llX (seed:%u). Last: 0x%llX. (Count: %zd)  All invariants: %zd.\n\tAlphabet: %s",
-			pGeneratorName, begin.number(), start.seed, end.number(), brute_size(), alphabet.size(), alphabet.toString().c_str());
-		break;
-	}
 	case BruteforceType::Pattern:
 	{
-		sprintf_s(tmp, "Type: %s. NOT IMPLEMEMENTED", pGeneratorName);
+		MultibaseNumber begin = pattern.init(start.man);
+		MultibaseNumber end = pattern.next(begin, brute_size());
+
+		auto written = sprintf_s(tmp, "Type: %s. First: 0x%llX (seed:%u). Last: 0x%llX. (Count: %zd)  All invariants: %zd",
+			pGeneratorName, begin.number(), start.seed, end.number(), brute_size(), pattern.size());
+
+		if (type == BruteforceType::Alphabet)
+		{
+			written = sprintf_s(&tmp[written], sizeof(tmp) - written,
+				"\n\tAlphabet: %s", pattern.bytes_variants(0).to_string().c_str());
+		}
+		else
+		{
+			std::string pattern_string = pattern.to_string(true);
+			written = sprintf_s(&tmp[written], sizeof(tmp) - written, "\nPattern: %s", pattern_string.c_str());
+		}
 		break;
 	}
 	case BruteforceType::Dictionary:

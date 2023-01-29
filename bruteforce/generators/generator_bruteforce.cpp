@@ -21,15 +21,10 @@ int GeneratorBruteforce::PrepareDecryptors(KeeloqKernelInput& inputs, uint16_t b
 		GeneratorBruteforceFiltered::LaunchKernel(blocks, threads, inputs.ptr(), generator_results.ptr());
 		break;
 	}
+	case BruteforceType::Pattern:
 	case BruteforceType::Alphabet:
 	{
-		GeneratorBruteforceAlphabet::LaunchKernel(blocks, threads, inputs.ptr(), generator_results.ptr());
-		break;
-	}
-	case BruteforceType::Pattern:
-	{
-		assert(false && "Not implemented");
-		return 1;
+		GeneratorBruteforcePattern::LaunchKernel(blocks, threads, inputs.ptr(), generator_results.ptr());
 		break;
 	}
 	case BruteforceType::Dictionary:

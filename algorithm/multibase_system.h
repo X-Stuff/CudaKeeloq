@@ -5,7 +5,9 @@
 #include <vector>
 #include <cuda_runtime_api.h>
 
+#include "algorithm/multibase_digit.h"
 #include "algorithm/multibase_number.h"
+
 
 
 /**
@@ -33,24 +35,28 @@ struct MultibaseSystem
 {
 	static_assert(NumDigits <= 8, "At the moment we only support 8 bytes numbers");
 
+	// For easier usage with aliased types
+	constexpr static uint8_t DigitsNumber = NumDigits;
+
 	/**
-	 *  A generic case when all digits has different bases
+	 *  A generic case when all digits has different bases (pattern usage)
 	 */
-	__host__ MultibaseSystem(const std::vector<uint8_t> numerals[NumDigits]);
+	__host__ MultibaseSystem(const std::vector<std::vector<uint8_t>>& numerals);
+
+	/**
+	 *  Use the same ByteDigit for every digit in this value (alphabet usage)
+	 */
+	__host__ MultibaseSystem(const MultibaseDigit& digit);
+
+	/**
+	 *  Default constructor where all Digits are Default - full range 0-255
+	 */
+	__host__ MultibaseSystem() : MultibaseSystem(MultibaseDigit()) { }
 
 	// It's pretty heavy struct if you want clone it - constructor above
 	// TODO: disable copy
-	// MultibaseNumber(const MultibaseNumber& other) = delete;
-	// MultibaseNumber& operator=(const MultibaseNumber& other) = delete;
-
-protected:
-
-	struct DigitConfig;
-
-	/**
-	 *  Use the same ByteDigit for every digit in this value
-	 */
-	__host__ MultibaseSystem(const DigitConfig& digit);
+	// MultibaseSystem(const MultibaseSystem& other) = delete;
+	// MultibaseSystem& operator=(const MultibaseSystem& other) = delete;
 
 public:
 
@@ -63,76 +69,28 @@ public:
 	// Adds @amount in base10 to the @target argument and returns it
 	__host__ __device__ inline MultibaseNumber& increment(MultibaseNumber& target, uint64_t amount) const;
 
-protected:
-
-	// Imagine this as one cylinder
-	struct DigitConfig
-	{
-		friend struct MultibaseSystem<NumDigits>;
-
-		// Creates digit
-		__host__ DigitConfig(const std::vector<uint8_t>& numerals);
-
-	public:
-		// Return numeral by index
-		__host__ __device__ inline uint8_t numeral(uint8_t in_index) const;
-
-		// Cast from byte-255 value to Digit's config
-		__host__ __device__ inline uint8_t cast(uint8_t value) const { return numeral(lookup(value)); }
-
-		// return numeral index of the value
-		// e.g.
-		//  num = { 0x04, 0xAB, 0xd7, 0x56 }
-		//  lookup(0xAB) returns 1
-		//  lookup(0x56) returns 3
-		//  lookup(0xFF) returns 0 (not found returns default)
-		__host__ __device__ inline uint8_t lookup(uint8_t value) const { return lut[value]; }
-
-		// return count of possible numerals for that digit
-		__host__ __device__ inline uint8_t count() const { return size; }
-
-		__host__ inline std::vector<uint8_t> as_bytes() const { return std::vector<uint8_t>(&num[0], &num[0] + size); }
-	private:
-		DigitConfig() = default;
-
-		// numeral values. it may be not just 0,1,2,3,4...
-		// but for base 4 it may be: 0xA3, 0xCC, 0x01, 0x22
-		uint8_t num[0xFF] = {0};
-
-		// lookup table:
-		//  at index that equals numeral value there is a value which represents index in numerals
-		//  e.g.                              https://asciiflow.com/
-		//                                  ┌───────────────────────┐
-		//                                  ▲                       │
-		// numerals = [ 0x03, 0x02, 0x01, 0x00, ... garbage. ]      │
-		//                                  ▲                       │
-		//               ┌──────────────────┘                       │
-		//               ▲                                          │
-		//	    lut = [ 0x03, 0x02, 0x01, 0x00, 0x00 ... 0x00]      │
-		//               ▲                                          │
-		//               └──────────────────────────────────────────┘
-		//
-		uint8_t lut[0xFF] = {0};
-
-		// Actual size of numerals (the base if number representing by this digit)
-		uint8_t size = 0;
-	};
+	// get digit config by its index
+	__host__ __device__ inline const MultibaseDigit& get_config(uint8_t digit_index) const { assert(digit_index < NumDigits); return digits[digit_index]; }
 
 protected:
 
 	// the digits
-	DigitConfig Digits[NumDigits];
+	MultibaseDigit digits[NumDigits];
 };
+
+//
+using Multibase8DigitsSystem = MultibaseSystem<8>;
+
 
 template<uint8_t NumDigits /*= 8*/>
 __host__ __device__ size_t MultibaseSystem<NumDigits>::invariants() const
 {
-	size_t num = Digits[0].size;
+	size_t num = digits[0].size;
 
 	UNROLL
 	for (uint8_t i = 1; i < NumDigits; ++i)
 	{
-		num *= Digits[i].size;
+		num *= digits[i].size;
 	}
 
 	return num;
@@ -148,9 +106,9 @@ __host__ __device__ MultibaseNumber MultibaseSystem<NumDigits>::cast(uint64_t in
 	UNROLL
 	for (uint8_t i = 0; i < NumDigits; ++i)
 	{
-		number.indices.u8[i] = Digits[i].lookup(u64Input.u8[i]);
+		number.indices.u8[i] = digits[i].lookup(u64Input.u8[i]);
 
-		number.value.u8[i] = Digits[i].numeral(number.indices.u8[i]);
+		number.value.u8[i] = digits[i].numeral(number.indices.u8[i]);
 	}
 
 	return number;
@@ -163,12 +121,12 @@ __host__ __device__ inline MultibaseNumber& MultibaseSystem<NumDigits>::incremen
 	for (uint8_t i = 0; i < NumDigits; ++i)
 	{
 		uint8_t index = target.indices.u8[i];
-		uint8_t size = Digits[i].size;
+		uint8_t size = digits[i].size;
 
 		target.indices.u8[i] = static_cast<uint8_t>((amount + index) % size);
 		amount = (amount + index) / size;
 
-		target.value.u8[i] = Digits[i].numeral(target.indices.u8[i]);
+		target.value.u8[i] = digits[i].numeral(target.indices.u8[i]);
 	}
 
 	// here base10value will contain overflow
@@ -177,60 +135,28 @@ __host__ __device__ inline MultibaseNumber& MultibaseSystem<NumDigits>::incremen
 	return target;
 }
 
-template<uint8_t NumDigits /*= 8*/>
-__host__ __device__ uint8_t MultibaseSystem<NumDigits>::DigitConfig::numeral(uint8_t in_index) const
-{
-	assert(in_index < size);
-
-	// Important for optimization purposes
-	// WE ARE NOT USING (value % size)
-	return num[in_index];
-}
 
 template<uint8_t NumDigits /*= 8*/>
-__host__ MultibaseSystem<NumDigits>::MultibaseSystem(const std::vector<uint8_t> numerals[NumDigits])
+__host__ MultibaseSystem<NumDigits>::MultibaseSystem(const std::vector<std::vector<uint8_t>>& numerals)
 {
 	for (uint8_t i = 0; i < NumDigits; ++i)
 	{
-		Digits[i] = ByteDigit(numerals[i]);
-	}
-}
-
-template<uint8_t NumDigits /*= 8*/>
-__host__ MultibaseSystem<NumDigits>::MultibaseSystem(const DigitConfig& digit)
-{
-	for (uint8_t i = 0; i < NumDigits; ++i)
-	{
-		Digits[i] = digit;
-	}
-}
-
-
-template<uint8_t NumDigits /*= 8*/>
-__host__ MultibaseSystem<NumDigits>::DigitConfig::DigitConfig(const std::vector<uint8_t>& numerals)
-{
-	// incrementing in the loop, for the duplicate numerals cases
-	size = 0;
-
-	for (uint8_t i = 0; i < numerals.size(); ++i)
-	{
-		// Getting next numeral candidate
-		uint8_t numeral_value = numerals[i];
-
-		// if there is 0 value (index) in the lookup table
-		// that means `numeral_value` wasn't added to available values yet
-		if (!lut[numeral_value])
+		if (i < numerals.size())
 		{
-			// putting index of `numeric_value` to the lut
-			lut[numeral_value] = size;
-
-			// setting the size-th numeral
-			num[size] = numeral_value;
-
-			// increasing the size
-			++size;
+			digits[i] = MultibaseDigit(numerals[i]);
+		}
+		else
+		{
+			digits[i] = MultibaseDigit();
 		}
 	}
+}
 
-	assert(size > 0 && "Digit base should be at least 0");
+template<uint8_t NumDigits /*= 8*/>
+__host__ MultibaseSystem<NumDigits>::MultibaseSystem(const MultibaseDigit& digit)
+{
+	for (uint8_t i = 0; i < NumDigits; ++i)
+	{
+		digits[i] = digit;
+	}
 }

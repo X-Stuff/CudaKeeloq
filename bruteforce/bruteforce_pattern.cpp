@@ -1,5 +1,4 @@
 #include "bruteforce_pattern.h"
-#include "bruteforce_alphabet.h"
 
 
 namespace
@@ -26,16 +25,52 @@ std::vector<std::string> split(const std::string& delim, std::string input)
 }
 
 
-BruteforcePattern::BruteforcePattern(std::vector<std::vector<uint8_t>>&& pattern_bytes)
+BruteforcePattern::BruteforcePattern(const std::string& pattern_string, std::vector<std::vector<uint8_t>>&& pattern_bytes)
+	: system(pattern_bytes), repr_string(pattern_string)
 {
-
 }
 
-std::vector<uint8_t> BruteforcePattern::BytesFull()
+
+BruteforcePattern::BruteforcePattern(const MultibaseDigit& same_bytes)
+	: system(same_bytes), repr_string("N/A")
 {
-	std::vector<uint8_t> result(0xff);
-	for (uint8_t i = 0; i < 0xFF; ++i) { result[i] = i; };
-	return result;
+}
+
+__host__ std::string BruteforcePattern::to_string(bool extended) const
+{
+	if (!extended)
+	{
+		return repr_string;
+	}
+
+	constexpr size_t MaxChars = (255 * 3 + 10) * 8 + 10;
+
+	char tmp[MaxChars] = { 0 }; // one byte is 'XX:' last is XX\0
+
+	int write_index =  0;
+
+	for (int d = 0; d < PatternSystem::DigitsNumber; ++d)
+	{
+		const auto& digitConfig = system.get_config(d);
+
+		write_index += sprintf_s(&tmp[write_index], sizeof(tmp) - write_index, "\t 0%d: (", d);
+
+		if (digitConfig.count() < 255)
+		{
+			for (int i = 0; i < digitConfig.count(); ++i)
+			{
+				write_index += sprintf_s(&tmp[write_index], sizeof(tmp) - write_index, i == 0 ? "%X" : ":%X", digitConfig.numeral(i));
+			}
+		}
+		else
+		{
+			write_index += sprintf_s(&tmp[write_index], sizeof(tmp) - write_index, " <ANY> ");
+		}
+
+		write_index += sprintf_s(&tmp[write_index], sizeof(tmp) - write_index, ")\n");
+	}
+
+	return "\"" + repr_string + "\": \n" + std::string(tmp);
 }
 
 bool BruteforcePattern::TryParseSingleByte(std::string text, uint8_t& out)
@@ -87,7 +122,7 @@ std::vector<uint8_t> BruteforcePattern::ParseBytes(std::string text)
 	// easy - all
 	if (text == "*")
 	{
-		return BytesFull();
+		return DefaultByteArray<>::as_vector<std::vector<uint8_t>>();
 	}
 
 	// easy single byte 0xAA or AA
@@ -106,7 +141,7 @@ std::vector<uint8_t> BruteforcePattern::ParseBytes(std::string text)
 
 	// set of bytes
 	std::vector<uint8_t> result;
-	std::vector<std::string> splitted = split(";", text);
+	std::vector<std::string> splitted = split("|", text);
 	for (const auto& part : splitted)
 	{
 		uint8_t byte;

@@ -26,3 +26,26 @@
 #else
 	#define UNROLL
 #endif
+
+
+
+template<uint8_t NSize = 255>
+struct DefaultByteArray
+{
+	uint8_t element[NSize];
+
+	constexpr DefaultByteArray() : element()
+	{
+		for (uint8_t i = 0; i < NSize; ++i)
+		{
+			element[i] = i;
+		}
+	}
+
+	template<typename Vector>
+	static inline Vector as_vector()
+	{
+		constexpr DefaultByteArray array = DefaultByteArray();
+		return Vector(&array.element[0], &array.element[0] + NSize);
+	}
+};

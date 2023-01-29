@@ -6,6 +6,73 @@
 namespace
 {
 
+inline void read_alphabets(CommandLineArgs& target, cxxopts::ParseResult& result)
+{
+	const auto& alphabet_args = result[ARG_ALPHABET].as<std::vector<std::string>>();
+
+	for (const auto& alphabet_arg : alphabet_args)
+	{
+		FILE* alphabet_file;
+		if (fopen_s(&alphabet_file, alphabet_arg.c_str(), "rb") == 0)
+		{
+			// alphabet with more than 255 bytes is impossible (oe just has duplicates)
+			uint8_t bytes[255];
+			size_t read_bytes = fread_s(bytes, sizeof(bytes), sizeof(uint8_t), sizeof(bytes), alphabet_file);
+			fclose(alphabet_file);
+
+			std::vector<uint8_t> alphabet_bytes(&bytes[0], &bytes[read_bytes]);
+			target.alphabets.emplace_back(alphabet_bytes);
+		}
+		else
+		{
+			// "61:ab:00:33..." -> "61,ab,00,33..."
+			std::string alphabet_bytes_hex = alphabet_arg;
+			std::replace(alphabet_bytes_hex.begin(), alphabet_bytes_hex.end(), ':', ',');
+
+			// ["61","ab","00","33"]
+			std::vector<std::string> alphabet_hex;
+			cxxopts::values::parse_value(alphabet_bytes_hex, alphabet_hex);
+
+			// ["61","ab","00","33"] -> [0x61, 0xAB, 0x00, 0x33]
+			std::vector<uint8_t> alphabet_bytes;
+			alphabet_bytes.reserve(alphabet_hex.size());
+
+			for (const auto& hex : alphabet_hex)
+			{
+				auto value = (uint8_t)strtoul(hex.c_str(), nullptr, 16);
+				if (value != 0 && hex != "00")
+				{
+					alphabet_bytes.push_back(value);
+				}
+				else
+				{
+					printf("Error: cannot parse alphabet byte '%s'!\n", hex.c_str());
+				}
+			}
+
+			//
+			if (alphabet_bytes.size() > 0)
+			{
+				if (alphabet_bytes.size() < 0xFF)
+				{
+					target.alphabets.emplace_back(alphabet_bytes);
+				}
+				else
+				{
+					printf("Error: Alphabet: '%s' is not valid hex string! Too many entries: %zd (should be less than 255)\n",
+						result[ARG_ALPHABET].as<std::string>().c_str(), alphabet_bytes.size());
+				}
+			}
+			else
+			{
+				printf("Error: Alphabet: '%s' is not valid file, neither valid alphabet hex string (like: AA:11:b3...)!\n",
+					alphabet_arg.c_str());
+			}
+		}
+	}
+}
+
+
 inline void parse_dictionary_mode(CommandLineArgs& target, cxxopts::ParseResult& result)
 {
 	if (result[ARG_WORDDICT].count() > 0)
@@ -129,72 +196,6 @@ inline void parse_bruteforce_filtered_mode(CommandLineArgs& target, cxxopts::Par
 	target.brute_configs.push_back(BruteforceConfig::GetBruteforce(start_key, count_key, filters));
 }
 
-inline void read_alphabets(CommandLineArgs& target, cxxopts::ParseResult& result)
-{
-	const auto& alphabet_args = result[ARG_ALPHABET].as<std::vector<std::string>>();
-
-	for (const auto& alphabet_arg : alphabet_args)
-	{
-		FILE* alphabet_file;
-		if (fopen_s(&alphabet_file, alphabet_arg.c_str(), "rb") == 0)
-		{
-			// alphabet with more than 255 bytes is impossible (oe just has duplicates)
-			uint8_t bytes[255];
-			size_t read_bytes = fread_s(bytes, sizeof(bytes), sizeof(uint8_t), sizeof(bytes), alphabet_file);
-			fclose(alphabet_file);
-
-			std::vector<uint8_t> alphabet_bytes(&bytes[0], &bytes[read_bytes]);
-			target.alphabets.emplace_back(alphabet_bytes);
-		}
-		else
-		{
-			// "61:ab:00:33..." -> "61,ab,00,33..."
-			std::string alphabet_bytes_hex = alphabet_arg;
-			std::replace(alphabet_bytes_hex.begin(), alphabet_bytes_hex.end(), ':', ',');
-
-			// ["61","ab","00","33"]
-			std::vector<std::string> alphabet_hex;
-			cxxopts::values::parse_value(alphabet_bytes_hex, alphabet_hex);
-
-			// ["61","ab","00","33"] -> [0x61, 0xAB, 0x00, 0x33]
-			std::vector<uint8_t> alphabet_bytes;
-			alphabet_bytes.reserve(alphabet_hex.size());
-
-			for (const auto& hex : alphabet_hex)
-			{
-				auto value = (uint8_t)strtoul(hex.c_str(), nullptr, 16);
-				if (value != 0 && hex != "00")
-				{
-					alphabet_bytes.push_back(value);
-				}
-				else
-				{
-					printf("Error: cannot parse alphabet byte '%s'!\n", hex.c_str());
-				}
-			}
-
-			//
-			if (alphabet_bytes.size() > 0)
-			{
-				if (alphabet_bytes.size() < 0xFF)
-				{
-					target.alphabets.emplace_back(alphabet_bytes);
-				}
-				else
-				{
-					printf("Error: Alphabet: '%s' is not valid hex string! Too many entries: %zd (should be less than 255)\n",
-						result[ARG_ALPHABET].as<std::string>().c_str(), alphabet_bytes.size());
-				}
-			}
-			else
-			{
-				printf("Error: Alphabet: '%s' is not valid file, neither valid alphabet hex string (like: AA:11:b3...)!\n",
-					alphabet_arg.c_str());
-			}
-		}
-	}
-}
-
 inline void parse_alphabet_mode(CommandLineArgs& target, cxxopts::ParseResult& result)
 {
 	auto start_key = result[ARG_START].as<uint64_t>();
@@ -213,6 +214,8 @@ inline void parse_pattern_mode(CommandLineArgs& target, cxxopts::ParseResult& re
 
 	const auto& args = result[ARG_PATTERN].as<std::vector<std::string>>();
 
+	auto full_bytes = DefaultByteArray<>::as_vector<std::vector<uint8_t>>();
+
 	for (const auto& pattern_arg : args)
 	{
 		std::string pattern_bytes_hex = pattern_arg;
@@ -225,13 +228,13 @@ inline void parse_pattern_mode(CommandLineArgs& target, cxxopts::ParseResult& re
 		std::vector<std::vector<uint8_t>> result;
 		for (auto& hex : bytes_hex)
 		{
-			// alphabets
+			// append alphabets' bytes
 			if (hex.find("AL") != std::string::npos)
 			{
 				if (target.alphabets.size() == 0)
 				{
 					printf("ERROR: Cannot use Alphabet in patterns - no provided alphabets. Replacing with *\n");
-					result.push_back(BruteforcePattern::BytesFull());
+					result.push_back(full_bytes);
 					continue;
 				}
 
@@ -243,16 +246,17 @@ inline void parse_pattern_mode(CommandLineArgs& target, cxxopts::ParseResult& re
 					al_index = 0;
 				}
 
-				result.push_back(target.alphabets[al_index].as_bytes());
+				result.push_back(target.alphabets[al_index].as_vector());
 			}
 			else
 			{
+				// append regular pattern bytes
 				auto bytes = BruteforcePattern::ParseBytes(hex);
 
 				if (bytes.size() == 0)
 				{
 					printf("ERROR: Invalid string '%s' for byte pattern! Ignoring. Replacing with *\n", hex.c_str());
-					result.push_back(BruteforcePattern::BytesFull());
+					result.push_back(full_bytes);
 				}
 				else
 				{
@@ -261,6 +265,7 @@ inline void parse_pattern_mode(CommandLineArgs& target, cxxopts::ParseResult& re
 			}
 		}
 
+		// validate
 		if (result.size() > 8)
 		{
 			printf("Warning: Pattern string: '%s' contains more than 8 per-bytes delimiters (%zd) other will be ignored.\n",
@@ -273,9 +278,13 @@ inline void parse_pattern_mode(CommandLineArgs& target, cxxopts::ParseResult& re
 
 			for (auto i = result.size(); i < 8; ++i)
 			{
-				result.push_back(BruteforcePattern::BytesFull());
+				result.push_back(full_bytes);
 			}
 		}
+
+
+		// Add pattern attack to config
+		target.brute_configs.push_back(BruteforceConfig::GetPattern(start_key, BruteforcePattern(pattern_arg, std::move(result)), count_key));
 	}
 }
 
@@ -499,7 +508,7 @@ CommandLineArgs run()
 		"--" ARG_EFILTER"=64",  //SmartFilterFlags::BytesRepeat4
 
 
-		"--" ARG_PATTERN"=0x01:*:0x43-0x10:0xA0-FF:AA;0x34;0xBB:0x66;0x77:AL0,0x88:asd:w1:88:*:AL2:BB:73",
+		"--" ARG_PATTERN"=0x01:*:0x43-0x10:0xA0-FF:AA|0x34|0xBB:0x66|0x77:AL0,0x88:asd:w1:88:*:AL2:BB:73",
 
 		"--" ARG_FMATCH,
 	};

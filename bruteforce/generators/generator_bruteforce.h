@@ -46,7 +46,7 @@ struct GeneratorBruteforce
 
 
 // Extern cuda kernels - Implementation are in inl.file
-DECLARE_GENERATOR(GeneratorBruteforceAlphabet, KeeloqKernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls);
+DECLARE_GENERATOR(GeneratorBruteforcePattern, KeeloqKernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls);
 DECLARE_GENERATOR(GeneratorBruteforceFiltered, KeeloqKernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls);
 DECLARE_GENERATOR(GeneratorBruteforceSimple, KeeloqKernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls);
 

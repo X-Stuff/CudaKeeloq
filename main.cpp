@@ -111,7 +111,7 @@ int main(int argc, const char** argv)
 	const char* commandline[] = {
 		"tests",
 		"--" ARG_INPUTS"=0xC65D52A0A81FD504,0xCCA9B335A81FD504,0xE0DA7372A81FD504",
-		"--" ARG_MODE"=3",//,2,0,1",
+		"--" ARG_MODE"=4,3",//,2,0,1",
 		//"--" ARG_LTYPE"=6,1,3",
 
 		"--" ARG_WORDDICT"=0xCEB6AE48B5C63ED1,0xCEB6AE48B5C63ED2,0xCEB6AE48B5C63ED3",
@@ -130,7 +130,9 @@ int main(int argc, const char** argv)
 		// "--" ARG_IFILTER"=0x2", include filter let be all (otherwise will have big impact)
 		"--" ARG_EFILTER"=96",  // BytesRepeat4 | BytesIncremental should increase performance(?)
 
-		"--" ARG_ALPHABET"=CE:B6:AE:48:B5:C6:3E:D2:AA:BB:CC:DD:EE:FF:00:11,examples/alphabet.bin,CE:B6:AE:48:B5:C6:3E:D2",//:AA:BB:CC:DD:EE:FF:00:11",
+		"--" ARG_ALPHABET"=CE:B6:AE:48:B5:C6:3E:D2:AA:BB:CC:DD,examples/alphabet.bin,CE:B6:AE:48:B5:C6:3E:D2",//:AA:BB:CC:DD:EE:FF:00:11",
+
+		"--" ARG_PATTERN"=*:B6:AE:*:B5:C0-CF:1E|2E|3E|4E|5E|6E:D2",
 
 		"--" ARG_FMATCH"=0",
 
@@ -150,7 +152,7 @@ int main(int argc, const char** argv)
 
 		printf("\n...TESTS FINISHED...\n");
 
-		return 0;
+		//return 0;
 		console_clear();
 	}
 
