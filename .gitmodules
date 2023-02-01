@@ -4,9 +4,6 @@
 [submodule "ThirdParty/cpp-terminal"]
 	path = ThirdParty/cpp-terminal
 	url = https://github.com/jupyter-xeus/cpp-terminal.git
-[submodule "ThirdParty/ThirdParty/cxxopts"]
-	path = ThirdParty/ThirdParty/cxxopts
+[submodule "ThirdParty/cxxopts"]
+	path = ThirdParty/cxxopts
 	url = https://github.com/jarro2783/cxxopts.git
-[submodule "ThirdParty/ThirdParty/cpp-terminal"]
-	path = ThirdParty/ThirdParty/cpp-terminal
-	url = https://github.com/jupyter-xeus/cpp-terminal.git
