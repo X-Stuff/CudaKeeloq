@@ -42,10 +42,10 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(projectdir);C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.0\include;$(IncludePath)</IncludePath>
+    <IncludePath>$(projectdir);C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.0\include;$(projectdir)\ThirdParty\cpp-terminal;$(projectdir)\ThirdParty;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(projectdir)</IncludePath>
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(projectdir);$(projectdir)\ThirdParty;$(projectdir)\ThirdParty\cpp-terminal</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>

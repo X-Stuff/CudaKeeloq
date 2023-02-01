@@ -30,6 +30,7 @@ constexpr char WAIT_SPIN[] = "|/-\\";
 
 #define ARG_HELP "help"
 #define ARG_TEST "test"
+#define ARG_BENCHMARK "benchmark"
 #define ARG_INPUTS "inputs"
 #define ARG_BLOCKS "cuda-blocks"
 #define ARG_THREADS "cuda-threads"
@@ -53,6 +54,10 @@ namespace console
 CommandLineArgs parse_command_line(int argc, const char** argv);
 
 void progress_bar(double percent, const std::chrono::seconds& elapsed);
+
+void clear_line(int width = 0);
+
+int read_esc_press();
 
 namespace tests
 {

@@ -26,7 +26,7 @@ struct KeeloqKernelInput : TGenericGpuObject<KeeloqKernelInput>
 	CudaArray<SingleResult>* results;
 
 	// Which type of learning use for decryption // the last one indicates all
-	KeeloqLearningType::Type learning_types[KeeloqLearningType::LAST + 1];
+	KeeloqLearningType::Type learning_types[KeeloqLearningType::TypeMaskLength];
 
 	// from this decryptor generation will start
 	BruteforceConfig config;
