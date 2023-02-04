@@ -46,22 +46,6 @@ void benchmark(const CommandLineArgs& args)
 
 
     bool in_progress = true;
-    auto esc_press = [&in_progress]() -> bool
-    {
-        while (in_progress)
-        {
-            if (console::read_esc_press())
-            {
-                return true;
-            }
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        }
-        return false;
-    };
-
-    std::future<bool> interrupt = std::async(esc_press);
-
-
     for (auto& NumCudaBlocks : CudaBlocks)
     {
         if (!in_progress || NumCudaBlocks > MaxCudaBlocks)
@@ -110,43 +94,37 @@ void benchmark(const CommandLineArgs& args)
                 console_cursor_ret_up(1);
                 console::progress_bar( i / (double)numBatches, overall);
 
-                if (interrupt.valid() && interrupt.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
+                if (console::read_esc_press())
                 {
-                    if (interrupt.get())
-                    {
-                        console_cursor_ret_up(1);
-                        console::clear_line();
-                        printf("Benchmark skipped\n");
-                        in_progress = false;
-                    }
-                    else
-                    {
-                        interrupt = std::async(esc_press);
-                    }
+                    console_cursor_ret_up(1);
+                    console::clear_line();
+                    printf("Benchmark skipped\n");
+                    in_progress = false;
                 }
             }
 
-            auto overall = std::chrono::duration_cast<std::chrono::milliseconds>(
-                std::chrono::system_clock::now() - roundStartTime);
+            if (in_progress)
+            {
+                auto overall = std::chrono::duration_cast<std::chrono::milliseconds>(
+                    std::chrono::system_clock::now() - roundStartTime);
 
-            std::sort(batches_kResults_per_sec.begin(), batches_kResults_per_sec.end());
+                std::sort(batches_kResults_per_sec.begin(), batches_kResults_per_sec.end());
 
-            console_cursor_ret_up(1);
-            console::clear_line();
+                console_cursor_ret_up(1);
+                console::clear_line();
 
-            // Creating results
-            printf(str::format<std::string>(
-                "| CUDA: %u x %u \t| MEM: %u MB\t | Time (ms): %llu\t |\tSpeed (K/s): %lu (avg.) %lu (mean) |\t\t\t\t\n",
-                NumCudaBlocks, NumCudaThreads,
-                benchmarkRound.get_mem_size() / (1024 * 1024),
-                overall.count(),
-                std::reduce(batches_kResults_per_sec.begin(), batches_kResults_per_sec.end()) / numBatches,
-                batches_kResults_per_sec[numBatches / 2]
-            ).c_str());
+                // Creating results
+                printf(str::format<std::string>(
+                    "| CUDA: %u x %u \t| MEM: %u MB\t | Time (ms): %llu\t |\tSpeed (K/s): %lu (avg.) %lu (mean) |\t\t\t\t\n",
+                    NumCudaBlocks, NumCudaThreads,
+                    benchmarkRound.get_mem_size() / (1024 * 1024),
+                    overall.count(),
+                    std::reduce(batches_kResults_per_sec.begin(), batches_kResults_per_sec.end()) / numBatches,
+                    batches_kResults_per_sec[numBatches / 2]
+                    ).c_str());
+            }
         }
     }
-
-    in_progress = false;
 }
 
 void benchmark_all(const CommandLineArgs& args)
