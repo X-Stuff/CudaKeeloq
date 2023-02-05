@@ -142,8 +142,8 @@
       <AdditionalCompilerOptions>
       </AdditionalCompilerOptions>
       <CodeGeneration>compute_80,sm_80</CodeGeneration>
-      <GenerateLineInfo>false</GenerateLineInfo>
-      <GPUDebugInfo>true</GPUDebugInfo>
+      <GenerateLineInfo>true</GenerateLineInfo>
+      <GPUDebugInfo>false</GPUDebugInfo>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>

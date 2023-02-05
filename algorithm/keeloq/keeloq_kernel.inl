@@ -85,12 +85,12 @@ namespace
 namespace
 {
     template<bool forceall>
-    __device__ KeeloqLearningType::Type analyze_results_srl(SingleResult* results, uint32_t num, const KeeloqLearningMask type_mask)
+    __device__ KeeloqLearningType::Type analyze_results_srl(const SingleResult* results, uint32_t num, const KeeloqLearningMask type_mask)
     {
         uint8_t match_count = 0; // 0 or 1. if bigger - double match
         KeeloqLearningType::Type match_learning_type = KeeloqLearningType::INVALID;
 
-        SingleResult& first = results[0];
+        const SingleResult& first = results[0];
 
         // outer loop - over all learning types
         for (uint8_t lrn = 0; lrn < KeeloqLearningType::LAST; ++lrn)
@@ -103,7 +103,7 @@ namespace
                 // inner loop for every result
                 for (uint8_t i = 1; i < num; ++i)
                 {
-                    SingleResult& item = results[i];
+                    const SingleResult& item = results[i];
 
                     uint32_t srl = (item.results.data[lrn] >> 16) & 0x3ff;
                     lrn_matches += srl == expected_srl && srl != 0;
@@ -335,7 +335,7 @@ namespace
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-__device__ uint8_t analyze_results_cnt(SingleResult* results, uint32_t num, KeeloqLearningType::Type learning_type)
+__device__ uint8_t analyze_results_cnt(const SingleResult* results, uint32_t num, KeeloqLearningType::Type learning_type)
 {
     uint8_t counter_maxdiff = num + 1;
 
@@ -351,7 +351,8 @@ __device__ uint8_t analyze_results_cnt(SingleResult* results, uint32_t num, Keel
     return lrn_matches == num;
 }
 
-__device__ uint8_t analyze_results_btn(SingleResult* results, uint32_t num, KeeloqLearningType::Type learning_type, uint8_t bit_tolerance = 0)
+
+__device__ uint8_t analyze_results_btn(const SingleResult* results, uint32_t num, KeeloqLearningType::Type learning_type, uint8_t bit_tolerance = 0)
 {
     uint32_t expected_btn = results[0].results.data[learning_type] >> 28;
     uint32_t lrn_matches = 1;
@@ -376,26 +377,25 @@ __device__ uint8_t keeloq_find_matches(const CudaContext& ctx, SingleResult* res
         analyze_results_srl<true>(results, num, type_mask) :
         analyze_results_srl<false>(results, num, type_mask);
 
-    // ifs are bad
     if (learning_type != KeeloqLearningType::INVALID)
     {
-        if (analyze_results_btn(results, num, learning_type) &&  // same button
-            analyze_results_cnt(results, num, learning_type))
+        // Check same button and check continuous presses
+        if (analyze_results_btn(results, num, learning_type) && analyze_results_cnt(results, num, learning_type))
         {
             for (int i = 0; i < num; ++i)
             {
                 results[i].match = learning_type;
             }
         }
-    }
 
-#if STRICT_ANALYSIS
-    uint64_t first_man = results[0].man;
-    for (int i = 0; i < num; ++i)
-    {
-        result_error += first_man != results[i].man;
+    #if STRICT_ANALYSIS
+        uint64_t first_man = results[0].man;
+        for (int i = 0; i < num; ++i)
+        {
+            result_error += first_man != results[i].man;
+        }
+    #endif
     }
-#endif
 
     return result_error;
 }
