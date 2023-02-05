@@ -1,14 +1,16 @@
 #include "common.h"
 
 #include "test_all.h"
+#include "device/cuda_common.h"
 
 #include <cuda_runtime_api.h>
 
 namespace
 {
-	__global__ void Kernel_Test(uint32_t* input)
+	__global__ void Kernel_Test(uint64_t* input)
 	{
-		*input = 42;
+        *input = 0x1234567890ABCDEF;
+		*input = misc::rev_bytes(*input);
 	}
 
 	__global__ void Kernel_RunFiltersTests(BruteforceFiltersTestInputs* tests, uint8_t num)
@@ -32,10 +34,10 @@ __host__ void Tests::LaunchFiltersTests(BruteforceFiltersTestInputs * tests, uin
 
 __host__ bool Tests::CheckCudaIsWorking()
 {
-	uint32_t result = 0;
-	uint32_t* pInput;
+	uint64_t result = 0;
+	uint64_t* pInput;
 
-	auto error = cudaMalloc((void**)&pInput, sizeof(uint32_t));
+	auto error = cudaMalloc((void**)&pInput, sizeof(uint64_t));
 	CUDA_CHECK(error);
 
 	void *args[] = { &pInput };
@@ -43,14 +45,14 @@ __host__ bool Tests::CheckCudaIsWorking()
 	error = cudaLaunchKernel(func, dim3(), dim3(), args, 0, 0);
 	CUDA_CHECK(error);
 
-	error = cudaMemcpy(&result, pInput, sizeof(uint32_t), cudaMemcpyDeviceToHost);
+	error = cudaMemcpy(&result, pInput, sizeof(uint64_t), cudaMemcpyDeviceToHost);
 	CUDA_CHECK(error);
 
-	assert(result == 42);
+	assert(result == 0xEFCDAB9078563412);
 	Kernel_Test<<<1, 1>>>(pInput);
 
 	error = cudaFree(pInput);
 	CUDA_CHECK(error);
 
-	return result == 42;
+	return result == 0xEFCDAB9078563412;
 }

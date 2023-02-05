@@ -57,7 +57,7 @@ __device__ __host__ inline uint32_t keeloq_common_encrypt(const uint32_t data, c
 	return x;
 }
 
-__device__ __host__ SingleResult::DecryptedArray keeloq_decrypt(uint64_t ota, uint64_t man, uint32_t seed, const KeeloqLearningMask type_mask);
+__device__ __host__ void keeloq_decrypt(uint64_t ota, uint64_t man, uint32_t seed, const KeeloqLearningMask type_mask, SingleResult::DecryptedArray& results);
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
