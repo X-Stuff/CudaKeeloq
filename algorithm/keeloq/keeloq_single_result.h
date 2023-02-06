@@ -40,4 +40,13 @@ struct SingleResult
 	KeeloqLearningType::Type match;
 
 	void print(bool onlymatch = true) const;
+
+    __device__ static inline uint32_t read_results_from_cache(const SingleResult& result, KeeloqLearningType::Type index)
+    {
+    #if __CUDA_ARCH__
+        return __ldca(&result.results.data[index]);
+    #else
+        return result.results.data[index];
+    #endif
+    }
 };

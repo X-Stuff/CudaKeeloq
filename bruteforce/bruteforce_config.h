@@ -9,7 +9,7 @@
 
 #include "algorithm/keeloq/keeloq_decryptor.h"
 
-#include "bruteforce/bruteforce_alphabet.h"
+#include "bruteforce/bruteforce_pattern.h"
 #include "bruteforce/bruteforce_filters.h"
 #include "bruteforce/bruteforce_type.h"
 #include "bruteforce/bruteforce_config.h"
@@ -37,11 +37,11 @@ struct BruteforceConfig
 	// HOST SET. ONCE. for filtered type.
 	BruteforceFilters filters;
 
-	// HOST SET. ONCE. for alphabet type.
-	BruteforceAlphabet alphabet;
+	// HOST SET. ONCE. for pattern or alphabet type. (alphabe is just special case of pattern)
+	BruteforcePattern pattern;
 
 	// GPU SET. UPDATING. Last generated decryptor (will be initial for next block run)
-	Decryptor next;
+	Decryptor last;
 
 public:
 
@@ -56,9 +56,9 @@ public:
 
 	static BruteforceConfig GetBruteforce(Decryptor first, size_t size, const BruteforceFilters& filters);
 
-	static BruteforceConfig GetAlphabet(Decryptor first, const BruteforceAlphabet& alphabet, size_t num = (size_t)-1);
+	static BruteforceConfig GetAlphabet(Decryptor first, const MultibaseDigit& alphabet, size_t num = (size_t)-1);
 
-	static BruteforceConfig GetPattern(Decryptor first);
+	static BruteforceConfig GetPattern(Decryptor first, const BruteforcePattern& pattern, size_t num = (size_t)-1);
 
 public:
 
@@ -72,7 +72,7 @@ public:
 
 private:
 	BruteforceConfig(Decryptor start, BruteforceType::Type t, size_t num) :
-		start(start), type(t), next(start), size(num)
+		start(start), type(t), last(start), size(num)
 	{
 	}
 };

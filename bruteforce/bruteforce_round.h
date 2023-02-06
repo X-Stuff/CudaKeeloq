@@ -28,6 +28,16 @@
  */
 struct BruteforceRound
 {
+	// Construct round struct without specific learning type (means use all learnings)
+	BruteforceRound(const std::vector<EncData>& data, const BruteforceConfig& gen, uint32_t blocks, uint32_t threads, uint32_t iterations) :
+		BruteforceRound(data, gen, {}, blocks, threads, iterations) {}
+
+	// Construct round struct with only one selected learning type
+	BruteforceRound(const std::vector<EncData>& data, const BruteforceConfig& gen, KeeloqLearningType::Type single_learning,
+		uint32_t blocks, uint32_t threads, uint32_t iterations) :
+		BruteforceRound(data, gen, std::vector<KeeloqLearningType::Type> { single_learning }, blocks, threads, iterations) {}
+
+	// Standard constructor
 	BruteforceRound(const std::vector<EncData>& data, const BruteforceConfig& gen, std::vector<KeeloqLearningType::Type> selected_learning,
 		uint32_t blocks, uint32_t threads, uint32_t iterations);
 
@@ -40,22 +50,25 @@ public:
 	// Allocates memory
 	void Init();
 
-	const std::vector<SingleResult>& ReadResults();
+	// Reads results data from GPU memory into internal container and returns const reference to it
+	const std::vector<SingleResult>& read_results_gpu();
 
-	const std::vector<Decryptor>& ReadDecryptors();
+	// Reads decryptors data from GPU memory into internal container and returns const reference to it
+	const std::vector<Decryptor>& read_decryptors_gpu();
 
 	// Checks Kernel's results
 	// Return true if Round should be finished
-	bool CheckResults(const KernelResult& result);
+	bool check_results(const KernelResult& result);
 
-	size_t NumBatches() const;
+	size_t get_mem_size() const;
 
-	size_t ResultsPerBatch() const;
+	size_t num_batches() const;
 
-	size_t KeysCheckedInBatch() const;
+	size_t results_per_batch() const;
 
-	std::string ToString() const;
+	size_t keys_per_batch() const;
 
+	std::string to_string() const;
 
 public:
 	inline uint32_t CudaBlocks() const { return CUDASetup[0]; }
@@ -64,7 +77,7 @@ public:
 
 	inline uint32_t CudaThreadIterations() const { return CUDASetup[2]; }
 
-	inline const BruteforceConfig& Config() const { assert(inited); return kernel_inputs.generator; }
+	inline const BruteforceConfig& Config() const { assert(inited); return kernel_inputs.config; }
 
 	inline BruteforceType::Type Type() const { assert(inited); return Config().type; }
 
@@ -75,8 +88,6 @@ private:
 	void alloc();
 
 	void free();
-
-	std::string GetLearningTypeName() const;
 
 private:
 

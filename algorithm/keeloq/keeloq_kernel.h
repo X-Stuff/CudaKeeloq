@@ -24,40 +24,52 @@
 
 
 __device__ __host__ inline uint32_t keeloq_common_decrypt_orig(const uint32_t data, const uint64_t key) {
-	uint32_t x = data, r;
-	for (r = 0; r < 528; r++)
-		x = (x << 1) ^ bit(x, 31) ^ bit(x, 15) ^ (uint32_t)bit(key, (15 - r) & 63) ^
-		bit(NLF_LOOKUP_CONSTANT, g5(x, 0, 8, 19, 25, 30));
-	return x;
+    uint32_t x = data, r;
+    for (r = 0; r < 528; r++)
+        x = (x << 1) ^ bit(x, 31) ^ bit(x, 15) ^ (uint32_t)bit(key, (15 - r) & 63) ^
+        bit(NLF_LOOKUP_CONSTANT, g5(x, 0, 8, 19, 25, 30));
+    return x;
 }
 
 // This version like 5 times faster
-__device__ __host__ inline uint32_t keeloq_common_decrypt(const uint32_t data, const uint64_t key) {
-	uint32_t x = data, g, k, f;
+__device__ __host__ inline uint32_t keeloq_common_decrypt(const uint32_t data, const uint64_t key)
+{
+    uint32_t x = data, g, k, f;
+    int32_t r = 15;
 
-	for (int32_t r = 15; r >= -512; --r)
-	{
-		uint32_t key_bit = r & 0b111111;
+    // outer 33 cycles
+    for (uint8_t outer = 0; outer < 33; ++outer)
+    {
+        // Inner 16 cycles which could be unrolled (improves performance in release - decreases in debug)
+        UNROLL
+        for (uint8_t inner = 0; inner < 16; ++inner)
+        {
+            uint32_t key_bit = r & 0b111111;
 
-		g5dec(x, g);
+            g5dec(x, g);
 
-		k = (uint32_t)((key >> key_bit));
-		f = ((x >> 31) ^ (x >> 15) ^ (NLF_LOOKUP_CONSTANT >> g) ^ k) & 1;
-		x = (x << 1) ^ f;
-	}
-	return x;
+            k = (uint32_t)((key >> key_bit));
+            f = ((x >> 31) ^ (x >> 15) ^ (NLF_LOOKUP_CONSTANT >> g) ^ k) & 1;
+            x = (x << 1) ^ f;
+
+            --r;
+        }
+    }
+
+
+    return x;
 }
 
 __device__ __host__ inline uint32_t keeloq_common_encrypt(const uint32_t data, const uint64_t key) {
-	uint32_t x = data, r;
-	for (r = 0; r < 528; r++)
-		x = (x >> 1) ^ ((bit(x, 0) ^ bit(x, 16) ^ (uint32_t)bit(key, r & 63) ^
-			bit(NLF_LOOKUP_CONSTANT, g5(x, 1, 9, 20, 26, 31)))
-			<< 31);
-	return x;
+    uint32_t x = data, r;
+    for (r = 0; r < 528; r++)
+        x = (x >> 1) ^ ((bit(x, 0) ^ bit(x, 16) ^ (uint32_t)bit(key, r & 63) ^
+            bit(NLF_LOOKUP_CONSTANT, g5(x, 1, 9, 20, 26, 31)))
+            << 31);
+    return x;
 }
 
-__device__ __host__ SingleResult::DecryptedArray keeloq_decrypt(uint64_t ota, uint64_t man, uint32_t seed, const KeeloqLearningMask type_mask);
+__device__ __host__ void keeloq_decrypt(uint64_t ota, uint64_t man, uint32_t seed, const KeeloqLearningMask type_mask, SingleResult::DecryptedArray& results);
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

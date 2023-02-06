@@ -8,9 +8,9 @@ __global__ void DEFINE_GENERATOR_KERNEL(GeneratorBruteforceSimple, KeeloqKernelI
 {
 	CudaContext ctx = CudaContext::Get();
 
-	assert(input->generator.type == BruteforceType::Simple);
+	assert(input->config.type == BruteforceType::Simple);
 
-	Decryptor& start = input->generator.start;
+	Decryptor& start = input->config.start;
 
 	CudaArray<Decryptor>& decryptors = *input->decryptors;
 

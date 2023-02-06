@@ -8,7 +8,7 @@ int GeneratorBruteforce::PrepareDecryptors(KeeloqKernelInput& inputs, uint16_t b
 {
 	KernelResult generator_results;
 
-	switch (inputs.generator.type)
+	switch (inputs.config.type)
 	{
 	case BruteforceType::Simple:
 	{
@@ -17,22 +17,21 @@ int GeneratorBruteforce::PrepareDecryptors(KeeloqKernelInput& inputs, uint16_t b
 	}
 	case BruteforceType::Filtered:
 	{
-		inputs.generator.next = inputs.generator.start;
+		inputs.config.last = inputs.config.start;
 		GeneratorBruteforceFiltered::LaunchKernel(blocks, threads, inputs.ptr(), generator_results.ptr());
 		break;
 	}
+	case BruteforceType::Pattern:
 	case BruteforceType::Alphabet:
 	{
-		GeneratorBruteforceAlphabet::LaunchKernel(blocks, threads, inputs.ptr(), generator_results.ptr());
-		break;
-	}
-	case BruteforceType::Pattern:
-	{
-		assert(false && "Not implemented");
-		return 1;
+		GeneratorBruteforcePattern::LaunchKernel(blocks, threads, inputs.ptr(), generator_results.ptr());
 		break;
 	}
 	case BruteforceType::Dictionary:
+	{
+
+		return 0;
+	}
 	default:
 		return 0;
 	}
@@ -43,7 +42,7 @@ int GeneratorBruteforce::PrepareDecryptors(KeeloqKernelInput& inputs, uint16_t b
 
 	// last generated decryptor - is first on next batch
 	//  Warning: In case of non-aligned calculations "real" last decryptor may be somewhere in the middle of array
-	inputs.generator.next = inputs.decryptors->host_last().man;
+	inputs.config.last = inputs.decryptors->host_last();
 
 	return generator_results.error;
 }

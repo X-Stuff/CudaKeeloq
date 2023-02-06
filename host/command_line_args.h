@@ -21,6 +21,10 @@ struct CommandLineArgs
 	// Do not do all 16 calculations, use predefined one
 	std::vector<KeeloqLearningType::Type> selected_learning = {};
 
+	//  Alphabets are just set of possible byte values
+	// this sets may be shared between attacks
+	std::vector<MultibaseDigit> alphabets;
+
 	// Stop on first match
 	bool match_stop;
 
@@ -28,12 +32,20 @@ struct CommandLineArgs
 	uint16_t cuda_threads;
 	uint16_t cuda_loops;
 
+	// run also tests
 	bool run_tests;
 
+	// Run only benchmarks (with selected values)
+	bool run_bench;
+
 public:
-	bool isValid();
+	bool can_bruteforce();
 
 	void init_inputs(const std::vector<EncData>& inp);
 
 	void init_cuda(uint16_t b, uint16_t t, uint16_t l);
+
+	static uint32_t max_cuda_threads();
+
+	static uint32_t max_cuda_blocks();
 };

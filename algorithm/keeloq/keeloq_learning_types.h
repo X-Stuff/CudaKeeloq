@@ -2,6 +2,8 @@
 
 #include "common.h"
 
+#include <vector>
+#include <string>
 #include <type_traits>
 #include <cuda_runtime_api.h>
 
@@ -46,10 +48,21 @@ struct KeeloqLearningType
 
 		LAST,
 
+		// Name for internal use
+		ALL = LAST,
+
+		// For array initialization
+		TypeMaskLength = ALL + 1,
+
 		INVALID = 0xff,
 	};
 
 public:
+
+	static std::string to_string(const Type learning_types[]);
+	static std::string to_string(const std::vector<Type>& learning_types);
+
+    static void to_mask(const std::vector<Type>& in_types, Type out_mask[]);
 
 	static constexpr const char* ValueString(Type type)
 	{
