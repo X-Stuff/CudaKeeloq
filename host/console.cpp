@@ -310,8 +310,11 @@ CommandLineArgs console::parse_command_line(int argc, const char** argv)
             cxxopts::value<uint16_t>()->default_value("32"), "<num>")
         (ARG_THREADS, "How many threads will be launched in a block (if 0 - will use value from device).",
             cxxopts::value<uint16_t>()->default_value("0"), "<num>")
+
+#ifndef NO_INNER_LOOPS
         (ARG_LOOPS, "How many loop iterations will one thread perform (keep it low).",
             cxxopts::value<uint16_t>()->default_value("2"), "<num>")
+#endif
 
         // Mode - what bruteforce type will be used
         (ARG_MODE,

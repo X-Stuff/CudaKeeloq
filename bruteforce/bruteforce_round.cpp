@@ -14,6 +14,10 @@ BruteforceRound::BruteforceRound(const std::vector<EncData>& data, const Brutefo
     uint32_t blocks, uint32_t threads, uint32_t iterations)
     : encrypted_data(data)
 {
+#if NO_INNER_LOOPS
+    iterations = 1;
+#endif
+
     CUDASetup[0] = blocks;
     CUDASetup[1] = threads;
     CUDASetup[2] = iterations;

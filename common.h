@@ -28,6 +28,8 @@
 #endif
 
 
+#define NO_INNER_LOOPS 1
+
 
 template<uint8_t NSize = 255>
 struct DefaultByteArray

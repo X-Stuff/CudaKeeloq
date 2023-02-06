@@ -85,19 +85,18 @@ namespace
 namespace
 {
     template<bool forceall>
-    __device__ KeeloqLearningType::Type analyze_results_srl(const SingleResult* results, uint32_t num, const KeeloqLearningMask type_mask)
+    __device__ KeeloqLearningType::Type analyze_results_srl(const SingleResult* results, uint8_t num, const KeeloqLearningMask type_mask)
     {
         uint8_t match_count = 0; // 0 or 1. if bigger - double match
         KeeloqLearningType::Type match_learning_type = KeeloqLearningType::INVALID;
 
-        const SingleResult& first = results[0];
-
         // outer loop - over all learning types
-        for (uint8_t lrn = 0; lrn < KeeloqLearningType::LAST; ++lrn)
+        UNROLL
+        for (uint8_t lrn = 0; lrn < SingleResult::ResultsCount; ++lrn)
         {
             if (forceall || type_mask[lrn])
             {
-                uint32_t expected_srl = (first.results.data[lrn] >> 16) & 0x3ff;
+                uint32_t expected_srl = (SingleResult::read_results_from_cache(results[0], lrn) >> 16) & 0x3ff;
                 uint32_t lrn_matches = 1;
 
                 // inner loop for every result
@@ -105,7 +104,7 @@ namespace
                 {
                     const SingleResult& item = results[i];
 
-                    uint32_t srl = (item.results.data[lrn] >> 16) & 0x3ff;
+                    uint32_t srl = (SingleResult::read_results_from_cache(item, lrn) >> 16) & 0x3ff;
                     lrn_matches += srl == expected_srl && srl != 0;
                 }
 
@@ -127,15 +126,7 @@ namespace
     template<KeeloqLearningType::Type type>
     __device__ __host__ inline uint32_t keeloq_decrypt_single(uint32_t data, uint32_t fix, const uint64_t key, const uint32_t seed)
     {
-        // Check for mirrored man
-        uint64_t key_rev = 0;
-        uint64_t key_rev_byte = 0;
-        for (uint8_t i = 0; i < 64; i += 8)
-        {
-            key_rev_byte = (uint8_t)(key >> i);
-            key_rev = key_rev | key_rev_byte << (56 - i);
-        }
-
+        uint64_t key_rev = misc::rev_bytes(key);
         uint64_t n_key = 0;
 
         switch (type)
@@ -419,6 +410,7 @@ __device__ uint8_t keeloq_analyze_results(const CudaContext& ctx, const CudaArra
 
     return num_matches;
 }
+
 
 // run decryption parallel per thread and find matches
 __device__ uint8_t keeloq_decryption_run(const CudaContext& ctx, KeeloqKernelInput& input)

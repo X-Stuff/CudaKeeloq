@@ -252,7 +252,7 @@ int main(int argc, const char** argv)
     const char* commandline[] = {
         "tests",
         "--" ARG_INPUTS"=0xC65D52A0A81FD504,0xCCA9B335A81FD504,0xE0DA7372A81FD504",
-        "--" ARG_MODE"=4,3",//,2,0,1",
+        "--" ARG_MODE"=0,1,2,4,3",
         //"--" ARG_LTYPE"=6,1,3",
 
         "--" ARG_WORDDICT"=0xCEB6AE48B5C63ED1,0xCEB6AE48B5C63ED2,0xCEB6AE48B5C63ED3",
@@ -262,7 +262,7 @@ int main(int argc, const char** argv)
         "--" ARG_LOOPS"=2",
         //"--" ARG_START"=0xCEB6AE48B0000000",
 #else
-        "--" ARG_BLOCKS"=1024",
+        "--" ARG_BLOCKS"=8196",
         "--" ARG_LOOPS"=2",
         "--" ARG_START"=0xCEB6AE4800000000",
 #endif
@@ -278,13 +278,14 @@ int main(int argc, const char** argv)
         "--" ARG_FMATCH"=0",
 
         "--" ARG_TEST"=1",
-        "--" ARG_BENCHMARK"=1",
+        //"--" ARG_BENCHMARK"=1",
     };
 
     console_set_width(CONSOLE_WIDTH);
 
 
-    auto args = console::parse_command_line(sizeof(commandline) / sizeof(char*), commandline); //console::parse_command_line(argc, argv);
+    auto args = argc > 1 ? console::parse_command_line(argc, argv) :
+        console::parse_command_line(sizeof(commandline) / sizeof(char*), commandline); //console::parse_command_line(argc, argv);
     if (args.run_bench)
     {
         benchmark_all(args);
