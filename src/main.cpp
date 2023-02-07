@@ -184,7 +184,7 @@ int main(int argc, const char** argv)
     }
     else
     {
-        printf("\nInvalid arguments specified.");
+        printf("\nNot enough arguments for bruteforce\n");
         return 1;
     }
 
@@ -193,6 +193,5 @@ int main(int argc, const char** argv)
     cudaDeviceReset();
 
     console::set_cursor_state(true);
-
     return 0;
 }
