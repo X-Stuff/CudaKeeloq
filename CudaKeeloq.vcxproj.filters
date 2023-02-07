@@ -180,5 +180,6 @@
       <Filter>algorithm\keeloq</Filter>
     </None>
     <None Include=".editorconfig" />
+    <None Include="makefile" />
   </ItemGroup>
 </Project>

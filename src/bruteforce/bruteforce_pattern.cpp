@@ -45,8 +45,6 @@ __host__ std::string BruteforcePattern::to_string(bool extended) const
         return repr_string;
     }
 
-    int write_index =  0;
-
     std::string result;
 
     for (int d = 0; d < PatternSystem::DigitsNumber; ++d)

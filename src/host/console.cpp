@@ -5,11 +5,16 @@
 
 #include "bruteforce/bruteforce_pattern.h"
 
-#pragma warning(push)
-#pragma warning(disable: 4996)
-#include "cpp-terminal/terminal_base.h"
-#include "cpp-terminal/terminal.h"
-#pragma warning(pop)
+
+#ifdef _MSC_VER
+    #pragma warning(push)
+    #pragma warning(disable: 4996)
+#endif
+    #include "cpp-terminal/terminal_base.h"
+    #include "cpp-terminal/terminal.h"
+#ifdef _MSC_VER
+    #pragma warning(pop)
+#endif
 
 #ifndef _MSC_VER
     #include <byteswap.h>

@@ -69,7 +69,7 @@ void benchmark::run(const CommandLineArgs& args)
             console_hide_cursor();
             printf("\n");
 
-            for (int i = 0; in_progress && i < numBatches; ++i)
+            for (size_t i = 0; in_progress && i < numBatches; ++i)
             {
                 auto batchStartTime = std::chrono::high_resolution_clock::now();
 

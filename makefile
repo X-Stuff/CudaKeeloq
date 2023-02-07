@@ -11,7 +11,7 @@ CONFIG_DEBUG=debug
 
 # CC compiler options:
 CC=g++
-CC_FLAGS=-std=c++17
+CC_FLAGS=-std=c++17 -Wall
 CC_LIBS=
 CC_INCLUDE=-I./src/ -I./ThirdParty/ -I./ThirdParty/cpp-terminal
 
@@ -28,17 +28,24 @@ CUDA_INC_DIR= -I$(CUDA_ROOT_DIR)/include
 CUDA_LINK_LIBS= -lcudart
 
 
-# Configurations
+# Configurations, default debug
 all: debug
+	@echo No target specified. Default is debug
 
 release: OBJ_DIR=./$(ARCH)/$(CONFIG_RELEASE)/obj
 release: EXE_DIR=./$(ARCH)/$(CONFIG_RELEASE)/bin
+release: NVCC_FLAGS+= -use_fast_math -O3 -Xptxas -O3 --m64
+release: CC_FLAGS+= -O3
+release:link
 
 profile: OBJ_DIR=./$(ARCH)/$(CONFIG_PROFILE)/obj
 profile: EXE_DIR=./$(ARCH)/$(CONFIG_PROFILE)/bin
+profile: NVCC_FLAGS+= -lineinfo -use_fast_math
+profile:link
 
 debug:   OBJ_DIR=./$(ARCH)/$(CONFIG_DEBUG)/obj
 debug:   EXE_DIR=./$(ARCH)/$(CONFIG_DEBUG)/bin
+debug:   NVCC_FLAGS+= -G
 debug:link
 
 # Sources C++

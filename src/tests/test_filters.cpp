@@ -65,7 +65,7 @@ namespace Tests
 		LaunchFiltersTests(test_inputs.CUDA_mem, NumTests);
 		test_inputs.read_GPU(); // for asserts
 
-		for (int i = 0; i < NumTests; ++i)
+		for (uint8_t i = 0; i < NumTests; ++i)
 		{
 			result_success &= test_inputs.HOST_mem[i].value == 1;
 			assert(result_success);
@@ -95,7 +95,7 @@ namespace Tests
 
 
 		bool found = false;
-		for (int i = 0; !found && i < decryptors.size(); ++i)
+		for (size_t i = 0; !found && i < decryptors.size(); ++i)
 		{
 			// looking for exact code - check nothing missed
 			found |= decryptors[i].man == 0xCEB6AE48B5C63ED2;

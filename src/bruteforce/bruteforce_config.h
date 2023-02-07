@@ -21,60 +21,60 @@
  */
 struct BruteforceConfig
 {
-	// HOST SET. ONCE. Which generator to use.
-	BruteforceType::Type type;
+    // HOST SET. ONCE. Which generator to use.
+    BruteforceType::Type type;
 
-	// HOST SET. UPDATING. PER BATCH. Decryption batch (or decryptors generation) will start from this
-	Decryptor start;
+    // HOST SET. UPDATING. PER BATCH. Decryption batch (or decryptors generation) will start from this
+    Decryptor start;
 
-	// HOST SET. ONCE. How many generator rounds should be taken (in fact how many times CUDA kernel will be called)
-	size_t size;
+    // HOST SET. ONCE. How many generator rounds should be taken (in fact how many times CUDA kernel will be called)
+    size_t size;
 
-	// Dictionary - HOST SET. ONCE.
-	// Brute -      GPU SET. UPDATING.
-	std::vector<Decryptor> decryptors;
+    // Dictionary - HOST SET. ONCE.
+    // Brute -      GPU SET. UPDATING.
+    std::vector<Decryptor> decryptors;
 
-	// HOST SET. ONCE. for filtered type.
-	BruteforceFilters filters;
+    // HOST SET. ONCE. for filtered type.
+    BruteforceFilters filters;
 
-	// HOST SET. ONCE. for pattern or alphabet type. (alphabe is just special case of pattern)
-	BruteforcePattern pattern;
+    // HOST SET. ONCE. for pattern or alphabet type. (alphabet is just special case of pattern)
+    BruteforcePattern pattern;
 
-	// GPU SET. UPDATING. Last generated decryptor (will be initial for next block run)
-	Decryptor last;
-
-public:
-
-	BruteforceConfig() : BruteforceConfig(0, BruteforceType::LAST, 0) {
-	}
+    // GPU SET. UPDATING. Last generated decryptor (will be initial for next block run)
+    Decryptor last;
 
 public:
 
-	static BruteforceConfig GetDictionary(std::vector<Decryptor>&& dictionary);
-
-	static BruteforceConfig GetBruteforce(Decryptor first, size_t size);
-
-	static BruteforceConfig GetBruteforce(Decryptor first, size_t size, const BruteforceFilters& filters);
-
-	static BruteforceConfig GetAlphabet(Decryptor first, const MultibaseDigit& alphabet, size_t num = (size_t)-1);
-
-	static BruteforceConfig GetPattern(Decryptor first, const BruteforcePattern& pattern, size_t num = (size_t)-1);
+    BruteforceConfig() : BruteforceConfig(0, BruteforceType::LAST, 0) {
+    }
 
 public:
 
-	uint64_t dict_size() const;
+    static BruteforceConfig GetDictionary(std::vector<Decryptor>&& dictionary);
 
-	uint64_t brute_size() const;
+    static BruteforceConfig GetBruteforce(Decryptor first, size_t size);
 
-	std::string toString() const;
+    static BruteforceConfig GetBruteforce(Decryptor first, size_t size, const BruteforceFilters& filters);
 
-	void next_decryptor();
+    static BruteforceConfig GetAlphabet(Decryptor first, const MultibaseDigit& alphabet, size_t num = (size_t)-1);
+
+    static BruteforceConfig GetPattern(Decryptor first, const BruteforcePattern& pattern, size_t num = (size_t)-1);
+
+public:
+
+    uint64_t dict_size() const;
+
+    uint64_t brute_size() const;
+
+    std::string toString() const;
+
+    void next_decryptor();
 
 private:
-	BruteforceConfig(Decryptor start, BruteforceType::Type t, size_t num) :
-		start(start), type(t), last(start), size(num)
-	{
-	}
+    BruteforceConfig(Decryptor start, BruteforceType::Type t, size_t num) :
+        type(t), start(start), size(num), decryptors(), filters(), pattern(), last(start)
+    {
+    }
 };
 
 inline std::vector<uint8_t> operator "" _b(const char* ascii, size_t num)

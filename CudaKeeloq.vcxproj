@@ -200,6 +200,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include=".editorconfig" />
+    <None Include="makefile" />
     <None Include="src\algorithm\keeloq\keeloq_kernel.inl" />
     <None Include="src\bruteforce\generators\generator_bruteforce_pattern_kernel.inl" />
     <None Include="src\bruteforce\generators\generator_bruteforce_filtered_kernel.inl" />

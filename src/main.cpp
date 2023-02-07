@@ -146,7 +146,7 @@ int main(int argc, const char** argv)
         "--" ARG_FMATCH"=0",
 
         "--" ARG_TEST"=1",
-        "--" ARG_BENCHMARK"=1",
+        //"--" ARG_BENCHMARK"=1",
     };
 
     console_set_width(CONSOLE_WIDTH);
