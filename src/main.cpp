@@ -10,6 +10,41 @@
 
 #include "tests/test_all.h"
 
+
+constexpr const char* debugTestCommandline[] = {
+    "tests",
+    "--" ARG_INPUTS"=0xC65D52A0A81FD504,0xCCA9B335A81FD504,0xE0DA7372A81FD504",
+    "--" ARG_MODE"=4,3,0,1,2",
+    //"--" ARG_LTYPE"=6,1,3",
+
+    "--" ARG_WORDDICT"=0xCEB6AE48B5C63ED1,0xCEB6AE48B5C63ED2,0xCEB6AE48B5C63ED3",
+
+#if _DEBUG
+    "--" ARG_BLOCKS"=512",
+    "--" ARG_LOOPS"=2",
+    //"--" ARG_START"=0xCEB6AE48B0000000",
+#else
+    "--" ARG_BLOCKS"=8196",
+    "--" ARG_LOOPS"=2",
+    "--" ARG_START"=0xCEB6AE4800000000",
+#endif
+    "--" ARG_COUNT"=0xFFFFFFFF",
+
+    // "--" ARG_IFILTER"=0x2", include filter let be all (otherwise will have big impact)
+    "--" ARG_EFILTER"=96",  // BytesRepeat4 | BytesIncremental should increase performance(?)
+
+    "--" ARG_ALPHABET"=CE:B6:AE:48:B5:C6:3E:D2:AA:BB:CC:DD,examples/alphabet.bin,CE:B6:AE:48:B5:C6:3E:D2",//:AA:BB:CC:DD:EE:FF:00:11",
+
+    "--" ARG_PATTERN"=*:B6:AE:*:B5:C0-CF:1E|2E|3E|4E|5E|6E:D2",
+
+    "--" ARG_FMATCH"=0",
+
+    "--" ARG_TEST"=false",
+    //"--" ARG_BENCHMARK"=1",
+};
+
+
+
 void bruteforce(const CommandLineArgs& args)
 {
     if (args.selected_learning.size() == 0)
@@ -121,76 +156,46 @@ int main(int argc, const char** argv)
         return 1;
     }
 
-    const char* commandline[] = {
-        "tests",
-        "--" ARG_INPUTS"=0xC65D52A0A81FD504,0xCCA9B335A81FD504,0xE0DA7372A81FD504",
-        "--" ARG_MODE"=4,3,0,1,2",
-        //"--" ARG_LTYPE"=6,1,3",
-
-        "--" ARG_WORDDICT"=0xCEB6AE48B5C63ED1,0xCEB6AE48B5C63ED2,0xCEB6AE48B5C63ED3",
-
-#if _DEBUG
-        "--" ARG_BLOCKS"=512",
-        "--" ARG_LOOPS"=2",
-        //"--" ARG_START"=0xCEB6AE48B0000000",
-#else
-        "--" ARG_BLOCKS"=8196",
-        "--" ARG_LOOPS"=2",
-        "--" ARG_START"=0xCEB6AE4800000000",
-#endif
-        "--" ARG_COUNT"=0xFFFFFFFF",
-
-        // "--" ARG_IFILTER"=0x2", include filter let be all (otherwise will have big impact)
-        "--" ARG_EFILTER"=96",  // BytesRepeat4 | BytesIncremental should increase performance(?)
-
-        "--" ARG_ALPHABET"=CE:B6:AE:48:B5:C6:3E:D2:AA:BB:CC:DD,examples/alphabet.bin,CE:B6:AE:48:B5:C6:3E:D2",//:AA:BB:CC:DD:EE:FF:00:11",
-
-        "--" ARG_PATTERN"=*:B6:AE:*:B5:C0-CF:1E|2E|3E|4E|5E|6E:D2",
-
-        "--" ARG_FMATCH"=0",
-
-        "--" ARG_TEST"=1",
-        //"--" ARG_BENCHMARK"=1",
-    };
-
     console_set_width(CONSOLE_WIDTH);
 
-
     auto args = argc > 1 ? console::parse_command_line(argc, argv) :
-        console::parse_command_line(sizeof(commandline) / sizeof(char*), commandline); //console::parse_command_line(argc, argv);
-    if (args.run_bench)
+        console::parse_command_line(sizeof(debugTestCommandline) / sizeof(char*), (const char**)debugTestCommandline);
+
+    bool should_bruteforce = args.run_bench || args.run_tests;
+
+    if (should_bruteforce)
     {
-        benchmark::all(args);
-        return 0;
-    }
+        if (args.run_tests)
+        {
+            printf("\n...RUNNING TESTS...\n");
+            console::tests::run();
 
-    if (args.run_tests)
-    {
-        printf("\n...RUNNING TESTS...\n");
-        console::tests::run();
+            Tests::AlphabetGeneration();
+            Tests::FiltersGeneration();
 
-        Tests::AlphabetGeneration();
-        Tests::FiltersGeneration();
+            printf("\n...TESTS FINISHED...\n");
+        }
 
-        printf("\n...TESTS FINISHED...\n");
-
-        //return 0;
-        console_clear();
-    }
-
-    if (args.can_bruteforce())
-    {
-        bruteforce(args);
+        if (args.run_bench)
+        {
+            benchmark::all(args);
+        }
     }
     else
     {
-        printf("\nNot enough arguments for bruteforce\n");
-        return 1;
+        if (args.can_bruteforce())
+        {
+            bruteforce(args);
+        }
+        else
+        {
+            printf("\nNot enough arguments for bruteforce\n");
+            return 1;
+        }
+
+        // this will free all memory as well
+        cudaDeviceReset();
     }
-
-
-    // this will free all memory as well
-    cudaDeviceReset();
 
     console::set_cursor_state(true);
     return 0;

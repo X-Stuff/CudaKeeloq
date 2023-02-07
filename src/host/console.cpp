@@ -384,16 +384,16 @@ CommandLineArgs console::parse_command_line(int argc, const char** argv)
             cxxopts::value<std::uint64_t>()->default_value("0xFFFFFFFFFFFFFFFF"), "value")
 
         // Stop config
-        (ARG_FMATCH, "Stop bruteforce on first match. If inputs are 3+ probably should set to true",
-            cxxopts::value<bool>()->default_value("true"), "0|1")
+        (ARG_FMATCH, "Boolean. Stop bruteforce on first match. If inputs are 3+ probably should set to true",
+            cxxopts::value<bool>()->default_value("true"))
 
         // Tests run
-        (ARG_TEST, "Run application tests. You'd better use them in debug.",
-            cxxopts::value<bool>()->default_value("false"), "0|1")
+        (ARG_TEST, "Boolean. Run application tests. You'd better use them in debug.",
+            cxxopts::value<bool>()->default_value("false"))
 
         // Benchmarks run
-        (ARG_BENCHMARK, "Run application benchmarks. You can specify learning and num loops type from command line also.",
-            cxxopts::value<bool>()->default_value("false"), "0|1")
+        (ARG_BENCHMARK, "Boolean. Run application benchmarks. You can specify learning and num loops type from command line also.",
+            cxxopts::value<bool>()->default_value("false"))
         ;
 
     CommandLineArgs args;
@@ -412,7 +412,10 @@ CommandLineArgs console::parse_command_line(int argc, const char** argv)
 
     if (result.count(ARG_HELP) || result.arguments().size() == 0 || result.count(ARG_INPUTS) == 0)
     {
-        printf("\n%s\n", options.help().c_str());
+        if (!args.run_tests && !args.run_bench)
+        {
+            printf("\n%s\n", options.help().c_str());
+        }
         return args;
     }
 
@@ -516,7 +519,7 @@ void console::progress_bar(double percent, const std::chrono::seconds& elapsed)
 
 void console::clear_line(int width /*= 0*/)
 {
-    Term::Terminal term(false);
+    Term::Terminal term(true, false);
 
     int tWidth = 0;
     int tHeight = 0;
@@ -529,14 +532,14 @@ void console::clear_line(int width /*= 0*/)
 
 int console::read_esc_press()
 {
-    Term::Terminal term(true);
+    Term::Terminal term(true, false);
     return term.read_key0() == Term::ESC;
 }
 
 
 void console::set_cursor_state(bool visible)
 {
-    Term::Terminal term(true);
+    Term::Terminal term(true, false);
     term.write(visible ? Term::cursor_on() : Term::cursor_off());
 }
 
