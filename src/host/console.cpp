@@ -399,11 +399,6 @@ CommandLineArgs console::parse_command_line(int argc, const char** argv)
     CommandLineArgs args;
 
     auto result = options.parse(argc, argv);
-    if (result.count(ARG_HELP) || result.arguments().size() == 0 || result.count(ARG_INPUTS) == 0)
-    {
-        printf("\n%s\n", options.help().c_str());
-        return args;
-    }
 
     // tests
     args.run_tests = result[ARG_TEST].as<bool>();
@@ -411,13 +406,23 @@ CommandLineArgs console::parse_command_line(int argc, const char** argv)
     // benchmarks
     args.run_bench = result[ARG_BENCHMARK].as<bool>();
 
+    // CUDA setup
+    args.init_cuda(result[ARG_BLOCKS].as<uint16_t>(), result[ARG_THREADS].as<uint16_t>(),
+        result.count(ARG_LOOPS) > 0 ? result[ARG_LOOPS].as<uint16_t>() : 0);
+
+    if (result.count(ARG_HELP) || result.arguments().size() == 0 || result.count(ARG_INPUTS) == 0)
+    {
+        printf("\n%s\n", options.help().c_str());
+        return args;
+    }
+
     // Inputs
     if (result.count(ARG_INPUTS) > 0)
     {
         args.init_inputs(result[ARG_INPUTS].as<std::vector<uint64_t>>());
         if (args.inputs.size() < 3)
         {
-            printf("WARNING: No engough inputs: '%zd'! Need at least 3!\nHowever we'll proceed...\n", args.inputs.size());
+            printf("WARNING: No enough inputs: '%zd'! Need at least 3!\nHowever we'll proceed...\n", args.inputs.size());
         }
     }
     else
@@ -428,11 +433,6 @@ CommandLineArgs console::parse_command_line(int argc, const char** argv)
 
     // Stop if need
     args.match_stop = result[ARG_FMATCH].as<bool>();
-
-
-    // CUDA setup
-    args.init_cuda(result[ARG_BLOCKS].as<uint16_t>(), result[ARG_THREADS].as<uint16_t>(),
-        result.count(ARG_LOOPS) > 0 ? result[ARG_LOOPS].as<uint16_t>() : 0);
 
     // Alphabets
     read_alphabets(args, result);
@@ -531,6 +531,13 @@ int console::read_esc_press()
 {
     Term::Terminal term(true);
     return term.read_key0() == Term::ESC;
+}
+
+
+void console::set_cursor_state(bool visible)
+{
+    Term::Terminal term(true);
+    term.write(visible ? Term::cursor_on() : Term::cursor_off());
 }
 
 namespace console::tests

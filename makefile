@@ -35,17 +35,19 @@ all: debug
 release: OBJ_DIR=./$(ARCH)/$(CONFIG_RELEASE)/obj
 release: EXE_DIR=./$(ARCH)/$(CONFIG_RELEASE)/bin
 release: NVCC_FLAGS+= -use_fast_math -O3 -Xptxas -O3 --m64
-release: CC_FLAGS+= -O3
+release: CC_FLAGS+= -O3 -DNDEBUG
 release:link
 
 profile: OBJ_DIR=./$(ARCH)/$(CONFIG_PROFILE)/obj
 profile: EXE_DIR=./$(ARCH)/$(CONFIG_PROFILE)/bin
 profile: NVCC_FLAGS+= -lineinfo -use_fast_math
+profile: CC_FLAGS+= -DNDEBUG
 profile:link
 
 debug:   OBJ_DIR=./$(ARCH)/$(CONFIG_DEBUG)/obj
 debug:   EXE_DIR=./$(ARCH)/$(CONFIG_DEBUG)/bin
 debug:   NVCC_FLAGS+= -G
+debug:   CC_FLAGS+= -D_DEBUG
 debug:link
 
 # Sources C++

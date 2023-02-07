@@ -16,7 +16,6 @@ constexpr char WAIT_SPIN[] = "|/-\\";
 
 #define CONSOLE_WIDTH 160
 
-#define console_hide_cursor() printf("\033[?25l")
 #define console_clear() printf("\033[H\033[J")
 
 #define console_cursor_up(lines) printf("\033[%dA", (lines))
@@ -58,6 +57,8 @@ void progress_bar(double percent, const std::chrono::seconds& elapsed);
 void clear_line(int width = 0);
 
 int read_esc_press();
+
+void set_cursor_state(bool visible);
 
 namespace tests
 {

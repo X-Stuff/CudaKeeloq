@@ -28,14 +28,14 @@ void benchmark::run(const CommandLineArgs& args)
 
     BruteforceConfig benchmarkConfig = BruteforceConfig::GetAlphabet(0, "0123456789abcdefgh"_b);
 
-    printf("BENCHMARK BEGIN\n\n"
-        "Config is: Alphabet\n"
-        "Num loops inside CUDA\t\t\t: %u (from cmd)\n"
-        "Max Available CUDA Threads per block\t: %u\n"
+    printf("BENCHMARK BEGIN\n\nConfig is: Alphabet\n");
+#ifndef NO_INNER_LOOPS
+    printf("Num loops inside CUDA\t\t\t: %u (from cmd)\n", args.cuda_loops);
+#endif // !NO_INNER_LOOPS
+    printf("Max Available CUDA Threads per block\t: %u\n"
         "Max Available CUDA Blocks\t\t: %u\n"
         "Num total calculations\t\t\t: %" PRIu64 " (Millions)\n"
         "Learning (from cmd)\t\t\t: %s\n\n",
-        args.cuda_loops,
         MaxCudaThreads, MaxCudaBlocks,
         (TargetCalculations / 1000000),
         KeeloqLearningType::to_string(args.selected_learning).c_str());
@@ -66,7 +66,7 @@ void benchmark::run(const CommandLineArgs& args)
 
             std::vector<uint64_t> batches_kResults_per_sec(numBatches);
 
-            console_hide_cursor();
+            console::set_cursor_state(false);
             printf("\n");
 
             for (size_t i = 0; in_progress && i < numBatches; ++i)
@@ -125,6 +125,7 @@ void benchmark::all(const CommandLineArgs& args)
 {
     console_clear();
     CommandLineArgs copy = args;
+    copy.inputs = { 0, 1, 2 };
 
     copy.cuda_loops = 2;
     copy.selected_learning = {};
@@ -134,6 +135,8 @@ void benchmark::all(const CommandLineArgs& args)
     copy.selected_learning = { KeeloqLearningType::Simple };
     run(copy);
 
+#ifndef NO_INNER_LOOPS
     copy.cuda_loops = 4;
     run(copy);
+#endif
 }

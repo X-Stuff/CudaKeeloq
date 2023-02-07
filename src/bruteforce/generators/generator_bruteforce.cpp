@@ -29,7 +29,6 @@ int GeneratorBruteforce::PrepareDecryptors(KeeloqKernelInput& inputs, uint16_t b
 	}
 	case BruteforceType::Dictionary:
 	{
-
 		return 0;
 	}
 	default:

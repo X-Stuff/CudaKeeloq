@@ -51,7 +51,12 @@ void bruteforce(const CommandLineArgs& args)
 
                 // Generate decryptors (if available)
                 int error = GeneratorBruteforce::PrepareDecryptors(kernelInput, attackRound.CudaBlocks(), attackRound.CudaThreads());
-                assert(error == 0);
+                if (error)
+                {
+                    printf("Error: Key generation resulted with error: %d", error);
+                    assert(false);
+                    return;
+                }
             }
             else
             {
@@ -68,7 +73,7 @@ void bruteforce(const CommandLineArgs& args)
 
             if (batch == 0 || match)
             {
-                console_hide_cursor();
+                console::set_cursor_state(false);
                 printf("\n\n\n");
             }
 
@@ -115,7 +120,6 @@ int main(int argc, const char** argv)
         assert(false);
         return 1;
     }
-
 
     const char* commandline[] = {
         "tests",
@@ -187,5 +191,8 @@ int main(int argc, const char** argv)
 
     // this will free all memory as well
     cudaDeviceReset();
+
+    console::set_cursor_state(true);
+
     return 0;
 }

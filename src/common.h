@@ -31,8 +31,10 @@
 	#define UNROLL
 #endif
 
+#ifndef NO_INNER_LOOPS
+    #define NO_INNER_LOOPS 1
+#endif // !NO_INNER_LOOPS
 
-#define NO_INNER_LOOPS 1
 
 
 template<uint8_t NSize = 255>
