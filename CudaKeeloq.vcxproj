@@ -56,13 +56,13 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(projectdir);C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.0\include;$(projectdir)\ThirdParty\cpp-terminal;$(projectdir)\ThirdParty;$(IncludePath)</IncludePath>
+    <IncludePath>$(IncludePath);$(projectdir)\src;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.0\include;$(projectdir)\ThirdParty\cpp-terminal;$(projectdir)\ThirdParty;</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(projectdir);$(projectdir)\ThirdParty;$(projectdir)\ThirdParty\cpp-terminal</IncludePath>
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(projectdir)\src;$(projectdir)\ThirdParty;$(projectdir)\ThirdParty\cpp-terminal</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">
-    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(projectdir);$(projectdir)\ThirdParty;$(projectdir)\ThirdParty\cpp-terminal</IncludePath>
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(projectdir)\src;$(projectdir)\ThirdParty;$(projectdir)\ThirdParty\cpp-terminal</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -147,60 +147,64 @@
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="algorithm\keeloq\keeloq_kernel.h" />
-    <ClInclude Include="algorithm\keeloq\keeloq_decryptor.h" />
-    <ClInclude Include="algorithm\keeloq\keeloq_encrypted.h" />
-    <ClInclude Include="algorithm\keeloq\keeloq_kernel_input.h" />
-    <ClInclude Include="algorithm\keeloq\keeloq_learning_types.h" />
-    <ClInclude Include="algorithm\keeloq\keeloq_single_result.h" />
-    <ClInclude Include="algorithm\multibase_digit.h" />
-    <ClInclude Include="algorithm\multibase_number.h" />
-    <ClInclude Include="algorithm\multibase_system.h" />
-    <ClInclude Include="bruteforce\bruteforce_config.h" />
-    <ClInclude Include="bruteforce\bruteforce_filters.h" />
-    <ClInclude Include="bruteforce\bruteforce_pattern.h" />
-    <ClInclude Include="bruteforce\bruteforce_round.h" />
-    <ClInclude Include="bruteforce\bruteforce_type.h" />
-    <ClInclude Include="bruteforce\generators\generator_bruteforce.h" />
-    <ClInclude Include="common.h" />
-    <ClInclude Include="device\cuda_array.h" />
-    <ClInclude Include="device\cuda_common.h" />
-    <ClInclude Include="device\cuda_context.h" />
-    <ClInclude Include="device\cuda_double_array.h" />
-    <ClInclude Include="device\cuda_object.h" />
-    <ClInclude Include="host\command_line_args.h" />
-    <ClInclude Include="host\console.h" />
-    <ClInclude Include="kernels\kernel_result.h" />
-    <ClInclude Include="tests\test_all.h" />
-    <ClInclude Include="tests\test_alphabet.h" />
-    <ClInclude Include="tests\test_filters.h" />
+    <ClInclude Include="src\algorithm\keeloq\keeloq_kernel.h" />
+    <ClInclude Include="src\algorithm\keeloq\keeloq_decryptor.h" />
+    <ClInclude Include="src\algorithm\keeloq\keeloq_encrypted.h" />
+    <ClInclude Include="src\algorithm\keeloq\keeloq_kernel_input.h" />
+    <ClInclude Include="src\algorithm\keeloq\keeloq_learning_types.h" />
+    <ClInclude Include="src\algorithm\keeloq\keeloq_single_result.h" />
+    <ClInclude Include="src\algorithm\multibase_digit.h" />
+    <ClInclude Include="src\algorithm\multibase_number.h" />
+    <ClInclude Include="src\algorithm\multibase_system.h" />
+    <ClInclude Include="src\bruteforce\bruteforce_config.h" />
+    <ClInclude Include="src\bruteforce\bruteforce_filters.h" />
+    <ClInclude Include="src\bruteforce\bruteforce_pattern.h" />
+    <ClInclude Include="src\bruteforce\bruteforce_round.h" />
+    <ClInclude Include="src\bruteforce\bruteforce_type.h" />
+    <ClInclude Include="src\bruteforce\generators\generator_bruteforce.h" />
+    <ClInclude Include="src\common.h" />
+    <ClInclude Include="src\device\cuda_array.h" />
+    <ClInclude Include="src\device\cuda_common.h" />
+    <ClInclude Include="src\device\cuda_context.h" />
+    <ClInclude Include="src\device\cuda_double_array.h" />
+    <ClInclude Include="src\device\cuda_object.h" />
+    <ClInclude Include="src\host\command_line_args.h" />
+    <ClInclude Include="src\host\console.h" />
+    <ClInclude Include="src\kernels\kernel_result.h" />
+    <ClInclude Include="src\tests\test_all.h" />
+    <ClInclude Include="src\tests\test_alphabet.h" />
+    <ClInclude Include="src\tests\test_benchmark.h" />
+    <ClInclude Include="src\tests\test_filters.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="algorithm\keeloq\keeloq_kernel_input.cpp" />
-    <ClCompile Include="algorithm\keeloq\keeloq_learning_types.cpp" />
-    <ClCompile Include="algorithm\keeloq\keeloq_single_result.cpp" />
-    <ClCompile Include="bruteforce\bruteforce_config.cpp" />
-    <ClCompile Include="bruteforce\bruteforce_filters.cpp" />
-    <ClCompile Include="bruteforce\bruteforce_pattern.cpp" />
-    <ClCompile Include="bruteforce\bruteforce_round.cpp" />
-    <ClCompile Include="bruteforce\bruteforce_type.cpp" />
-    <ClCompile Include="bruteforce\generators\generator_bruteforce.cpp" />
-    <ClCompile Include="host\command_line_args.cpp" />
-    <ClCompile Include="host\console.cpp" />
-    <ClCompile Include="main.cpp" />
-    <ClCompile Include="tests\test_alphabet.cpp" />
-    <ClCompile Include="tests\test_filters.cpp" />
+    <ClCompile Include="src\algorithm\keeloq\keeloq_kernel_input.cpp" />
+    <ClCompile Include="src\algorithm\keeloq\keeloq_learning_types.cpp" />
+    <ClCompile Include="src\algorithm\keeloq\keeloq_single_result.cpp" />
+    <ClCompile Include="src\bruteforce\bruteforce_config.cpp" />
+    <ClCompile Include="src\bruteforce\bruteforce_filters.cpp" />
+    <ClCompile Include="src\bruteforce\bruteforce_pattern.cpp" />
+    <ClCompile Include="src\bruteforce\bruteforce_round.cpp" />
+    <ClCompile Include="src\bruteforce\bruteforce_type.cpp" />
+    <ClCompile Include="src\bruteforce\generators\generator_bruteforce.cpp" />
+    <ClCompile Include="src\host\command_line_args.cpp" />
+    <ClCompile Include="src\host\console.cpp" />
+    <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\tests\test_alphabet.cpp" />
+    <ClCompile Include="src\tests\test_benchmark.cpp" />
+    <ClCompile Include="src\tests\test_filters.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <CudaCompile Include="algorithm\keeloq\keeloq_kernel.cu" />
-    <CudaCompile Include="bruteforce\generators\generator_kernel.cu" />
-    <CudaCompile Include="tests\test_kernel.cu" />
+    <CudaCompile Include="src\algorithm\keeloq\keeloq_kernel.cu" />
+    <CudaCompile Include="src\bruteforce\generators\generator_kernel.cu" />
+    <CudaCompile Include="src\tests\test_kernel.cu" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="algorithm\keeloq\keeloq_kernel.inl" />
-    <None Include="bruteforce\generators\generator_bruteforce_pattern_kernel.inl" />
-    <None Include="bruteforce\generators\generator_bruteforce_filtered_kernel.inl" />
-    <None Include="bruteforce\generators\generator_bruteforce_simple_kernel.inl" />
+    <None Include=".editorconfig" />
+    <None Include="makefile" />
+    <None Include="src\algorithm\keeloq\keeloq_kernel.inl" />
+    <None Include="src\bruteforce\generators\generator_bruteforce_pattern_kernel.inl" />
+    <None Include="src\bruteforce\generators\generator_bruteforce_filtered_kernel.inl" />
+    <None Include="src\bruteforce\generators\generator_bruteforce_simple_kernel.inl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
