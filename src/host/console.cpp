@@ -1,12 +1,22 @@
+#define _CRT_SECURE_NO_WARNINGS
+
 #include "console.h"
 
-#include "bruteforce\bruteforce_pattern.h"
+
+#include "bruteforce/bruteforce_pattern.h"
 
 #pragma warning(push)
 #pragma warning(disable: 4996)
-#include "cpp-terminal\terminal_base.h"
-#include "cpp-terminal\terminal.h"
+#include "cpp-terminal/terminal_base.h"
+#include "cpp-terminal/terminal.h"
 #pragma warning(pop)
+
+#ifndef _MSC_VER
+    #include <byteswap.h>
+#else
+    #define bswap_64(x) _byteswap_uint64(x)
+#endif
+
 
 namespace
 {
@@ -17,12 +27,11 @@ inline void read_alphabets(CommandLineArgs& target, cxxopts::ParseResult& result
 
     for (const auto& alphabet_arg : alphabet_args)
     {
-        FILE* alphabet_file;
-        if (fopen_s(&alphabet_file, alphabet_arg.c_str(), "rb") == 0)
+        if (FILE* alphabet_file = fopen(alphabet_arg.c_str(), "rb"))
         {
             // alphabet with more than 255 bytes is impossible (oe just has duplicates)
             uint8_t bytes[255];
-            size_t read_bytes = fread_s(bytes, sizeof(bytes), sizeof(uint8_t), sizeof(bytes), alphabet_file);
+            size_t read_bytes = fread(bytes, sizeof(uint8_t), sizeof(bytes), alphabet_file);
             fclose(alphabet_file);
 
             std::vector<uint8_t> alphabet_bytes(&bytes[0], &bytes[read_bytes]);
@@ -88,8 +97,7 @@ inline void parse_dictionary_mode(CommandLineArgs& target, cxxopts::ParseResult&
 
         for (const auto& dict_arg : dict)
         {
-            FILE* file_dict;
-            if (fopen_s(&file_dict, dict_arg.c_str(), "r") == 0)
+            if (FILE* file_dict = fopen(dict_arg.c_str(), "r"))
             {
                 char line[66] = {0};
                 while (fgets(line, sizeof(line), file_dict))
@@ -139,17 +147,16 @@ inline void parse_dictionary_mode(CommandLineArgs& target, cxxopts::ParseResult&
 
         for (const auto& bin_dict_path : dicts)
         {
-            FILE* bin_file;
-            if (fopen_s(&bin_file, bin_dict_path.c_str(), "rb") == 0)
+            if (FILE* bin_file = fopen(bin_dict_path.c_str(), "rb"))
             {
                 std::vector<Decryptor> decryptors;
 
                 uint8_t key[sizeof(uint64_t)] = {0};
 
-                while (fread_s(key, sizeof(key), sizeof(uint64_t), sizeof(uint8_t), bin_file))
+                while (fread(key, sizeof(uint64_t), sizeof(uint8_t), bin_file))
                 {
                     uint64_t reversed = *(uint64_t*)key;
-                    uint64_t as_is = _byteswap_uint64(reversed);
+                    uint64_t as_is = bswap_64(reversed);
 
                     decryptors.push_back(mode == 0 ? as_is : reversed);
                     if (mode == 2)
@@ -246,7 +253,7 @@ inline void parse_pattern_mode(CommandLineArgs& target, cxxopts::ParseResult& re
                 auto al_index = strtoul(hex.substr(2).c_str(), nullptr, 10);
                 if (al_index >= target.alphabets.size())
                 {
-                    printf("ERROR: Argument %s referring alphabet: %d (index: %d), but there are only %zd available. "
+                    printf("ERROR: Argument %s referring alphabet: %ld (index: %ld), but there are only %zd available. "
                         "Replacing with first one\n", hex.c_str(), al_index + 1, al_index, target.alphabets.size());
                     al_index = 0;
                 }
@@ -298,7 +305,9 @@ inline void parse_pattern_mode(CommandLineArgs& target, cxxopts::ParseResult& re
 CommandLineArgs console::parse_command_line(int argc, const char** argv)
 {
     cxxopts::Options options("CUDAKeeloq", "CUDA accelerated bruteforcer for keeloq.");
-    options.add_options()
+    options.set_width(CONSOLE_WIDTH)
+        .allow_unrecognised_options()
+        .add_options()
         ("h," ARG_HELP, "Prints this help")
 
         // What to bruteforce
@@ -381,7 +390,6 @@ CommandLineArgs console::parse_command_line(int argc, const char** argv)
         (ARG_BENCHMARK, "Run application benchmarks. You can specify learning and num loops type from command line also.",
             cxxopts::value<bool>()->default_value("false"), "0|1")
         ;
-    options.set_width(CONSOLE_WIDTH);
 
     CommandLineArgs args;
 
@@ -416,8 +424,10 @@ CommandLineArgs console::parse_command_line(int argc, const char** argv)
     // Stop if need
     args.match_stop = result[ARG_FMATCH].as<bool>();
 
+
     // CUDA setup
-    args.init_cuda(result[ARG_BLOCKS].as<uint16_t>(), result[ARG_THREADS].as<uint16_t>(), result[ARG_LOOPS].as<uint16_t>());
+    args.init_cuda(result[ARG_BLOCKS].as<uint16_t>(), result[ARG_THREADS].as<uint16_t>(),
+        result.count(ARG_LOOPS) > 0 ? result[ARG_LOOPS].as<uint16_t>() : 0);
 
     // Alphabets
     read_alphabets(args, result);
@@ -493,7 +503,7 @@ void console::progress_bar(double percent, const std::chrono::seconds& elapsed)
 
     printf("[%.*s>", (int)(progress_width * percent), progress_fill);
     printf("%.*s]", (int)(progress_width * (1 - percent)), progress_none);
-    printf("%d%%  %02lld:%02lld:%02lld   ETA:%02lld:%02lld:%02lld\t\n", (int)(percent * 100),
+    printf("%d%%  %02" PRId64 ":%02" PRId64 ":%02" PRId64 "   ETA:%02" PRId64 ":%02" PRId64 ":%02" PRId64 "   \n", (int)(percent * 100),
         elapsed.count() / 3600, (elapsed.count() / 60) % 60, elapsed.count() % 60,
         eta.count() / 3600, (eta.count() / 60) % 60, eta.count() % 60);
 }

@@ -109,14 +109,13 @@ __host__ inline MultibaseDigit::MultibaseDigit(const std::vector<uint8_t>& numer
 
 __host__ inline std::string MultibaseDigit::to_string() const
 {
-	char tmp[255 * 3] = { 0 }; // one byte is 'XX:' last is XX\0
-
-	int write_index = 0;
+    std::string hex;
 
 	for (int i = 0; i < count(); ++i)
 	{
-		write_index += sprintf_s(&tmp[write_index], sizeof(tmp) - write_index, i == 0 ? "%X" : ":%X", numeral(i));
+        std::string fmt(i == 0 ? "%X" : ":%X");
+        hex += str::format<std::string>(fmt, numeral(i));
 	}
 
-	return std::string(tmp);
+	return hex;
 }

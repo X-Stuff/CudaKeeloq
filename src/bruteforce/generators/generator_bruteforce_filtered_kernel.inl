@@ -9,9 +9,10 @@
 #include "bruteforce/bruteforce_type.h"
 #include "bruteforce/bruteforce_filters.h"
 
-__device__ inline uint64_t RequestNewBlock(uint64_t* from, uint32_t size)
+template<typename TPtr>
+__device__ inline uint64_t RequestNewBlock(TPtr* from, uint32_t size)
 {
-	return atomicAdd(from, size);
+	return atomicAdd((unsigned long long int*)from, size);
 }
 
 __global__ void DEFINE_GENERATOR_KERNEL(GeneratorBruteforceFiltered, KeeloqKernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls)
@@ -96,7 +97,7 @@ __global__ void DEFINE_GENERATOR_KERNEL(GeneratorBruteforceFiltered, KeeloqKerne
 
 					Decryptor& decryptor = decryptors[write_index];
 					decryptor.man = key;
-					decryptor.seed = 0; // right now we don't do it
+					decryptor.seed = num_to_generate; // right now we don't do it
 
 					break;
 				}

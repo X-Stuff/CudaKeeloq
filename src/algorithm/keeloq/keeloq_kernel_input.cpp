@@ -7,7 +7,7 @@ void KeeloqKernelInput::WriteDecryptors(const std::vector<Decryptor>& source, si
 	{
 		assert(config.type == BruteforceType::Dictionary);
 
-		size_t copy_num = std::max(0ull, std::min(num, (source.size() - from)));
+		size_t copy_num = std::max<size_t>(0, std::min(num, (source.size() - from)));
 		decryptors->write(&source[from], copy_num);
 	}
 }

@@ -1,148 +1,14 @@
 #include "common.h"
 
-#include <numeric>
-#include <future>
-#include <thread>
-
 #include "stdio.h"
 
 #include "host/console.h"
 
 #include "algorithm/keeloq/keeloq_kernel.h"
-
-#include "bruteforce/bruteforce_round.h"
 #include "bruteforce/generators/generator_bruteforce.h"
+#include "bruteforce/bruteforce_round.h"
 
 #include "tests/test_all.h"
-
-
-void benchmark(const CommandLineArgs& args)
-{
-#if _DEBUG
-    constexpr size_t TargetCalculations = 10000000;
-#else
-    constexpr size_t TargetCalculations = 100000000;
-#endif
-
-    constexpr uint16_t CudaBlocks[] =  { 128, 256, 512, 1024, 2048, 4096, 8196 };
-    constexpr uint16_t CudaThreads[] = { 128, 256, 512, 1024, 2048 };
-
-    static const uint32_t MaxCudaThreads = CommandLineArgs::max_cuda_threads();
-    static const uint32_t MaxCudaBlocks  = CommandLineArgs::max_cuda_blocks();
-
-    BruteforceConfig benchmarkConfig = BruteforceConfig::GetAlphabet(0, "0123456789abcdefgh"_b);
-
-    printf("BENCHMARK BEGIN\n\n"
-        "Config is: Alphabet\n"
-        "Num loops inside CUDA\t\t\t: %u (from cmd)\n"
-        "Max Available CUDA Threads per block\t: %u\n"
-        "Max Available CUDA Blocks\t\t: %u\n"
-        "Num total calculations\t\t\t: %llu (Millions)\n"
-        "Learning (from cmd)\t\t\t: %s\n\n",
-        args.cuda_loops,
-        MaxCudaThreads, MaxCudaBlocks,
-        (TargetCalculations / 1000000),
-        KeeloqLearningType::to_string(args.selected_learning).c_str());
-
-
-    bool in_progress = true;
-    for (auto& NumCudaBlocks : CudaBlocks)
-    {
-        if (!in_progress || NumCudaBlocks > MaxCudaBlocks)
-        {
-            break;
-        }
-
-        for (auto& NumCudaThreads : CudaThreads)
-        {
-            if (!in_progress || NumCudaThreads > MaxCudaThreads)
-            {
-                break;
-            }
-
-            BruteforceRound benchmarkRound(args.inputs, benchmarkConfig, args.selected_learning, NumCudaBlocks, NumCudaThreads, args.cuda_loops);
-            benchmarkRound.Init();
-
-            size_t keysInBatch	= benchmarkRound.keys_per_batch();
-            size_t numBatches = std::max(1ull, TargetCalculations / keysInBatch);
-
-            auto roundStartTime = std::chrono::system_clock::now();
-
-            std::vector<uint64_t> batches_kResults_per_sec(numBatches);
-
-            console_hide_cursor();
-            printf("\n");
-
-            for (int i = 0; in_progress && i < numBatches; ++i)
-            {
-                auto batchStartTime = std::chrono::high_resolution_clock::now();
-
-                KeeloqKernelInput& kernelInput = benchmarkRound.Inputs();
-                kernelInput.NextDecryptor();
-
-                GeneratorBruteforce::PrepareDecryptors(kernelInput, NumCudaBlocks, NumCudaThreads);
-                LaunchKeeloqBruteMain(kernelInput, NumCudaBlocks, NumCudaThreads);
-
-                auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
-                    std::chrono::high_resolution_clock::now() - batchStartTime);
-
-                batches_kResults_per_sec[i] = duration.count() == 0 ? 0 : keysInBatch / duration.count();
-
-                auto overall = std::chrono::duration_cast<std::chrono::seconds>(
-                    std::chrono::system_clock::now() - roundStartTime);
-
-                console_cursor_ret_up(1);
-                console::progress_bar( i / (double)numBatches, overall);
-
-                if (console::read_esc_press())
-                {
-                    console_cursor_ret_up(1);
-                    console::clear_line();
-                    printf("Benchmark skipped\n");
-                    in_progress = false;
-                }
-            }
-
-            if (in_progress)
-            {
-                auto overall = std::chrono::duration_cast<std::chrono::milliseconds>(
-                    std::chrono::system_clock::now() - roundStartTime);
-
-                std::sort(batches_kResults_per_sec.begin(), batches_kResults_per_sec.end());
-
-                console_cursor_ret_up(1);
-                console::clear_line();
-
-                // Creating results
-                printf(str::format<std::string>(
-                    "| CUDA: %u x %u \t| MEM: %u MB\t | Time (ms): %llu\t |\tSpeed (K/s): %lu (avg.) %lu (mean) |\t\t\t\t\n",
-                    NumCudaBlocks, NumCudaThreads,
-                    benchmarkRound.get_mem_size() / (1024 * 1024),
-                    overall.count(),
-                    std::reduce(batches_kResults_per_sec.begin(), batches_kResults_per_sec.end()) / numBatches,
-                    batches_kResults_per_sec[numBatches / 2]
-                    ).c_str());
-            }
-        }
-    }
-}
-
-void benchmark_all(const CommandLineArgs& args)
-{
-    console_clear();
-    CommandLineArgs copy = args;
-
-    copy.cuda_loops = 2;
-    copy.selected_learning = {};
-    benchmark(copy);
-
-    copy.cuda_loops = 2;
-    copy.selected_learning = { KeeloqLearningType::Simple };
-    benchmark(copy);
-
-    copy.cuda_loops = 4;
-    benchmark(copy);
-}
 
 void bruteforce(const CommandLineArgs& args)
 {
@@ -194,7 +60,7 @@ void bruteforce(const CommandLineArgs& args)
             }
 
             // do the bruteforce
-            auto kernelResults = LaunchKeeloqBruteMain(kernelInput, attackRound.CudaBlocks(), attackRound.CudaThreads());
+            auto kernelResults = keeloq::kernels::BruteMain(kernelInput, attackRound.CudaBlocks(), attackRound.CudaThreads());
             match = attackRound.check_results(kernelResults);
 
             auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -213,8 +79,10 @@ void bruteforce(const CommandLineArgs& args)
 
                 console_cursor_ret_up(2);
 
-                printf("[%c][%zd/%zd]\t %llu(ms)/batch Speed: %llu KKeys/s\tLast key:0x%llX (%ul)\n", WAIT_CHAR(batch),
-                    batch, batchesInRound, duration.count(),
+                printf("[%c][%zd/%zd]\t %" PRIu64 "(ms)/batch Speed: %" PRIu64 " KKeys/s\tLast key:0x%" PRIX64 " (%u)\n",
+                    WAIT_CHAR(batch),
+                    batch, batchesInRound,
+                    duration.count(),
                     kilo_result_per_second,
                     kernelInput.config.last.man, kernelInput.config.last.seed);
 
@@ -241,7 +109,7 @@ int main(int argc, const char** argv)
 {
     assert(Tests::CheckCudaIsWorking());
 
-    if (!CUDA_check_keeloq_works())
+    if (!keeloq::kernels::IsWorking())
     {
         printf("Error: This device cannot compute keeloq right. Single encryption and decryption mismatch.");
         assert(false);
@@ -252,7 +120,7 @@ int main(int argc, const char** argv)
     const char* commandline[] = {
         "tests",
         "--" ARG_INPUTS"=0xC65D52A0A81FD504,0xCCA9B335A81FD504,0xE0DA7372A81FD504",
-        "--" ARG_MODE"=0,1,2,4,3",
+        "--" ARG_MODE"=4,3,0,1,2",
         //"--" ARG_LTYPE"=6,1,3",
 
         "--" ARG_WORDDICT"=0xCEB6AE48B5C63ED1,0xCEB6AE48B5C63ED2,0xCEB6AE48B5C63ED3",
@@ -278,7 +146,7 @@ int main(int argc, const char** argv)
         "--" ARG_FMATCH"=0",
 
         "--" ARG_TEST"=1",
-        //"--" ARG_BENCHMARK"=1",
+        "--" ARG_BENCHMARK"=1",
     };
 
     console_set_width(CONSOLE_WIDTH);
@@ -288,7 +156,7 @@ int main(int argc, const char** argv)
         console::parse_command_line(sizeof(commandline) / sizeof(char*), commandline); //console::parse_command_line(argc, argv);
     if (args.run_bench)
     {
-        benchmark_all(args);
+        benchmark::all(args);
         return 0;
     }
 

@@ -132,8 +132,7 @@ std::string BruteforceRound::to_string() const
 {
     assert(inited);
 
-    char tmp[8196];
-    sprintf_s(tmp, "Setup:\n"
+    return str::format<std::string>("Setup:\n"
         "\tCUDA: Blocks:%u Threads:%u Iterations:%u\n"
         "\tEncrypted data size:%zd\n"
         "\tLearning type:%s\n"
@@ -142,8 +141,6 @@ std::string BruteforceRound::to_string() const
         "\tConfig: %s",
         CudaBlocks(), CudaThreads(), CudaThreadIterations(),
         encrypted_data.size(), KeeloqLearningType::to_string(kernel_inputs.learning_types).c_str(), results_per_batch(), keys_per_batch(), Config().toString().c_str());
-
-    return std::string(tmp);
 }
 
 

@@ -2,6 +2,8 @@
 
 #include "common.h"
 
+#include <cstring> // memcpy
+
 #include "device/cuda_array.h"
 #include "device/cuda_object.h"
 
@@ -45,7 +47,7 @@ struct KeeloqKernelInput : TGenericGpuObject<KeeloqKernelInput>
 		decryptors = other.decryptors;
 		results = other.results;
 		config = other.config;
-		memcpy(learning_types, other.learning_types, sizeof(learning_types));
+		std::memcpy(learning_types, other.learning_types, sizeof(learning_types));
 	}
 
 	KeeloqKernelInput& operator=(KeeloqKernelInput&& other) = delete;

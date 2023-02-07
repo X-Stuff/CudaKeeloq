@@ -79,20 +79,18 @@ void BruteforceConfig::next_decryptor()
 
 std::string BruteforceConfig::toString() const
 {
-	char tmp[8196];
 	const char* pGeneratorName = BruteforceType::Name(type);
 	switch (type)
 	{
 	case BruteforceType::Simple:
 	{
-		sprintf_s(tmp, "Type: %s. First: 0x%llX (seed:%u). Last: 0x%llX", pGeneratorName, start.man, start.seed, start.man + brute_size());
-		break;
+        return str::format<std::string>("Type: %s. First: 0x%llX (seed:%u). Last: 0x%llX",
+            pGeneratorName, start.man, start.seed, start.man + brute_size());
 	}
 	case BruteforceType::Filtered:
-	{
-		sprintf_s(tmp, "Type: %s. Initial: 0x%llX (seed:%u). Brute count: %zd.\n\tFilters: %s",
-			pGeneratorName, start.man, start.seed, brute_size(), filters.toString().c_str());
-		break;
+    {
+        return str::format<std::string>("Type: %s. Initial: 0x%llX (seed:%u). Brute count: %zd.\n\tFilters: %s",
+            pGeneratorName, start.man, start.seed, brute_size(), filters.toString().c_str());
 	}
 	case BruteforceType::Alphabet:
 	case BruteforceType::Pattern:
@@ -100,32 +98,24 @@ std::string BruteforceConfig::toString() const
 		MultibaseNumber begin = pattern.init(start.man);
 		MultibaseNumber end = pattern.next(begin, brute_size());
 
-		auto written = sprintf_s(tmp, "Type: %s. First: 0x%llX (seed:%u). Last: 0x%llX. (Count: %zd)  All invariants: %zd",
+        auto result =  str::format<std::string>("Type: %s. First: 0x%llX (seed:%u). Last: 0x%llX. (Count: %zd)  All invariants: %zd",
 			pGeneratorName, begin.number(), start.seed, end.number(), brute_size(), pattern.size());
 
 		if (type == BruteforceType::Alphabet)
 		{
-			written = sprintf_s(&tmp[written], sizeof(tmp) - written,
-				"\n\tAlphabet: %s", pattern.bytes_variants(0).to_string().c_str());
+            result += str::format<std::string>("\n\tAlphabet: %s", pattern.bytes_variants(0).to_string().c_str());
 		}
 		else
 		{
-			std::string pattern_string = pattern.to_string(true);
-			written = sprintf_s(&tmp[written], sizeof(tmp) - written, "\nPattern: %s", pattern_string.c_str());
+            std::string pattern_string = pattern.to_string(true);
+            result += str::format<std::string>("\nPattern: %s", pattern_string.c_str());
 		}
-		break;
+        return result;
 	}
 	case BruteforceType::Dictionary:
 	{
-		sprintf_s(tmp, "Type: %s. Words num: %zd", pGeneratorName, dict_size());
-		break;
+        return str::format<std::string>("Type: %s. Words num: %zd", pGeneratorName, dict_size());
 	}
-	default:
-	{
-		sprintf_s(tmp, "UNSUPPORTED Type (%d): %s", (int)type, pGeneratorName);
-		break;
-	}
-	}
-
-	return std::string(tmp);
+    }
+    return str::format<std::string>("UNSUPPORTED Type (%d): %s", (int)type, pGeneratorName);
 }

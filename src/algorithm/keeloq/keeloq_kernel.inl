@@ -20,10 +20,10 @@ namespace
         return ((uint64_t)k1 << 32) | k2;
     }
 
-    __device__ __host__ inline uint64_t keeloq_common_magic_xor_type1_learning(uint32_t data, uint64_t xor)
+    __device__ __host__ inline uint64_t keeloq_common_magic_xor_type1_learning(uint32_t data, uint64_t pxor)
     {
         data &= 0x0FFFFFFF;
-        return (((uint64_t)data << 32) | data)^xor;
+        return (((uint64_t)data << 32) | data) ^ pxor;
     }
 
     __device__ __host__ inline uint64_t keeloq_common_normal_learning(uint32_t data, const uint64_t key)
@@ -397,7 +397,7 @@ __device__ uint8_t keeloq_analyze_results(const CudaContext& ctx, const CudaArra
     uint8_t num_matches = 0;
 
     // outer loop for thread decryptor
-    CUDA_FOR_THREAD_ID(ctx, decryptor_index, num_decryptors)
+    KEELOQ_INNER_LOOP(ctx, decryptor_index, num_decryptors)
     {
         const SingleResult* decryptor_results = &all_results[decryptor_index * num_inputs];
 
@@ -422,7 +422,7 @@ __device__ uint8_t keeloq_decryption_run(const CudaContext& ctx, KeeloqKernelInp
     uint8_t result_error = 0;
 
     // outer loop for each thread's decryptor
-    CUDA_FOR_THREAD_ID(ctx, decryptor_index, decryptors.num)
+    KEELOQ_INNER_LOOP(ctx, decryptor_index, decryptors.num)
     {
         uint64_t man = decryptors[decryptor_index].man;
         uint32_t seed = decryptors[decryptor_index].seed;

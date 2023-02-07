@@ -4,6 +4,7 @@
 
 #include "tests/test_alphabet.h"
 #include "tests/test_filters.h"
+#include "tests/test_benchmark.h"
 
 namespace Tests
 {
