@@ -12,12 +12,10 @@ CONFIG_DEBUG=debug
 # CC compiler options:
 CC=g++
 CC_FLAGS=-std=c++17 -Wall
-CC_LIBS=
 CC_INCLUDE=-I./src/ -I./ThirdParty/ -I./ThirdParty/cpp-terminal
 
 NVCC=nvcc
 NVCC_FLAGS=--gpu-architecture=compute_80 --gpu-code=sm_80
-NVCC_LIBS=
 NVCC_INCLUDE=-I./src/
 
 # CUDA library directory:
@@ -71,27 +69,9 @@ $(CPP_OBJECTS): | mkdirs
 
 # Compile CUDA
 $(CUDA_OBJECTS): | mkdirs
-	$(NVCC) $(NVCC_FLAGS) $(NVCC_INCLUDE) -c $(basename $@).cu -o $(OBJ_DIR)/$(notdir $@) $(NVCC_LIBS)
+	$(NVCC) $(NVCC_FLAGS) $(NVCC_INCLUDE) -c $(basename $@).cu -o $(OBJ_DIR)/$(notdir $@)
 
 # Prepare
 mkdirs:
 	mkdir -p $(OBJ_DIR)
 	mkdir -p $(EXE_DIR)
-
-
-# # Link c++ and CUDA compiled object files to target executable:
-# $(EXE) : $(OBJS)
-# 	$(CC) $(CC_FLAGS) $(OBJS) -o $@ $(CUDA_INC_DIR) $(CUDA_LIB_DIR) $(CUDA_LINK_LIBS)
-
-# # Compile main .cpp file to object files:
-# $(OBJ_DIR)/%.o : %.cpp
-# 	$(CC) $(CC_FLAGS) -c $< -o $@
-
-# # Compile C++ source files to object files:
-# $(OBJ_DIR)/%.o : $(SRC_DIR)/%.cpp include/%.h
-# 	$(CC) $(CC_FLAGS) -c $< -o $@
-
-# # Compile CUDA source files to object files:
-# $(OBJ_DIR)/%.o : $(SRC_DIR)/%.cu $(INC_DIR)/%.cuh
-# 	$(NVCC) $(NVCC_FLAGS) -c $< -o $@ $(NVCC_LIBS)
-
