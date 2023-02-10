@@ -18,43 +18,44 @@
 // Input data for main keeloq calculation kernel
 struct KeeloqKernelInput : TGenericGpuObject<KeeloqKernelInput>
 {
-	// Constant per-run input data (captured encoded)
-	CudaArray<EncData>* encdata;
+    // Constant per-run input data (captured encoded)
+    CudaArray<EncData>* encdata;
 
-	// Single-run set of decryptors
-	CudaArray<Decryptor>* decryptors;
+    // Single-run set of decryptors
+    CudaArray<Decryptor>* decryptors;
 
-	// Single-run results
-	CudaArray<SingleResult>* results;
+    // Single-run results
+    CudaArray<SingleResult>* results;
 
-	// Which type of learning use for decryption // the last one indicates all
-	KeeloqLearningType::Type learning_types[KeeloqLearningType::TypeMaskLength];
+    // Which type of learning use for decryption // the last one indicates all
+    KeeloqLearningType::Type learning_types[KeeloqLearningType::TypeMaskLength];
 
-	// from this decryptor generation will start
-	BruteforceConfig config;
+    // from this decryptor generation will start
+    BruteforceConfig config;
 
-	KeeloqKernelInput() : KeeloqKernelInput(nullptr, nullptr, nullptr, BruteforceConfig())
-	{
-	}
+    KeeloqKernelInput() : KeeloqKernelInput(nullptr, nullptr, nullptr, BruteforceConfig())
+    {
+    }
 
-	KeeloqKernelInput(CudaArray<EncData>* enc, CudaArray<Decryptor>* dec, CudaArray<SingleResult>* res, const BruteforceConfig& config)
-		: TGenericGpuObject<KeeloqKernelInput>(this), encdata(enc), decryptors(dec), results(res), learning_types(), config(config)
-	{
-	}
+    KeeloqKernelInput(CudaArray<EncData>* enc, CudaArray<Decryptor>* dec, CudaArray<SingleResult>* res, const BruteforceConfig& config)
+        : TGenericGpuObject<KeeloqKernelInput>(this), encdata(enc), decryptors(dec), results(res), learning_types(), config(config)
+    {
+        KeeloqLearningType::full_mask(learning_types);
+    }
 
-	KeeloqKernelInput(KeeloqKernelInput&& other) noexcept : TGenericGpuObject<KeeloqKernelInput>(this) {
-		encdata = other.encdata;
-		decryptors = other.decryptors;
-		results = other.results;
-		config = other.config;
-		std::memcpy(learning_types, other.learning_types, sizeof(learning_types));
-	}
+    KeeloqKernelInput(KeeloqKernelInput&& other) noexcept : TGenericGpuObject<KeeloqKernelInput>(this) {
+        encdata = other.encdata;
+        decryptors = other.decryptors;
+        results = other.results;
+        config = other.config;
+        std::memcpy(learning_types, other.learning_types, sizeof(learning_types));
+    }
 
-	KeeloqKernelInput& operator=(KeeloqKernelInput&& other) = delete;
-	KeeloqKernelInput& operator=(const KeeloqKernelInput& other) = delete;
+    KeeloqKernelInput& operator=(KeeloqKernelInput&& other) = delete;
+    KeeloqKernelInput& operator=(const KeeloqKernelInput& other) = delete;
 
 public:
-	void WriteDecryptors(const std::vector<Decryptor>& source, size_t from, size_t num);
+    void WriteDecryptors(const std::vector<Decryptor>& source, size_t from, size_t num);
 
-	void NextDecryptor();
+    void NextDecryptor();
 };

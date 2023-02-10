@@ -301,7 +301,7 @@ inline void parse_pattern_mode(CommandLineArgs& target, cxxopts::ParseResult& re
 
 
         // Add pattern attack to config
-        target.brute_configs.push_back(BruteforceConfig::GetPattern(start_key, BruteforcePattern(pattern_arg, std::move(result)), count_key));
+        target.brute_configs.push_back(BruteforceConfig::GetPattern(start_key, BruteforcePattern(std::move(result), pattern_arg), count_key));
     }
 }
 

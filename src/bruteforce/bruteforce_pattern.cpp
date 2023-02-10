@@ -27,7 +27,7 @@ std::vector<std::string> split(const std::string& delim, std::string input)
 }
 
 
-BruteforcePattern::BruteforcePattern(const std::string& pattern_string, std::vector<std::vector<uint8_t>>&& pattern_bytes)
+BruteforcePattern::BruteforcePattern(std::vector<std::vector<uint8_t>>&& pattern_bytes, const std::string& pattern_string)
     : system(pattern_bytes), repr_string(pattern_string)
 {
 }

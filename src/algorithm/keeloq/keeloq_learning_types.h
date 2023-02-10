@@ -18,90 +18,91 @@ using KeeloqLearningMask = uint8_t[];
  */
 struct KeeloqLearningType
 {
-	using Type = uint8_t;
+    using Type = uint8_t;
 
-	enum : Type
-	{
-		Simple = 0,
-		Simple_Rev,
+    enum : Type
+    {
+        Simple = 0,
+        Simple_Rev,
 
-		Normal,
-		Normal_Rev,
+        Normal,
+        Normal_Rev,
 
-		Secure,
-		Secure_Rev,
+        Secure,
+        Secure_Rev,
 
-		Xor,
-		Xor_Rev,
+        Xor,
+        Xor_Rev,
 
-		Faac,
-		Faac_Rev,
+        Faac,
+        Faac_Rev,
 
-		Serial1,
-		Serial1_Rev,
+        Serial1,
+        Serial1_Rev,
 
-		Serial2,
-		Serial2_Rev,
+        Serial2,
+        Serial2_Rev,
 
-		Serial3,
-		Serial3_Rev,
+        Serial3,
+        Serial3_Rev,
 
-		LAST,
+        LAST,
 
-		// Name for internal use
-		ALL = LAST,
+        // Name for internal use
+        ALL = LAST,
 
-		// For array initialization
-		TypeMaskLength = ALL + 1,
+        // For array initialization
+        TypeMaskLength = ALL + 1,
 
-		INVALID = 0xff,
-	};
+        INVALID = 0xff,
+    };
 
 public:
 
-	static std::string to_string(const Type learning_types[]);
-	static std::string to_string(const std::vector<Type>& learning_types);
+    static std::string to_string(const Type learning_types[]);
+    static std::string to_string(const std::vector<Type>& learning_types);
 
+    static void full_mask(Type out_mask[]) { to_mask({}, out_mask); }
     static void to_mask(const std::vector<Type>& in_types, Type out_mask[]);
 
-	static constexpr const char* ValueString(Type type)
-	{
+    static constexpr const char* ValueString(Type type)
+    {
 
-		constexpr const char* LUT[]{
-			"0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
-			"10", "11", "12", "13", "14", "15", "16", "17", "18", "19",
-			"20", "21", "22", "23", "24", "25", "26", "27", "28", "29",
-			"30", "31", "32"
-		};
+        constexpr const char* LUT[]{
+            "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
+            "10", "11", "12", "13", "14", "15", "16", "17", "18", "19",
+            "20", "21", "22", "23", "24", "25", "26", "27", "28", "29",
+            "30", "31", "32"
+        };
 
-		return LUT[type];
-	}
+        return LUT[type];
+    }
 
-	static constexpr const char* Name(Type type)
-	{
-		if (type >= LearningNamesCount) {
-			return "INVALID";
-		}
+    static constexpr const char* Name(Type type)
+    {
+        if (type >= LearningNamesCount) {
+            return "INVALID";
+        }
 
-		return LearningNames[type];
-	}
+        return LearningNames[type];
+    }
 
-	// Checks if
-	template<Type type>
-	__device__ __host__ static inline bool OneEnabled(const KeeloqLearningMask mask)
-	{
-		static_assert(type <= KeeloqLearningType::LAST, "Invalid learning type provided! It Should be less or equal to LAST. LAST means all");
-		return mask[type];
-	}
+    // Checks if
+    template<Type type>
+    __device__ __host__ static inline bool OneEnabled(const KeeloqLearningMask mask)
+    {
+        static_assert(type <= KeeloqLearningType::LAST, "Invalid learning type provided! It Should be less or equal to LAST. LAST means all");
+        return mask[type];
+    }
 
-	__device__ __host__ static inline bool AllEnabled(const KeeloqLearningMask mask)
-	{
-		return OneEnabled<KeeloqLearningType::LAST>(mask);
-	}
+    __device__ __host__ static inline bool AllEnabled(const KeeloqLearningMask mask)
+    {
+        return OneEnabled<KeeloqLearningType::LAST>(mask);
+    }
 
 private:
 
-	static const char* LearningNames[];
+    static const char* LearningNames[];
 
-	static const size_t LearningNamesCount;
+    static const size_t LearningNamesCount;
 };
