@@ -368,13 +368,14 @@ CommandLineArgs console::parse_command_line(int argc, const char** argv)
             cxxopts::value<std::vector<std::string>>(), "[f1,a1,...]")
 
         // Pattern
-        (ARG_PATTERN, "Pattern file (or pattern itself) - contains colon separated patterns for each byte in a key like: AL1:0A:0x10-0x32:*:33;44;FA:FF\n"
+        (ARG_PATTERN, "Pattern file (or pattern itself) - contains 222 separated patterns for each byte in a key like: AL1:0A:0x10-0x32:*:33|44|FA:FF\n"
+            "Pattern is in big endian. That means first byte in patter is highest byte (e.g. 01:.... equals key 0x01......)\n"
             "Each byte in pattern separated by `:`, pattern types:\n"
             "\tAL[0-N]   - alphabet N (index in " ARG_ALPHABET " )\n"
             "\t0A        - constant. might be any byte as hex string\n"
             "\t0x10-0x32 - range. bytes from first to second (including)\n"
             "\t*         - any byte\n"
-            "\t33;44;FA  - exact 3 bytes\n",
+            "\t33|44|FA  - exact 3 bytes\n",
             cxxopts::value<std::vector<std::string>>(), "[f1,p1,...]")
 
         // Bruteforce filters
