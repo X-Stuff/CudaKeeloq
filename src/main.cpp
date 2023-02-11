@@ -39,7 +39,7 @@ constexpr const char* debugTestCommandline[] = {
 
     "--" ARG_FMATCH"=0",
 
-    "--" ARG_TEST"=false",
+    "--" ARG_TEST"=true",
     //"--" ARG_BENCHMARK"=1",
 };
 

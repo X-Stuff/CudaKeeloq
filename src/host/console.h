@@ -27,6 +27,8 @@ constexpr char WAIT_SPIN[] = "|/-\\";
 #define save_cursor_pos() printf("\033[s")
 #define load_cursor_pos() printf("\033[u")
 
+#define APP_NAME "CudaKeeloq"
+
 #define ARG_HELP "help"
 #define ARG_TEST "test"
 #define ARG_BENCHMARK "benchmark"
