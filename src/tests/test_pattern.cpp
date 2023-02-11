@@ -1,14 +1,16 @@
 #include "test_pattern.h"
 
-#include "bruteforce\bruteforce_config.h"
-#include "bruteforce\bruteforce_pattern.h"
+#include <algorithm>
 
-#include "device\cuda_vector.h"
+#include "bruteforce/bruteforce_config.h"
+#include "bruteforce/bruteforce_pattern.h"
 
-#include "algorithm\keeloq\keeloq_kernel.h"
-#include "algorithm\keeloq\keeloq_kernel_input.h"
+#include "device/cuda_vector.h"
 
-#include "bruteforce\generators\generator_bruteforce.h"
+#include "algorithm/keeloq/keeloq_kernel.h"
+#include "algorithm/keeloq/keeloq_kernel_input.h"
+
+#include "bruteforce/generators/generator_bruteforce.h"
 
 
 namespace
@@ -20,12 +22,12 @@ BruteforceConfig GetSingleKeyConfig(bool rev = true)
         { 0xCE }, { 0xB6 }, { 0xAE }, { 0x48 }, { 0xB5 }, { 0xC6 }, { 0x3E }, { 0xD2 },
     };
 
-    std::vector<std::vector<uint8_t>> rev_pattern =
+    if (rev)
     {
-        { 0xD2 }, { 0x3E }, { 0xC6 }, { 0xB5 }, { 0x48 }, { 0xAE }, { 0xB6 }, { 0xCE },
-    };
+        std::reverse(pattern.begin(), pattern.end());
+    }
 
-    BruteforcePattern br_pattern(std::move(rev ? rev_pattern : pattern), "Test");
+    BruteforcePattern br_pattern(std::move(pattern), "Test");
     return BruteforceConfig::GetPattern(0x0, br_pattern, 0xFFFFFFFF);
 }
 }
@@ -46,13 +48,9 @@ bool Tests::PatternGeneration()
 
     BruteforceConfig config = GetSingleKeyConfig();
     auto init = config.pattern.init(0);
-//    assert(init.number() == 0xCEB6AE48B5C63ED2);
+    assert(init.number() == 0xCEB6AE48B5C63ED2);
 
-    KeeloqKernelInput generatorInputs(
-        encrypted.gpu(),
-        decryptors.gpu(),
-        results.gpu(),
-        config);
+    KeeloqKernelInput generatorInputs(encrypted.gpu(), decryptors.gpu(), results.gpu(), config);
 
     GeneratorBruteforce::PrepareDecryptors(generatorInputs, NumBlocks, NumThreads);
     auto result = keeloq::kernels::BruteMain(generatorInputs, NumBlocks, NumThreads);

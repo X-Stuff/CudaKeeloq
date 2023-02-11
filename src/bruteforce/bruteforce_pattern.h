@@ -27,7 +27,7 @@ struct BruteforcePattern
     BruteforcePattern() = default;
 
     //  Create pattern from bytes.
-    // BIG ENDIAN. pattern_bytes[0] is highest byte in pattern. e.g. ( [ { 0x01 }, ... ] will ends as key 0x01..... )
+    // LITTLE ENDIAN. pattern_bytes[0] is lowest byte in pattern. e.g. ( [ { 0x01 }, ... ] will ends as key 0x.....01 )
     // Pattern string is just for reference
     BruteforcePattern(std::vector<std::vector<uint8_t>>&& pattern_bytes, const std::string& pattern_string = "N/A");
 

@@ -10,27 +10,27 @@
 
 bool Tests::AlphabetGeneration()
 {
-	// Filtered generator test itself
-	constexpr auto NumBlocks = 64;
-	constexpr auto NumThreads = 64;
+    // Filtered generator test itself
+    constexpr auto NumBlocks = 64;
+    constexpr auto NumThreads = 64;
 
-	auto testConfig = BruteforceConfig::GetAlphabet(0x0, "abcd"_b, 0xFFFFFFFF);
+    auto testConfig = BruteforceConfig::GetAlphabet(0x0, "abcd"_b, 0xFFFFFFFF);
 
     CudaVector<Decryptor> decryptors(NumBlocks * NumThreads);
 
-	KeeloqKernelInput generatorInputs(nullptr, decryptors.gpu(), nullptr, testConfig);
+    KeeloqKernelInput generatorInputs(nullptr, decryptors.gpu(), nullptr, testConfig);
 
-	for (int i = 0; i < 16; ++i)
-	{
-		GeneratorBruteforce::PrepareDecryptors(generatorInputs, NumBlocks, NumThreads);
+    for (int i = 0; i < 16; ++i)
+    {
+        GeneratorBruteforce::PrepareDecryptors(generatorInputs, NumBlocks, NumThreads);
 
         decryptors.read();
 
-		assert((decryptors.cpu()[0].man & 0x0000FFFFFFFFFFFF) == 0x616161616161);
+        assert((decryptors.cpu()[0].man & 0x0000FFFFFFFFFFFF) == 0x616161616161);
 
-		generatorInputs.NextDecryptor();
-	}
+        generatorInputs.NextDecryptor();
+    }
 
-	assert(decryptors.cpu()[4095].man == 0x6464646464646464);
-	return true;
+    assert(decryptors.cpu()[4095].man == 0x6464646464646464);
+    return true;
 }

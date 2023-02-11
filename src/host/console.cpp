@@ -300,6 +300,9 @@ inline void parse_pattern_mode(CommandLineArgs& target, cxxopts::ParseResult& re
         }
 
 
+        // reverse bytes
+        std::reverse(result.begin(), result.end());
+
         // Add pattern attack to config
         target.brute_configs.push_back(BruteforceConfig::GetPattern(start_key, BruteforcePattern(std::move(result), pattern_arg), count_key));
     }
@@ -368,7 +371,7 @@ CommandLineArgs console::parse_command_line(int argc, const char** argv)
             cxxopts::value<std::vector<std::string>>(), "[f1,a1,...]")
 
         // Pattern
-        (ARG_PATTERN, "Pattern file (or pattern itself) - contains 222 separated patterns for each byte in a key like: AL1:0A:0x10-0x32:*:33|44|FA:FF\n"
+        (ARG_PATTERN, "Pattern file (or pattern itself) - contains comma separated patterns like: AL1:0A:0x10-0x32:*:33|44|FA:FF\n"
             "Pattern is in big endian. That means first byte in patter is highest byte (e.g. 01:.... equals key 0x01......)\n"
             "Each byte in pattern separated by `:`, pattern types:\n"
             "\tAL[0-N]   - alphabet N (index in " ARG_ALPHABET " )\n"
