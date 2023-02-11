@@ -42,7 +42,7 @@
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
-    <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 12.0.props" />
+    <Import Project="$(CUDA_PATH)\extras\visual_studio_integration\MSBuildExtensions\CUDA 12.0.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
@@ -56,13 +56,13 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(IncludePath);$(projectdir)\src;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.0\include;$(projectdir)\ThirdParty\cpp-terminal;$(projectdir)\ThirdParty;</IncludePath>
+    <IncludePath>$(IncludePath);$(projectdir)\src;$(CUDA_PATH)\include;$(projectdir)\ThirdParty\cpp-terminal;$(projectdir)\ThirdParty;</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(projectdir)\src;$(projectdir)\ThirdParty;$(projectdir)\ThirdParty\cpp-terminal</IncludePath>
+    <IncludePath>$(IncludePath);$(projectdir)\src;$(CUDA_PATH)\include;$(projectdir)\ThirdParty\cpp-terminal;$(projectdir)\ThirdParty;</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">
-    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(projectdir)\src;$(projectdir)\ThirdParty;$(projectdir)\ThirdParty\cpp-terminal</IncludePath>
+    <IncludePath>$(IncludePath);$(projectdir)\src;$(CUDA_PATH)\include;$(projectdir)\ThirdParty\cpp-terminal;$(projectdir)\ThirdParty;</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -168,9 +168,11 @@
     <ClInclude Include="src\device\cuda_context.h" />
     <ClInclude Include="src\device\cuda_double_array.h" />
     <ClInclude Include="src\device\cuda_object.h" />
+    <ClInclude Include="src\device\cuda_vector.h" />
     <ClInclude Include="src\host\command_line_args.h" />
     <ClInclude Include="src\host\console.h" />
     <ClInclude Include="src\kernels\kernel_result.h" />
+    <ClInclude Include="src\tests\test_pattern.h" />
     <ClInclude Include="src\tests\test_all.h" />
     <ClInclude Include="src\tests\test_alphabet.h" />
     <ClInclude Include="src\tests\test_benchmark.h" />
@@ -192,6 +194,7 @@
     <ClCompile Include="src\tests\test_alphabet.cpp" />
     <ClCompile Include="src\tests\test_benchmark.cpp" />
     <ClCompile Include="src\tests\test_filters.cpp" />
+    <ClCompile Include="src\tests\test_pattern.cpp" />
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="src\algorithm\keeloq\keeloq_kernel.cu" />
@@ -208,6 +211,6 @@
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
-    <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 12.0.targets" />
+    <Import Project="$(CUDA_PATH)\extras\visual_studio_integration\MSBuildExtensions\CUDA 12.0.targets" />
   </ImportGroup>
 </Project>

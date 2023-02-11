@@ -83,6 +83,12 @@
     <ClInclude Include="src\tests\test_benchmark.h">
       <Filter>tests</Filter>
     </ClInclude>
+    <ClInclude Include="src\tests\test_pattern.h">
+      <Filter>tests</Filter>
+    </ClInclude>
+    <ClInclude Include="src\device\cuda_vector.h">
+      <Filter>device</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp" />
@@ -126,6 +132,9 @@
       <Filter>bruteforce</Filter>
     </ClCompile>
     <ClCompile Include="src\tests\test_benchmark.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tests\test_pattern.cpp">
       <Filter>tests</Filter>
     </ClCompile>
   </ItemGroup>

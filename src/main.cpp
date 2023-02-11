@@ -39,7 +39,7 @@ constexpr const char* debugTestCommandline[] = {
 
     "--" ARG_FMATCH"=0",
 
-    "--" ARG_TEST"=false",
+    "--" ARG_TEST"=true",
     //"--" ARG_BENCHMARK"=1",
 };
 
@@ -170,6 +170,7 @@ int main(int argc, const char** argv)
             printf("\n...RUNNING TESTS...\n");
             console::tests::run();
 
+            Tests::PatternGeneration();
             Tests::AlphabetGeneration();
             Tests::FiltersGeneration();
 

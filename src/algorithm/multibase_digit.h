@@ -4,7 +4,6 @@
 
 #include <vector>
 #include <string>
-#include <cuda_profiler_api.h>
 
 
 /**

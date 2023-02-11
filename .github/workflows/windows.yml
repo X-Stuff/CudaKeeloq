@@ -1,0 +1,74 @@
+name: Windows
+on:
+  push:
+    tags:
+      - test*
+      - release-v*
+
+
+jobs:
+  build:
+
+    env:
+      CUDA_VERSION_MAJOR: 12
+      CUDA_VERSION_MINOR: 0
+      CUDA_VERSION_PACTH: 0
+
+    runs-on: windows-2022
+    permissions:
+      contents: write
+    steps:
+
+      - name: Setup CUDA (manual)
+        env:
+          CUDA_VERSION_STR: "${{env.CUDA_VERSION_MAJOR}}.${{env.CUDA_VERSION_MINOR}}.${{env.CUDA_VERSION_PACTH}}"
+          PKGS_VERSION_STR: "${{env.CUDA_VERSION_MAJOR}}.${{env.CUDA_VERSION_MINOR}}"
+        run: |
+          echo "Downloading CUDA version: ${{env.CUDA_VERSION_STR}}"
+          Invoke-WebRequest -Uri "https://developer.download.nvidia.com/compute/cuda/${{env.CUDA_VERSION_STR}}/network_installers/windows/x86_64/wddm2/CUDAVisualStudioIntegration.exe" -OutFile ${{RUNNER.TEMP}}\cuda-vs-installer.exe
+          Invoke-WebRequest -Uri "https://developer.download.nvidia.com/compute/cuda/${{env.CUDA_VERSION_STR}}/network_installers/windows/x86_64/wddm2/nvcc.exe" -OutFile ${{RUNNER.TEMP}}\cuda-nvcc-installer.exe
+          Invoke-WebRequest -Uri "https://developer.download.nvidia.com/compute/cuda/${{env.CUDA_VERSION_STR}}/network_installers/windows/x86_64/wddm2/cudart.exe" -OutFile ${{RUNNER.TEMP}}\cuda-rt-installer.exe
+
+          echo "Unpacking archives"
+          7z x ${{RUNNER.TEMP}}\cuda-vs-installer.exe extras\visual_studio_integration\MSBuildExtensions -o${{RUNNER.TEMP}}\cuda
+          7z x ${{RUNNER.TEMP}}\cuda-nvcc-installer.exe -o${{RUNNER.TEMP}}\cuda
+          7z x ${{RUNNER.TEMP}}\cuda-rt-installer.exe -o${{RUNNER.TEMP}}\cuda
+
+          echo "Exporting Environment variables for next steps"
+          [Environment]::SetEnvironmentVariable("CUDA_PATH", "${{RUNNER.TEMP}}\cuda")
+
+          Add-Content $env:GITHUB_ENV "CUDA_PATH=$env:CUDA_PATH"
+          Add-Content $env:GITHUB_ENV "CUDA_PATH_V${{env.CUDA_VERSION_MAJOR}}_${{env.CUDA_VERSION_MINOR}}=$env:CUDA_PATH"
+          Add-Content $env:GITHUB_PATH "$env:CUDA_PATH\bin"
+
+      - name: CUDA check
+        run: |
+          echo "CUDA PATH: $env:CUDA_PATH"
+          ${{env.CUDA_PATH}}\bin\nvcc.exe -V
+
+      - name: Checkout
+        uses: actions/checkout@v3.3.0
+        with:
+          submodules: 'true'
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v1.3.1
+        with:
+          # vs-version: latest
+          msbuild-architecture: "x64"
+
+
+      - name: Build Application
+        run: msbuild CudaKeeloq.vcxproj -t:Rebuild -p:Configuration=Release -p:Platform=x64
+
+      - name: Create Artifacts
+        run: |
+          mkdir artifacts
+          xcopy x64\Release\CudaKeeloq.exe artifacts\
+          xcopy .\examples artifacts\examples /E /H /I /C
+          Compress-Archive -Path artifacts/* -DestinationPath artifacts/cudakeeloq.zip
+
+      - name: Create Release
+        uses: ncipollo/release-action@v1.12.0
+        with:
+          artifacts: artifacts/cudakeeloq.zip

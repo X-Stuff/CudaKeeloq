@@ -2,7 +2,6 @@
 
 #include "console.h"
 
-
 #include "bruteforce/bruteforce_pattern.h"
 
 
@@ -90,7 +89,6 @@ inline void read_alphabets(CommandLineArgs& target, cxxopts::ParseResult& result
         }
     }
 }
-
 
 inline void parse_dictionary_mode(CommandLineArgs& target, cxxopts::ParseResult& result)
 {
@@ -300,16 +298,44 @@ inline void parse_pattern_mode(CommandLineArgs& target, cxxopts::ParseResult& re
         }
 
 
+        // reverse bytes
+        std::reverse(result.begin(), result.end());
+
         // Add pattern attack to config
-        target.brute_configs.push_back(BruteforceConfig::GetPattern(start_key, BruteforcePattern(pattern_arg, std::move(result)), count_key));
+        target.brute_configs.push_back(BruteforceConfig::GetPattern(start_key, BruteforcePattern(std::move(result), pattern_arg), count_key));
     }
+}
+
+constexpr char* Usage()
+{
+    return ""
+        "\nExample:\n"
+            "\t./" APP_NAME " --" ARG_INPUTS " xxx,yy,zzz"
+            " --" ARG_MODE "=1 --" ARG_START "=0x9876543210 --" ARG_COUNT "=1000000"
+            "\n\n\tThis will launch simple bruteforce (+1) attack with 1 million checks from 0x9876543210. "
+            "Will be checked ALL 16 (12 if no seed specified) keeloq learning types"
+
+        "\nExample:\n"
+            "\t./" APP_NAME " --" ARG_INPUTS " xxx,yy,zzz"
+            " --" ARG_MODE "=3 --" ARG_LTYPE "=0 --" ARG_ALPHABET "=examples/alphabet.bin,10:20:30:AA:BB:CC:DD:EE:FF:02:33"
+            "\n\n\tThis will launch 2 alphabets attacks for all possible combinations for SIMPLE learning Keeloq type. "
+            "First alphabet will be taken from file, second - parsed from inputs."
+
+        "\nExample:\n"
+            "\t./" APP_NAME " --"  ARG_INPUTS " xxx,yy,zzz"
+            " --" ARG_MODE "=4 --" ARG_LTYPE "=2 --" ARG_ALPHABET "=examples/alphabet.bin --" ARG_PATTERN "=AL0:11:AB|BC:*:00-44:AL0:AA-FF:01"
+            "\n\n\tThis will launch pattern attacks with NORMAL keeloq learning type."
+            "\n\tPattern applied 'as is' - big endian. The highest byte (0xXX.......) will be taken from 1st alphabet."
+            "\n\tNext byte (0x..XX....) will be exact `0x11`."
+            "\n\tNext byte (0x....XX..) will be `0xAB` or `0xBC`.\n"
+        ;
 }
 
 }
 
 CommandLineArgs console::parse_command_line(int argc, const char** argv)
 {
-    cxxopts::Options options("CUDAKeeloq", "CUDA accelerated bruteforcer for keeloq.");
+    cxxopts::Options options(APP_NAME, "CUDA accelerated bruteforcer for keeloq.");
     options.set_width(CONSOLE_WIDTH)
         .allow_unrecognised_options()
         .add_options()
@@ -368,13 +394,14 @@ CommandLineArgs console::parse_command_line(int argc, const char** argv)
             cxxopts::value<std::vector<std::string>>(), "[f1,a1,...]")
 
         // Pattern
-        (ARG_PATTERN, "Pattern file (or pattern itself) - contains colon separated patterns for each byte in a key like: AL1:0A:0x10-0x32:*:33;44;FA:FF\n"
+        (ARG_PATTERN, "Pattern file (or pattern itself) - contains comma separated patterns like: AL1:0A:0x10-0x32:*:33|44|FA:FF\n"
+            "Pattern is in big endian. That means first byte in patter is highest byte (e.g. 01:.... equals key 0x01......)\n"
             "Each byte in pattern separated by `:`, pattern types:\n"
             "\tAL[0-N]   - alphabet N (index in " ARG_ALPHABET " )\n"
             "\t0A        - constant. might be any byte as hex string\n"
             "\t0x10-0x32 - range. bytes from first to second (including)\n"
             "\t*         - any byte\n"
-            "\t33;44;FA  - exact 3 bytes\n",
+            "\t33|44|FA  - exact 3 bytes\n",
             cxxopts::value<std::vector<std::string>>(), "[f1,p1,...]")
 
         // Bruteforce filters
@@ -415,6 +442,7 @@ CommandLineArgs console::parse_command_line(int argc, const char** argv)
         if (!args.run_tests && !args.run_bench)
         {
             printf("\n%s\n", options.help().c_str());
+            printf("%s\n", Usage());
         }
         return args;
     }
