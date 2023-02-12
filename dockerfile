@@ -1,6 +1,9 @@
 ARG CONFIGURATION="release"
+ARG CUDA_MAJOR=12
+ARG CUDA_MINOR=0
+ARG CUDA_PATCH=1
 
-FROM nvidia/cuda:12.0.1-devel-ubuntu22.04 as builder
+FROM nvidia/cuda:${CUDA_MAJOR}.${CUDA_MINOR}.${CUDA_PATCH}-devel-ubuntu22.04 as builder
 ARG CONFIGURATION
 
 #
@@ -16,7 +19,7 @@ COPY makefile makefile
 RUN make $CONFIGURATION
 
 # runner
-FROM nvidia/cuda:12.0.1-base-ubuntu22.04
+FROM nvidia/cuda:${CUDA_MAJOR}.${CUDA_MINOR}.${CUDA_PATCH}-base-ubuntu22.04
 ARG CONFIGURATION
 
 RUN groupadd cuda && useradd -m -d /app -g cuda cuda

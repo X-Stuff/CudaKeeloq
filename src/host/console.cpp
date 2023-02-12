@@ -306,7 +306,7 @@ inline void parse_pattern_mode(CommandLineArgs& target, cxxopts::ParseResult& re
     }
 }
 
-constexpr char* Usage()
+constexpr const char* Usage()
 {
     return ""
         "\nExample:\n"
