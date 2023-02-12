@@ -38,6 +38,8 @@ bool Tests::PatternGeneration()
     constexpr auto NumBlocks = 64;
     constexpr auto NumThreads = 64;
 
+    constexpr auto debugKey = 0xCEB6AE48B5C63ED2;
+
     CudaVector<EncData> encrypted  =
     {
         0xC65D52A0A81FD504,0xCCA9B335A81FD504,0xE0DA7372A81FD504
@@ -47,8 +49,11 @@ bool Tests::PatternGeneration()
     CudaVector<SingleResult> results(decryptors.size() * encrypted.size());
 
     BruteforceConfig config = GetSingleKeyConfig();
-    auto init = config.pattern.init(0);
-    assert(init.number() == 0xCEB6AE48B5C63ED2);
+    if (config.pattern.init(0).number() != debugKey)
+    {
+        assert(false);
+        return false;
+    }
 
     KeeloqKernelInput generatorInputs(encrypted.gpu(), decryptors.gpu(), results.gpu(), config);
 
@@ -57,8 +62,8 @@ bool Tests::PatternGeneration()
 
     decryptors.read();
     results.read();
-    assert(decryptors.cpu()[0].man == 0xCEB6AE48B5C63ED2);
+    assert(decryptors.cpu()[0].man == debugKey);
 
-    return decryptors.cpu()[0].man == 0xCEB6AE48B5C63ED2;
+    return decryptors.cpu()[0].man == debugKey;
 }
 
