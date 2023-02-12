@@ -2,9 +2,8 @@ name: Windows
 on:
   push:
     tags:
-      - test*
+      - test-windows*
       - release-v*
-
 
 jobs:
   build:
