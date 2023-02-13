@@ -8,7 +8,7 @@ namespace
 void print_args(const char** args, size_t num)
 {
     printf("\n\t*** TESTING COMMAND LINE:\n");
-    for (int i = 0; i < num; ++i)
+    for (size_t i = 0; i < num; ++i)
     {
         printf("%s ", args[i]);
     }

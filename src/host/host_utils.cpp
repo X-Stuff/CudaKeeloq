@@ -2,6 +2,8 @@
 
 #include "common.h"
 
+#include <stdlib.h>
+
 #include "host_utils.h"
 
 #include "algorithm/keeloq/keeloq_decryptor.h"
