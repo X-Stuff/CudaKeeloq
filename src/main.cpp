@@ -13,14 +13,14 @@
 
 CommandLineArgs debugTestCommandlineArgs()
 {
-    constexpr uint64_t debugKey =  0xC0FFEE00DEAD6666; // 0xCEB6AE48B5C63ED2 ; //
+    constexpr uint64_t debugKey =  0xC0FFEE00DEAD6666;
 
-    uint64_t first = debugKey & 0xFFFFFFFFF0000000;
-    uint64_t count = 0xFFFFFFFF;
+    uint64_t first = debugKey & 0xFFFFFFFFFF000000;
+    uint64_t count = 0xFFFFFF;
 
 
     CommandLineArgs cmd;
-    cmd.inputs = Tests::Keeloq::GenInputs(debugKey); // { 0xC65D52A0A81FD504,0xCCA9B335A81FD504,0xE0DA7372A81FD504 }; //
+    cmd.inputs = Tests::Keeloq::GenInputs(debugKey);
     cmd.alphabets.emplace_back(MultibaseDigit("abcdef"_b));
     cmd.alphabets.emplace_back(MultibaseDigit( { 0xC0, 0xFF, 0xEE, 0x00, 0xDE, 0xAD, 0x66 }));
 
@@ -88,7 +88,7 @@ void bruteforce(const CommandLineArgs& args)
         printf("\nallocating...");
         attackRound.Init();
 
-        printf("\rRunning...\t\t\t\n%s\n", attackRound.to_string().c_str());
+        printf("\rRunning...    \n%s\n", attackRound.to_string().c_str());
 
         bool match = false;
 
@@ -191,7 +191,7 @@ int main(int argc, const char** argv)
         if (args.run_tests)
         {
             printf("\n...RUNNING TESTS...\n");
-            console::tests::run();
+            Tests::Console::run();
 
             Tests::PatternGeneration();
             Tests::AlphabetGeneration();

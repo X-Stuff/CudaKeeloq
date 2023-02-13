@@ -92,6 +92,12 @@
     <ClInclude Include="src\tests\test_keeloq.h">
       <Filter>tests</Filter>
     </ClInclude>
+    <ClInclude Include="src\host\host_utils.h">
+      <Filter>host</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tests\test_console.h">
+      <Filter>tests</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp" />
@@ -141,6 +147,12 @@
       <Filter>tests</Filter>
     </ClCompile>
     <ClCompile Include="src\tests\test_keeloq.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="src\host\host_utils.cpp">
+      <Filter>host</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tests\test_console.cpp">
       <Filter>tests</Filter>
     </ClCompile>
   </ItemGroup>

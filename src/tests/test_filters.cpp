@@ -44,9 +44,6 @@ namespace Tests
            { 0x112233445566aa00, BruteforceFilters::Flags::BytesIncremental, true },
            { 0xFFEEDDCCBBAA1234, BruteforceFilters::Flags::BytesIncremental, true },
            { 0x1122334455778899, BruteforceFilters::Flags::BytesIncremental, false },
-
-           { 0xCEB6AE48B5C63ED2, BruteforceFilters::Flags::BytesIncremental | BruteforceFilters::Flags::BytesRepeat4, false },
-           { 0xceb6ae48b5c03aba, BruteforceFilters::Flags::BytesIncremental | BruteforceFilters::Flags::BytesRepeat4, false },
         };
 
         static uint8_t NumTests = sizeof(test_cases) / sizeof(BruteforceFiltersTestInputs);
@@ -78,7 +75,7 @@ namespace Tests
 
         constexpr auto NumToGenerate = 0xFFFFF;
 
-        auto testConfig = BruteforceConfig::GetBruteforce(0xCEB6AE48B5C00000, NumToGenerate,
+        auto testConfig = BruteforceConfig::GetBruteforce(0xAADEADBEEFA00000, NumToGenerate,
             BruteforceFilters{
                 BruteforceFilters::Flags::All,     // SmartFilterFlags::AsciiAny;       //
                 BruteforceFilters::Flags::BytesIncremental | BruteforceFilters::Flags::BytesRepeat4,    // SmartFilterFlags::BytesRepeat4;   //
@@ -98,7 +95,7 @@ namespace Tests
         for (size_t i = 0; !found && i < decryptors.size(); ++i)
         {
             // looking for exact code - check nothing missed
-            found |= decryptors.cpu()[i].man == 0xCEB6AE48B5C63ED2;
+            found |= decryptors.cpu()[i].man == 0xAADEADBEEFA63ED2;
         }
 
         assert(found);

@@ -2,6 +2,8 @@
 
 #include <algorithm>
 
+#include "tests/test_keeloq.h"
+
 #include "bruteforce/bruteforce_config.h"
 #include "bruteforce/bruteforce_pattern.h"
 
@@ -15,11 +17,13 @@
 
 namespace
 {
-BruteforceConfig GetSingleKeyConfig(bool rev = true)
+BruteforceConfig GetSingleKeyConfig(uint64_t key, bool rev = true)
 {
+    uint8_t* pKey = (uint8_t*)&key;
+
     std::vector<std::vector<uint8_t>> pattern =
     {
-        { 0xCE }, { 0xB6 }, { 0xAE }, { 0x48 }, { 0xB5 }, { 0xC6 }, { 0x3E }, { 0xD2 },
+        { pKey[7] }, { pKey[6] }, { pKey[5] }, { pKey[4] }, { pKey[3] }, { pKey[2] }, { pKey[1] }, { pKey[0] },
     };
 
     if (rev)
@@ -38,17 +42,14 @@ bool Tests::PatternGeneration()
     constexpr auto NumBlocks = 64;
     constexpr auto NumThreads = 64;
 
-    constexpr auto debugKey = 0xCEB6AE48B5C63ED2;
+    const uint64_t debugKey = "heelo_world"_u64;
 
-    CudaVector<EncData> encrypted  =
-    {
-        0xC65D52A0A81FD504,0xCCA9B335A81FD504,0xE0DA7372A81FD504
-    };
+    CudaVector<EncData> encrypted  = Tests::Keeloq::GenInputs(debugKey);
 
     CudaVector<Decryptor> decryptors(NumBlocks * NumThreads);
     CudaVector<SingleResult> results(decryptors.size() * encrypted.size());
 
-    BruteforceConfig config = GetSingleKeyConfig();
+    BruteforceConfig config = GetSingleKeyConfig(debugKey);
     if (config.pattern.init(0).number() != debugKey)
     {
         assert(false);
