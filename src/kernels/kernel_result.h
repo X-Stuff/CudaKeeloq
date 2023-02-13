@@ -15,10 +15,12 @@ struct KernelResult : TGenericGpuObject<KernelResult>
     // overall result
     int value = 0;
 
-    KernelResult() : TGenericGpuObject<KernelResult>(this) {
+    KernelResult() : TGenericGpuObject<KernelResult>(this)
+    {
     }
 
-    KernelResult(KernelResult&& other) noexcept : TGenericGpuObject<KernelResult>(this) {
+    KernelResult(KernelResult&& other) noexcept : TGenericGpuObject<KernelResult>(this)
+    {
         error = other.error;
         value = other.value;
     }
