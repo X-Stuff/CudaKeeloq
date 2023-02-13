@@ -585,7 +585,7 @@ CommandLineArgs run()
         "--" ARG_MODE"=0,1,2,3,4,5",
         "--" ARG_LTYPE"=0,1,2,3,4",
 
-        "--" ARG_WORDDICT"=0xCEB6AE48B5C63ED1,CEB6AE48B5C63ED2,0xCEB6AE48B5C63ED3,examples/dictionary.words",
+        "--" ARG_WORDDICT"=0xFDE4531BBACAD12,FDE4531BBACAD13,0xFDE4531BBACAD14,examples/dictionary.words",
         "--" ARG_BINDICT"=examples/dictionary.bin",
         "--" ARG_BINDMODE"=2",
 

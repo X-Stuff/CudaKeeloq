@@ -89,6 +89,9 @@
     <ClInclude Include="src\device\cuda_vector.h">
       <Filter>device</Filter>
     </ClInclude>
+    <ClInclude Include="src\tests\test_keeloq.h">
+      <Filter>tests</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp" />
@@ -135,6 +138,9 @@
       <Filter>tests</Filter>
     </ClCompile>
     <ClCompile Include="src\tests\test_pattern.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tests\test_keeloq.cpp">
       <Filter>tests</Filter>
     </ClCompile>
   </ItemGroup>

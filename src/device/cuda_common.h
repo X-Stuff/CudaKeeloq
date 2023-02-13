@@ -32,4 +32,15 @@ __host__ __device__ __forceinline__ uint64_t rev_bytes(uint64_t input)
     return input_rev;
 #endif
 }
+
+
+__device__ __host__ __forceinline__ uint64_t rev_bits(uint64_t input, uint8_t rev_bit_count)
+{
+    uint64_t reverse_key = 0;
+    for (uint8_t i = 0; i < rev_bit_count; i++)
+    {
+        reverse_key = reverse_key << 1 | ((input >> i) & 1);
+    }
+    return reverse_key;
+}
 }

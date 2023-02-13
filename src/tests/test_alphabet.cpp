@@ -32,5 +32,6 @@ bool Tests::AlphabetGeneration()
     }
 
     assert(decryptors.cpu()[4095].man == 0x6464646464646464);
+
     return true;
 }
