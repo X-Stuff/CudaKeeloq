@@ -71,15 +71,6 @@ namespace
     {
         return (man & 0xFFFFFFFFFF000000) | (data & 0xFFFFFF);
     }
-
-    __device__ __host__ inline uint64_t keeloq_common_key_reverse(uint64_t key, uint8_t bit_count)
-    {
-        uint64_t reverse_key = 0;
-        for (uint8_t i = 0; i < bit_count; i++) {
-            reverse_key = reverse_key << 1 | bit(key, i);
-        }
-        return reverse_key;
-    }
 }
 
 namespace
@@ -452,7 +443,7 @@ __device__ uint8_t keeloq_decryption_run(const CudaContext& ctx, KeeloqKernelInp
 
 __device__ __host__ void keeloq_decrypt(uint64_t ota, uint64_t man, uint32_t seed, const KeeloqLearningMask type_mask, SingleResult::DecryptedArray& results)
 {
-    uint64_t key = keeloq_common_key_reverse(ota, sizeof(ota) * 8);
+    uint64_t key = misc::rev_bits(ota, sizeof(ota) * 8);
 
     uint32_t fix = (uint32_t)(key >> 32);
     uint32_t hop = (uint32_t)(key);
@@ -466,4 +457,41 @@ __device__ __host__ void keeloq_decrypt(uint64_t ota, uint64_t man, uint32_t see
     {
         keeloq_decrypt_all<false>(hop, fix, man, seed, type_mask, results);
     }
+}
+
+
+__host__ uint64_t keeloq::GetOTA(uint64_t key, uint32_t serial, uint8_t button, uint16_t count, KeeloqLearningType::Type learning)
+{
+    serial &= 0x0FFFFFFF;
+
+    uint32_t unencrypted = button << 28 | ((serial & 0x3FF) << 16) | count;
+
+    uint64_t n_key = key;
+    uint32_t fix = (uint32_t)button << 28 | serial;
+
+    switch (learning)
+    {
+    case KeeloqLearningType::Normal:
+        n_key = keeloq_common_normal_learning(fix, key);
+        break;
+    case KeeloqLearningType::Xor:
+        n_key = keeloq_common_magic_xor_type1_learning(serial, key);
+        break;
+    default:
+        break;
+    }
+
+    uint64_t detpyrcne = ((uint64_t)fix << 32) | keeloq_common_encrypt(unencrypted, n_key);
+    auto encrypted =  misc::rev_bits(detpyrcne, sizeof(detpyrcne) * 8);
+
+#if _DEBUG
+    SingleResult::DecryptedArray results;
+    uint8_t mask[KeeloqLearningType::ALL] = {0};
+    mask[learning] = 1;
+
+    keeloq_decrypt(encrypted, key, 0, mask, results);
+    assert(results.data[learning] == unencrypted);
+#endif
+
+    return encrypted;
 }

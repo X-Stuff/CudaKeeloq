@@ -4,7 +4,7 @@
 
 #include <vector>
 
-namespace Tests
+namespace tests
 {
-	bool AlphabetGeneration();
+	bool alphabet_generation();
 }

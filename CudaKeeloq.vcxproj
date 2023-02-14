@@ -171,7 +171,10 @@
     <ClInclude Include="src\device\cuda_vector.h" />
     <ClInclude Include="src\host\command_line_args.h" />
     <ClInclude Include="src\host\console.h" />
+    <ClInclude Include="src\host\host_utils.h" />
     <ClInclude Include="src\kernels\kernel_result.h" />
+    <ClInclude Include="src\tests\test_console.h" />
+    <ClInclude Include="src\tests\test_keeloq.h" />
     <ClInclude Include="src\tests\test_pattern.h" />
     <ClInclude Include="src\tests\test_all.h" />
     <ClInclude Include="src\tests\test_alphabet.h" />
@@ -190,10 +193,13 @@
     <ClCompile Include="src\bruteforce\generators\generator_bruteforce.cpp" />
     <ClCompile Include="src\host\command_line_args.cpp" />
     <ClCompile Include="src\host\console.cpp" />
+    <ClCompile Include="src\host\host_utils.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\tests\test_alphabet.cpp" />
     <ClCompile Include="src\tests\test_benchmark.cpp" />
+    <ClCompile Include="src\tests\test_console.cpp" />
     <ClCompile Include="src\tests\test_filters.cpp" />
+    <ClCompile Include="src\tests\test_keeloq.cpp" />
     <ClCompile Include="src\tests\test_pattern.cpp" />
   </ItemGroup>
   <ItemGroup>

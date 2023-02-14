@@ -12,7 +12,7 @@
 
 /**
 *  This represents a number system where each digit has it's one base
-* Imagine this as set of rolling cylinders, set side-by-side.
+* Imagine this as set of rolling cylinders, installed side-by-side.
 * This is stateless structure. It allows to do arithmetical calculations
 * and conversions.
 *

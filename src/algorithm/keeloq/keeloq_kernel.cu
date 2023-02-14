@@ -3,7 +3,7 @@
 #if _DEBUG
     #define STRICT_ANALYSIS 1
 #else
-	#define STRICT_ANALYSIS 0
+    #define STRICT_ANALYSIS 0
 #endif
 
 #include "keeloq_kernel.inl"
@@ -46,7 +46,7 @@ __global__ void Kernel_keeloq_main(KeeloqKernelInput::TCudaPtr CUDA_inputs, Kern
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-__host__ KernelResult keeloq::kernels::BruteMain(KeeloqKernelInput& mainInputs, uint16_t ThreadBlocks, uint16_t ThreadsInBlock)
+__host__ KernelResult keeloq::kernels::cuda_brute(KeeloqKernelInput& mainInputs, uint16_t ThreadBlocks, uint16_t ThreadsInBlock)
 {
     KernelResult kernel_results;
 
@@ -58,7 +58,7 @@ __host__ KernelResult keeloq::kernels::BruteMain(KeeloqKernelInput& mainInputs, 
     return kernel_results;
 }
 
-__host__ bool keeloq::kernels::IsWorking()
+__host__ bool keeloq::kernels::cuda_is_working()
 {
     KernelResult kernel_results;
     Kernel_keeloq_test<<<1, 1 >>>(kernel_results.ptr());

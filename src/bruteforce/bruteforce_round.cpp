@@ -95,7 +95,7 @@ size_t BruteforceRound::num_batches() const
     }
     else
     {
-        uint8_t non_align = Config().dict_size() % keys_per_batch() == 0 ? 0 : 1;
+        uint8_t non_align = Config().brute_size() % keys_per_batch() == 0 ? 0 : 1;
         return Config().brute_size() / keys_per_batch() + non_align;
     }
 }

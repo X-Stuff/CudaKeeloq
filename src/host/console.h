@@ -62,8 +62,4 @@ int read_esc_press();
 
 void set_cursor_state(bool visible);
 
-namespace tests
-{
-	CommandLineArgs run();
-}
 }

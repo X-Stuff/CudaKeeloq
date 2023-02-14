@@ -77,7 +77,7 @@ void benchmark::run(const CommandLineArgs& args)
                 kernelInput.NextDecryptor();
 
                 GeneratorBruteforce::PrepareDecryptors(kernelInput, NumCudaBlocks, NumCudaThreads);
-                keeloq::kernels::BruteMain(kernelInput, NumCudaBlocks, NumCudaThreads);
+                keeloq::kernels::cuda_brute(kernelInput, NumCudaBlocks, NumCudaThreads);
 
                 auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
                     std::chrono::high_resolution_clock::now() - batchStartTime);

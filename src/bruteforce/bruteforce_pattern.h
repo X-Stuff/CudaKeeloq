@@ -13,10 +13,9 @@ using PatternValue = MultibaseNumber;
 using PatternSystem = MultibaseSystem<sizeof(uint64_t)>;
 
 /**
- *  In pattern mode "cylinders" are different sizes
+ *  In pattern mode "cylinders" (see multi-base system) are different sizes
  * Alphabet - 8 cylinders with same set of bytes
  * Pattern  - 8 cylinders with different set of bytes
- *
  */
 struct BruteforcePattern
 {

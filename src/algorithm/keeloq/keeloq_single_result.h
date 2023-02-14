@@ -21,9 +21,9 @@ struct SingleResult
 		// fixed side array for every learning type
 		uint32_t data[ResultsCount];
 
-		void print(uint8_t element, bool ismatch) const;
+        void print(uint8_t element, uint64_t ota, bool ismatch) const;
 
-		void print() const;
+        void print() const;
 	};
 
 	// Per each learning type

@@ -85,10 +85,14 @@ namespace kernels
 {
 
 // launch simple keeloq calculation on GPU to check if everything working
-__host__ bool IsWorking();
+__host__ bool cuda_is_working();
 
 // Main kernel launcher wrapper
-__host__ KernelResult BruteMain(KeeloqKernelInput & mainInputs, uint16_t ThreadBlocks, uint16_t ThreadsInBlock);
+__host__ KernelResult cuda_brute(KeeloqKernelInput & mainInputs, uint16_t ThreadBlocks, uint16_t ThreadsInBlock);
 
 }
+
+// Get enrcypted OTA data for specific configuration with key and learning ( xor simple and normal supported )
+__host__ uint64_t GetOTA(uint64_t key, uint32_t serial, uint8_t button, uint16_t count, KeeloqLearningType::Type learning);
+
 }

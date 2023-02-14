@@ -8,7 +8,7 @@
 #include "algorithm/keeloq/keeloq_decryptor.h"
 
 
-bool Tests::AlphabetGeneration()
+bool tests::alphabet_generation()
 {
     // Filtered generator test itself
     constexpr auto NumBlocks = 64;
@@ -32,5 +32,6 @@ bool Tests::AlphabetGeneration()
     }
 
     assert(decryptors.cpu()[4095].man == 0x6464646464646464);
+
     return true;
 }

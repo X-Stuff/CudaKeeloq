@@ -13,9 +13,9 @@ struct BruteforceFiltersTestInputs
 	bool result;
 };
 
-namespace Tests
+namespace tests
 {
-	bool FiltersGeneration();
+	bool filters_generation();
 
-	__host__ void LaunchFiltersTests(BruteforceFiltersTestInputs* tests, uint8_t num);
+	__host__ void cuda_check_bruteforce_filters(BruteforceFiltersTestInputs* tests, uint8_t num);
 }

@@ -1,8 +1,8 @@
-#define _CRT_SECURE_NO_WARNINGS
-
 #include "console.h"
 
 #include "bruteforce/bruteforce_pattern.h"
+
+#include "host/host_utils.h"
 
 
 #ifdef _MSC_VER
@@ -15,13 +15,6 @@
     #pragma warning(pop)
 #endif
 
-#ifndef _MSC_VER
-    #include <byteswap.h>
-#else
-    #define bswap_64(x) _byteswap_uint64(x)
-#endif
-
-
 namespace
 {
 
@@ -31,14 +24,9 @@ inline void read_alphabets(CommandLineArgs& target, cxxopts::ParseResult& result
 
     for (const auto& alphabet_arg : alphabet_args)
     {
-        if (FILE* alphabet_file = fopen(alphabet_arg.c_str(), "rb"))
+        auto alphabet_bytes = host::utils::read_alphabet_binary_file(alphabet_arg.c_str());
+        if (alphabet_bytes.size() > 0)
         {
-            // alphabet with more than 255 bytes is impossible (oe just has duplicates)
-            uint8_t bytes[255];
-            size_t read_bytes = fread(bytes, sizeof(uint8_t), sizeof(bytes), alphabet_file);
-            fclose(alphabet_file);
-
-            std::vector<uint8_t> alphabet_bytes(&bytes[0], &bytes[read_bytes]);
             target.alphabets.emplace_back(alphabet_bytes);
         }
         else
@@ -71,13 +59,11 @@ inline void read_alphabets(CommandLineArgs& target, cxxopts::ParseResult& result
             //
             if (alphabet_bytes.size() > 0)
             {
-                if (alphabet_bytes.size() < 0xFF)
+                target.alphabets.emplace_back(alphabet_bytes);
+
+                if (alphabet_bytes.size() > 256)
                 {
-                    target.alphabets.emplace_back(alphabet_bytes);
-                }
-                else
-                {
-                    printf("Error: Alphabet: '%s' is not valid hex string! Too many entries: %zd (should be less than 255)\n",
+                    printf("Warning: Alphabet: '%s' has to much bytes in hex string: %zd (should be less than 257)\n",
                         result[ARG_ALPHABET].as<std::string>().c_str(), alphabet_bytes.size());
                 }
             }
@@ -100,30 +86,11 @@ inline void parse_dictionary_mode(CommandLineArgs& target, cxxopts::ParseResult&
 
         for (const auto& dict_arg : dict)
         {
-            if (FILE* file_dict = fopen(dict_arg.c_str(), "r"))
+            std::vector<Decryptor> from_file = host::utils::read_word_dictionary_file(dict_arg.c_str());
+
+            if (from_file.size() > 0)
             {
-                char line[66] = {0};
-                while (fgets(line, sizeof(line), file_dict))
-                {
-                    int base = 0;
-                    if (line[0] == '0' && (line[1] == 'b' || line[1] == 'B'))
-                    {
-                        line[0] = ' ';
-                        line[1] = ' ';
-                        base = 2;
-                    }
-
-                    if (auto key = strtoull(line, nullptr, base))
-                    {
-                        decryptors.push_back(key);
-                    }
-                    else
-                    {
-                        printf("Error: invalid line: `%s` in file: '%s'\n", line, dict_arg.c_str());
-                    }
-                }
-
-                fclose(file_dict);
+                decryptors.insert(decryptors.end(), from_file.begin(), from_file.end());
             }
             else if (auto key = strtoull(dict_arg.c_str(), nullptr, 16))
             {
@@ -131,7 +98,7 @@ inline void parse_dictionary_mode(CommandLineArgs& target, cxxopts::ParseResult&
             }
             else
             {
-                printf("Error: invalid param passed to '--%s' argument: '%s'\n", ARG_WORDDICT, dict_arg.c_str());
+                printf("Error: invalid param passed to '--%s' argument: '%s' not a dictionary file neither word\n", ARG_WORDDICT, dict_arg.c_str());
             }
         }
 
@@ -150,35 +117,15 @@ inline void parse_dictionary_mode(CommandLineArgs& target, cxxopts::ParseResult&
 
         for (const auto& bin_dict_path : dicts)
         {
-            if (FILE* bin_file = fopen(bin_dict_path.c_str(), "rb"))
+            std::vector<Decryptor> decryptors = host::utils::read_binary_dictionary_file(bin_dict_path.c_str(), mode);
+
+            if (decryptors.size() > 0)
             {
-                std::vector<Decryptor> decryptors;
-
-                uint8_t key[sizeof(uint64_t)] = {0};
-
-                while (fread(key, sizeof(uint64_t), sizeof(uint8_t), bin_file))
-                {
-                    uint64_t reversed = *(uint64_t*)key;
-                    uint64_t as_is = bswap_64(reversed);
-
-                    decryptors.push_back(mode == 0 ? as_is : reversed);
-                    if (mode == 2)
-                    {
-                        // reversed already added above
-                        decryptors.push_back(as_is);
-                    }
-                }
-
-                fclose(bin_file);
-
-                if (decryptors.size() > 0)
-                {
-                    target.brute_configs.push_back(BruteforceConfig::GetDictionary(std::move(decryptors)));
-                }
+                target.brute_configs.push_back(BruteforceConfig::GetDictionary(std::move(decryptors)));
             }
             else
             {
-                printf("Error: invalid param passed to '--%s' argument: '%s'. Cannot open file!\n",
+                printf("Error: invalid param passed to '--%s' argument: '%s'. Invalid file!\n",
                     ARG_BINDICT, bin_dict_path.c_str());
             }
         }
@@ -569,48 +516,4 @@ void console::set_cursor_state(bool visible)
 {
     Term::Terminal term(true, false);
     term.write(visible ? Term::cursor_on() : Term::cursor_off());
-}
-
-namespace console::tests
-{
-
-CommandLineArgs run()
-{
-    const char* commandline[] = {
-        "tests",
-        "--" ARG_INPUTS"=0xC65D52A0A81FD504,0xCCA9B335A81FD504,0xE0DA7372A81FD504",
-        "--" ARG_BLOCKS"=32",
-        "--" ARG_THREADS"=32",
-        "--" ARG_LOOPS"=4",
-        "--" ARG_MODE"=0,1,2,3,4,5",
-        "--" ARG_LTYPE"=0,1,2,3,4",
-
-        "--" ARG_WORDDICT"=0xCEB6AE48B5C63ED1,CEB6AE48B5C63ED2,0xCEB6AE48B5C63ED3,examples/dictionary.words",
-        "--" ARG_BINDICT"=examples/dictionary.bin",
-        "--" ARG_BINDMODE"=2",
-
-        "--" ARG_START"=1",
-        "--" ARG_COUNT"=0xFFFF",
-
-        "--" ARG_ALPHABET"=61:62:63:64:zz:AB,examples/alphabet.bin",
-
-        "--" ARG_IFILTER"=0x2", //SmartFilterFlags::Max6OnesInARow  other are very heavy, this one will allow all numbers less than 0x03FFFFFFFFFFFFFF
-        "--" ARG_EFILTER"=64",  //SmartFilterFlags::BytesRepeat4
-
-
-        "--" ARG_PATTERN"=0x01:*:0x43-0x10:0xA0-FF:AA|0x34|0xBB:0x66|0x77:AL0,0x88:asd:w1:88:*:AL2:BB:73",
-
-        "--" ARG_FMATCH,
-    };
-
-    const char* help[] = {
-        "skip",
-        "-h"
-    };
-
-    CommandLineArgs args = parse_command_line(sizeof(help)/ sizeof(char*), help);
-    args = parse_command_line(sizeof(commandline)/ sizeof(char*), commandline);
-
-    return args;
-}
 }

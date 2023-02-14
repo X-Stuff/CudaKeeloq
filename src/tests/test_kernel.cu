@@ -25,14 +25,14 @@ namespace
     }
 }
 
-__host__ void Tests::LaunchFiltersTests(BruteforceFiltersTestInputs * tests, uint8_t num)
+__host__ void tests::cuda_check_bruteforce_filters(BruteforceFiltersTestInputs * tests, uint8_t num)
 {
     void* args[] = { &tests, &num };
     auto error = cudaLaunchKernel((void*) & Kernel_RunFiltersTests, dim3(), dim3(), args, 0, nullptr);
     CUDA_CHECK(error);
 }
 
-__host__ bool Tests::CheckCudaIsWorking()
+__host__ bool tests::cuda_check_working()
 {
     uint64_t result = 0;
     uint64_t* pInput;

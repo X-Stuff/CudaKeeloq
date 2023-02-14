@@ -17,9 +17,8 @@ constexpr uint8_t KeySizeBits = sizeof(uint64_t) * 8;
  *  Filters for +1 bruteforce.
  * Will apply if `include(value) && !exclude(value)`
  *
- * Very little performance increase over simple +1
- * The filters are not optimized quite good and have a
- * lot of if blocks
+ * Very little performance increase over simple +1 with exclude
+ * The filters are not optimized quite good and have a lot of `if` blocks
  */
 struct BruteforceFilters
 {

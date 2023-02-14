@@ -48,7 +48,7 @@ private:
 
 	// numeral values. it may be not just 0,1,2,3,4...
 	// but for base 4 it may be: 0xA3, 0xCC, 0x01, 0x22
-	uint8_t num[0xFF] = { 0 };
+	uint8_t num[256] = { 0 };
 
 	// lookup table:
 	//  at index that equals numeral value there is a value which represents index in numerals
@@ -63,7 +63,7 @@ private:
 	//               ▲                                          │
 	//               └──────────────────────────────────────────┘
 	//
-	uint8_t lut[0xFF] = { 0 };
+	uint8_t lut[256] = { 0 };
 
 	// Actual size of numerals (the base if number representing by this digit)
 	uint8_t size = 0;

@@ -11,39 +11,66 @@
 #include "tests/test_all.h"
 
 
-constexpr const char* debugTestCommandline[] = {
-    "tests",
-    "--" ARG_INPUTS"=0xC65D52A0A81FD504,0xCCA9B335A81FD504,0xE0DA7372A81FD504",
-    "--" ARG_MODE"=4,3,0,1,2",
-    //"--" ARG_LTYPE"=6,1,3",
+CommandLineArgs debugTestCommandlineArgs()
+{
+    constexpr uint64_t debugKey =  0xC0FFEE00DEAD6666;
 
-    "--" ARG_WORDDICT"=0xCEB6AE48B5C63ED1,0xCEB6AE48B5C63ED2,0xCEB6AE48B5C63ED3",
+    uint64_t first = debugKey & 0xFFFFFFFFFF000000;
+    uint64_t count = 0xFFFFFF;
+
+
+    CommandLineArgs cmd;
+    cmd.inputs = tests::keeloq::gen_inputs(debugKey);
+    cmd.alphabets.emplace_back(MultibaseDigit("abcdef"_b));
+    cmd.alphabets.emplace_back(MultibaseDigit( { 0xC0, 0xFF, 0xEE, 0x00, 0xDE, 0xAD, 0x66 }));
+
+    // Dictionary
+    cmd.brute_configs.emplace_back(BruteforceConfig::GetDictionary({ 666, debugKey - 1, debugKey, debugKey + 1 }));
+
+    // Alphabet
+    cmd.brute_configs.emplace_back(BruteforceConfig::GetAlphabet(0, cmd.alphabets[1]));
+    cmd.brute_configs.emplace_back(BruteforceConfig::GetAlphabet(0, cmd.alphabets[0]));
+
+    // Pattern
+    cmd.brute_configs.emplace_back(BruteforceConfig::GetPattern(0, BruteforcePattern(
+        {
+            BruteforcePattern::ParseBytes("c0|c1|c2|c3"),
+            BruteforcePattern::ParseBytes("F0-FF"),
+            BruteforcePattern::ParseBytes("E0-EF"),
+            BruteforcePattern::ParseBytes("00-99"),
+            { 0xDE, 0xED },
+            { 0xAD, 0xDA },
+            { 0x11, 0x22, 0x33, 0x44, 0x55, 0x66 },
+            { 0x11, 0x22, 0x33, 0x44, 0x55, 0x66 }
+        }, "N/A")));
+
+    // Simple
+    cmd.brute_configs.emplace_back(BruteforceConfig::GetBruteforce(first, count));
+
+    // Filters
+    cmd.brute_configs.emplace_back(BruteforceConfig::GetBruteforce(first, count, BruteforceFilters
+        {
+            // Include only
+            BruteforceFilters::Flags::All,
+
+            // Exclude
+            BruteforceFilters::Flags::BytesIncremental
+        }));
+
+    cmd.selected_learning = { }; // ALL
+
+    cmd.match_stop = false;
+    cmd.run_bench = false;
+    cmd.run_tests = false;
 
 #if _DEBUG
-    "--" ARG_BLOCKS"=512",
-    "--" ARG_LOOPS"=2",
-    //"--" ARG_START"=0xCEB6AE48B0000000",
+    cmd.init_cuda(512, 0, 1);
 #else
-    "--" ARG_BLOCKS"=8196",
-    "--" ARG_LOOPS"=2",
-    "--" ARG_START"=0xCEB6AE4800000000",
+    cmd.init_cuda(8196, 0, 1);
 #endif
-    "--" ARG_COUNT"=0xFFFFFFFF",
 
-    // "--" ARG_IFILTER"=0x2", include filter let be all (otherwise will have big impact)
-    "--" ARG_EFILTER"=96",  // BytesRepeat4 | BytesIncremental should increase performance(?)
-
-    "--" ARG_ALPHABET"=CE:B6:AE:48:B5:C6:3E:D2:AA:BB:CC:DD,examples/alphabet.bin,CE:B6:AE:48:B5:C6:3E:D2",//:AA:BB:CC:DD:EE:FF:00:11",
-
-    "--" ARG_PATTERN"=*:B6:AE:*:B5:C0-CF:1E|2E|3E|4E|5E|6E:D2",
-
-    "--" ARG_FMATCH"=0",
-
-    "--" ARG_TEST"=true",
-    //"--" ARG_BENCHMARK"=1",
-};
-
-
+    return cmd;
+}
 
 void bruteforce(const CommandLineArgs& args)
 {
@@ -61,7 +88,7 @@ void bruteforce(const CommandLineArgs& args)
         printf("\nallocating...");
         attackRound.Init();
 
-        printf("\rRunning...\t\t\t\n%s\n", attackRound.to_string().c_str());
+        printf("\rRunning...    \n%s\n", attackRound.to_string().c_str());
 
         bool match = false;
 
@@ -78,12 +105,6 @@ void bruteforce(const CommandLineArgs& args)
 
             if (attackRound.Type() != BruteforceType::Dictionary)
             {
-                if (batch > 0)
-                {
-                    // Make previous last generated key be an initial for current generation batch
-                    kernelInput.NextDecryptor();
-                }
-
                 // Generate decryptors (if available)
                 int error = GeneratorBruteforce::PrepareDecryptors(kernelInput, attackRound.CudaBlocks(), attackRound.CudaThreads());
                 if (error)
@@ -92,6 +113,9 @@ void bruteforce(const CommandLineArgs& args)
                     assert(false);
                     return;
                 }
+
+                // Make previous last generated key be an initial for current generation batch
+                kernelInput.NextDecryptor();
             }
             else
             {
@@ -100,7 +124,7 @@ void bruteforce(const CommandLineArgs& args)
             }
 
             // do the bruteforce
-            auto kernelResults = keeloq::kernels::BruteMain(kernelInput, attackRound.CudaBlocks(), attackRound.CudaThreads());
+            auto kernelResults = keeloq::kernels::cuda_brute(kernelInput, attackRound.CudaBlocks(), attackRound.CudaThreads());
             match = attackRound.check_results(kernelResults);
 
             auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -147,9 +171,9 @@ void bruteforce(const CommandLineArgs& args)
 
 int main(int argc, const char** argv)
 {
-    assert(Tests::CheckCudaIsWorking());
+    assert(tests::cuda_check_working());
 
-    if (!keeloq::kernels::IsWorking())
+    if (!keeloq::kernels::cuda_is_working())
     {
         printf("Error: This device cannot compute keeloq right. Single encryption and decryption mismatch.");
         assert(false);
@@ -158,8 +182,7 @@ int main(int argc, const char** argv)
 
     console_set_width(CONSOLE_WIDTH);
 
-    auto args = argc > 1 ? console::parse_command_line(argc, argv) :
-        console::parse_command_line(sizeof(debugTestCommandline) / sizeof(char*), (const char**)debugTestCommandline);
+    auto args = argc > 1 ? console::parse_command_line(argc, argv) : debugTestCommandlineArgs();
 
     bool should_bruteforce = args.run_bench || args.run_tests;
 
@@ -168,11 +191,11 @@ int main(int argc, const char** argv)
         if (args.run_tests)
         {
             printf("\n...RUNNING TESTS...\n");
-            console::tests::run();
+            tests::console::run();
 
-            Tests::PatternGeneration();
-            Tests::AlphabetGeneration();
-            Tests::FiltersGeneration();
+            tests::pattern_generation();
+            tests::alphabet_generation();
+            tests::filters_generation();
 
             printf("\n...TESTS FINISHED...\n");
         }
