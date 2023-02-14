@@ -3,11 +3,11 @@ This is a CUDA accelerated simple bruteforcer of [KeeLoq](https://en.wikipedia.o
 
 ## Disclaimer
 
-> 64-bit keeloq key is 18,446,744,073,709,551,615 possible combinations
-> EVEN! if your GPU will be able to calculate 1 billion keys in a second
-> You will need 18446744073709551615 / 1000000000 / 3600 / 24 / 365 = 584 YEARS! to brute a single key.
+> 64-bit keeloq key is 18,446,744,073,709,551,615 possible combinations.
+EVEN! if your GPU will be able to calculate 1 billion keys in a second.
+You will need 18446744073709551615 / 1000000000 / 3600 / 24 / 365 = 584 YEARS! to brute a single key.
 > My laptop 3080Ti can do only 230 MKeys/s
-> So it's practically impossible to use this application "as is" in real life attack.
+So it's practically impossible to use this application "as is" in real life attack.
 
 ## Capabilities
 
@@ -51,32 +51,41 @@ $ ./run.sh
 ```
 > NOTE: You may need to have CUDA docker extension installed in order to have `--gpus` command line argument works.
 
-## Launching
+## Run
 
 ### Requirements
 * NVidia GPU (1GB+ RAM)
 * RAM 1GB+
 * **(Linux only)** installed CUDA docker extension `nvidia-container-toolkit`
 
-### Command line
-
- * You may specify a bruteforce starting key and count how much keys should be checked.
- * You may specify several attack modes. First check first alphabet, then other.
-   > NOTE: At the moment you cannot specify start and count for each mode, only for whole launch
- * Launch with `--test` argument to run basic tests (using outside `DEBUG` mode (not available in Github releases) might be useless)
- * Launch with `--benchmark` arguments will run benchmark tests to show you performance per each CUDA configuration (threads, blocks)
-
 ### Examples
+
+#### Simple bruteforce
 
 ```
 ./CudaKeeloq --inputs xx,yy,zz --mode=1 --start=0x9876543210 --count=1000000
 ```
-Simple bruteforce of 1 million keys starting from `0x9876543210`
+ - bruteforce of 1 million keys starting from `0x9876543210`
+
+#### Alphabet bruteforce
 
 ```
 ./CudaKeeloq --inputs xx,yy,zz --mode=3 --learning-type=0 --alphabet=examples/alphabet.bin,10:20:30:AA:BB:CC:DD:EE:FF:02:33
 ```
-Alphabet attacks with 2 dictionaries, one is in file `examples/alphabet.bin` second is provided via command line `10:20:30:AA:BB:CC:DD:EE:FF:02:33`
+Specified 2 alphabets - 2 attacks will be launched:
+ - First will use file `examples/alphabet.bin` as alphabet source.
+ - Second alphabet is provided via command line `10:20:30:AA:BB:CC:DD:EE:FF:02:33`
+
+#### Pattern bruteforce
+
+```
+./CudaKeeloq --inputs xx,yy,zz --mode=4 --pattern=FF:11:*:*:AA-FF:01|10:00:FF,*:*:*:*:AB:CD:EF:00
+```
+Specified 2 patterns - 2 attacks will be launched:
+  - First will check keys started (less significant bytes) from `..00FF`, then will be either `01` or `10` bytes, then bytes range `AA, AB, AC, AD ... FF`, then 2 any bytes [`0x00`:`0xFF`], and final 2 bytes will be `11` and `FF`.
+  - Second has constant lower 32 bit value `ABCDEF00` and higher 32 bits will be bruted.
+
+## Command line arguments
 
 ### Inputs
 
@@ -138,8 +147,8 @@ Here and below `=x[y]` - `x` value for normal mode, `y` for reversed.
 ### Miscellaneous
 
  * `--first-match` - if `true` (default) will stop all bruteforce on first match
- * `--test` - launches internal debug tests
- * `--benchmark` - launches CUDA setup benchmark
+ * `--test` - launches internal debug tests (useful mostly if built in `Debug` configuration)
+ * `--benchmark` - launches CUDA setup benchmark. Will show comparison of different CUDA setup (block and threads).
  * `--help`, `-h` - prints help
 
 
