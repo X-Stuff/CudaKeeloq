@@ -89,7 +89,36 @@ Specified 2 patterns - 2 attacks will be launched:
 
 ### Inputs
 
-* `--inputs=[i1, i2, i3]` - inputs are captured "over the air" bytes, you need to provide 3 in format of hexadecimal number: `0x1122334455667788`
+* `--inputs=[i1, i2, i3]` - inputs are captured "over the air" bytes, you need to provide 1-3 in format of hexadecimal number: `0x1122334455667788`.
+
+#### Modes
+
+In case of `single` input - the match check will be done only by match 18-bits of `serial`.
+Keeloq OTA packet divided into 2 parts `fix` and `hop`.
+  - `fix` - 4-bit encoded `button` and 28-bit `serial` number of transmitter
+  - `hop` - encoded `serial`, `button` and `counter`
+So in single mode decoded `serial` will be matched to stripped `serial` from `fix` part.
+This is not accurate and may give you *phantoms*.
+
+In case of `normal` inputs (2-3) - the analysis will be slightly more complex.
+  - All inputs will be decode with same key
+  - All decoded coded `hop` parts will be compared by `serial`
+    - if `serial` match - then will be checked `button` - button should be the same
+    - if `button` match - then will be checked `counter` - is should be increasing per each input
+
+3 inputs is enough to eliminate *phantoms* no need to provide more (however there is still a possibility to catch one).
+
+2 inputs might give you less accurate results with *phantoms*.
+
+Obviously `single` mode is 3-4x times faster than `normal` due to optimizations. However results in `single` mode might not be accurate.
+
+#### Capture
+
+The idea of normal flow is:
+ - Setup your radio capture device.
+ - Click same button 3 times on your transmitter (same serial, same button, increasing counter).
+ - Convert encoded signal to bytes.
+ - Provide these bytes as inputs.
 
 ### CUDA Setup
 
