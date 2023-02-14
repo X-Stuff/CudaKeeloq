@@ -8,7 +8,7 @@
 #include "algorithm/keeloq/keeloq_decryptor.h"
 
 
-bool Tests::AlphabetGeneration()
+bool tests::alphabet_generation()
 {
     // Filtered generator test itself
     constexpr auto NumBlocks = 64;

@@ -37,14 +37,14 @@ BruteforceConfig GetSingleKeyConfig(uint64_t key, bool rev = true)
 }
 
 
-bool Tests::PatternGeneration()
+bool tests::pattern_generation()
 {
     constexpr auto NumBlocks = 64;
     constexpr auto NumThreads = 64;
 
     const uint64_t debugKey = "heelo_world"_u64;
 
-    CudaVector<EncData> encrypted  = Tests::Keeloq::GenInputs(debugKey);
+    CudaVector<EncData> encrypted  = tests::keeloq::gen_inputs(debugKey);
 
     CudaVector<Decryptor> decryptors(NumBlocks * NumThreads);
     CudaVector<SingleResult> results(decryptors.size() * encrypted.size());
@@ -59,7 +59,7 @@ bool Tests::PatternGeneration()
     KeeloqKernelInput generatorInputs(encrypted.gpu(), decryptors.gpu(), results.gpu(), config);
 
     GeneratorBruteforce::PrepareDecryptors(generatorInputs, NumBlocks, NumThreads);
-    auto result = keeloq::kernels::BruteMain(generatorInputs, NumBlocks, NumThreads);
+    auto result = ::keeloq::kernels::cuda_brute(generatorInputs, NumBlocks, NumThreads);
 
     decryptors.read();
     results.read();

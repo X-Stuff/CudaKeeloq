@@ -18,10 +18,13 @@ struct Decryptor
 	Decryptor() = default;
 	Decryptor(uint64_t key, uint32_t s = 0) : man(key), seed(s) {}
 
-	__host__ __device__ inline bool operator==(const Decryptor& other) {
+	__host__ __device__ inline bool operator==(const Decryptor& other)
+	{
 		return man == other.man && seed == other.seed;
 	}
-	__host__ __device__ inline bool operator<(const Decryptor& other) {
+
+	__host__ __device__ inline bool operator<(const Decryptor& other)
+	{
 		return man < other.man;
 	}
 };

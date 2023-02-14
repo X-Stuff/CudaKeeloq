@@ -17,7 +17,7 @@
 
 
 
-std::vector<Decryptor> Host::Utils::ReadWordDictionaryFile(const char* file)
+std::vector<Decryptor> host::utils::read_word_dictionary_file(const char* file)
 {
     std::vector<Decryptor> results;
 
@@ -50,7 +50,7 @@ std::vector<Decryptor> Host::Utils::ReadWordDictionaryFile(const char* file)
     return results;
 }
 
-std::vector<Decryptor> Host::Utils::ReadBinaryDictionaryFile(const char* file, uint8_t mode)
+std::vector<Decryptor> host::utils::read_binary_dictionary_file(const char* file, uint8_t mode)
 {
     std::vector<Decryptor> decryptors;
 
@@ -77,7 +77,7 @@ std::vector<Decryptor> Host::Utils::ReadBinaryDictionaryFile(const char* file, u
     return decryptors;
 }
 
-std::vector<uint8_t> Host::Utils::ReadAlphabetBinaryFile(const char* file)
+std::vector<uint8_t> host::utils::read_alphabet_binary_file(const char* file)
 {
     constexpr uint32_t MaxFileSize = 256;
 

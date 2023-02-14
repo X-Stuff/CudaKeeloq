@@ -17,7 +17,7 @@ void print_args(const char** args, size_t num)
 }
 
 
-CommandLineArgs Tests::Console::run()
+CommandLineArgs tests::console::run()
 {
     const char* commandline[] = {
         "CudaKeeloq.exe",
@@ -54,10 +54,10 @@ CommandLineArgs Tests::Console::run()
 
     // Print Help
     print_args(help, sizeof(help) / sizeof(char*));
-    CommandLineArgs args = console::parse_command_line(sizeof(help) / sizeof(char*), help);
+    CommandLineArgs args = ::console::parse_command_line(sizeof(help) / sizeof(char*), help);
 
     print_args(commandline, sizeof(commandline) / sizeof(char*));
-    args = console::parse_command_line(sizeof(commandline) / sizeof(char*), commandline);
+    args = ::console::parse_command_line(sizeof(commandline) / sizeof(char*), commandline);
 
     assert(args.alphabets.size() == 2);
     assert(args.brute_configs.size() == 8);

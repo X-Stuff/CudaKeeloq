@@ -18,7 +18,7 @@
  *  Round is a set of bruteforce batches
  * Each batch runs N thread
  * Each thread checks 1 or more decryptor
- * Each check is 1 or more (configured in args) keeloq calculation
+ * Each check is 1 or more (configured in args) keeloq learnings
  *
  * Typical is:
  *  Via command line some rounds were created - e.g. Dictionary and Simple attacks
@@ -28,84 +28,88 @@
  */
 struct BruteforceRound
 {
-	// Construct round struct without specific learning type (means use all learnings)
-	BruteforceRound(const std::vector<EncData>& data, const BruteforceConfig& gen, uint32_t blocks, uint32_t threads, uint32_t iterations) :
-		BruteforceRound(data, gen, {}, blocks, threads, iterations) {}
+    // Construct round struct without specific learning type (means use all learnings)
+    BruteforceRound(const std::vector<EncData>& data, const BruteforceConfig& gen, uint32_t blocks, uint32_t threads, uint32_t iterations) :
+        BruteforceRound(data, gen, {}, blocks, threads, iterations) {}
 
-	// Construct round struct with only one selected learning type
-	BruteforceRound(const std::vector<EncData>& data, const BruteforceConfig& gen, KeeloqLearningType::Type single_learning,
-		uint32_t blocks, uint32_t threads, uint32_t iterations) :
-		BruteforceRound(data, gen, std::vector<KeeloqLearningType::Type> { single_learning }, blocks, threads, iterations) {}
+    // Construct round struct with only one selected learning type
+    BruteforceRound(const std::vector<EncData>& data, const BruteforceConfig& gen, KeeloqLearningType::Type single_learning,
+        uint32_t blocks, uint32_t threads, uint32_t iterations) :
+        BruteforceRound(data, gen, std::vector<KeeloqLearningType::Type> { single_learning }, blocks, threads, iterations) {}
 
-	// Standard constructor
-	BruteforceRound(const std::vector<EncData>& data, const BruteforceConfig& gen, std::vector<KeeloqLearningType::Type> selected_learning,
-		uint32_t blocks, uint32_t threads, uint32_t iterations);
+    // Standard constructor
+    BruteforceRound(const std::vector<EncData>& data, const BruteforceConfig& gen, std::vector<KeeloqLearningType::Type> selected_learning,
+        uint32_t blocks, uint32_t threads, uint32_t iterations);
 
-	~BruteforceRound()
-	{
-		free();
-	}
-
-public:
-	// Allocates memory
-	void Init();
-
-	// Reads results data from GPU memory into internal container and returns const reference to it
-	const std::vector<SingleResult>& read_results_gpu();
-
-	// Reads decryptors data from GPU memory into internal container and returns const reference to it
-	const std::vector<Decryptor>& read_decryptors_gpu();
-
-	// Checks Kernel's results
-	// Return true if Round should be finished
-	bool check_results(const KernelResult& result);
-
-	size_t get_mem_size() const;
-
-	size_t num_batches() const;
-
-	size_t results_per_batch() const;
-
-	size_t keys_per_batch() const;
-
-	std::string to_string() const;
+    ~BruteforceRound()
+    {
+        free();
+    }
 
 public:
-	inline uint32_t CudaBlocks() const { return CUDASetup[0]; }
+    // Allocates memory
+    void Init();
 
-	inline uint32_t CudaThreads() const { return CUDASetup[1]; }
+    // Reads results data from GPU memory into internal container and returns const reference to it
+    const std::vector<SingleResult>& read_results_gpu();
 
-	inline uint32_t CudaThreadIterations() const { return CUDASetup[2]; }
+    // Reads decryptors data from GPU memory into internal container and returns const reference to it
+    const std::vector<Decryptor>& read_decryptors_gpu();
 
-	inline const BruteforceConfig& Config() const { assert(inited); return kernel_inputs.config; }
+    // Checks Kernel's results
+    // Return true if Round should be finished
+    bool check_results(const KernelResult& result);
 
-	inline BruteforceType::Type Type() const { assert(inited); return Config().type; }
+    // Get allocated memory amount for data
+    size_t get_mem_size() const;
 
-	inline KeeloqKernelInput& Inputs() { assert(inited); return kernel_inputs; }
+    // How many batches in this round (basically total keys to check divides by number of keys in a batch)
+    size_t num_batches() const;
+
+    // How many calculated results are in a batch (if use 3 inputs - 3 x keys_per_batch)
+    size_t results_per_batch() const;
+
+    // How many keys to check in this batch
+    size_t keys_per_batch() const;
+
+    std::string to_string() const;
+
+public:
+    inline uint32_t CudaBlocks() const { return CUDASetup[0]; }
+
+    inline uint32_t CudaThreads() const { return CUDASetup[1]; }
+
+    inline uint32_t CudaThreadIterations() const { return CUDASetup[2]; }
+
+    inline const BruteforceConfig& Config() const { assert(inited); return kernel_inputs.config; }
+
+    inline BruteforceType::Type Type() const { assert(inited); return Config().type; }
+
+    inline KeeloqKernelInput& Inputs() { assert(inited); return kernel_inputs; }
 
 private:
 
-	void alloc();
+    void alloc();
 
-	void free();
+    void free();
 
 private:
 
-	bool inited = false;
+    bool inited = false;
 
-	uint32_t num_decryptors_per_batch = 0;
+    uint32_t num_decryptors_per_batch = 0;
 
-	//
-	KeeloqKernelInput kernel_inputs;
+    //
+    KeeloqKernelInput kernel_inputs;
 
-	// Constant per run
-	std::vector<EncData> encrypted_data;
+    // Constant per run
+    std::vector<EncData> encrypted_data;
 
-	// could be pretty much data here
-	std::vector<Decryptor> decryptors;
+    // could be pretty much data here
+    std::vector<Decryptor> decryptors;
 
-	// could be pretty much data here
-	std::vector<SingleResult> block_results;
+    // could be pretty much data here
+    std::vector<SingleResult> block_results;
 
-	uint32_t CUDASetup[3] = { 0 };
+    uint32_t CUDASetup[3] = { 0 };
 };

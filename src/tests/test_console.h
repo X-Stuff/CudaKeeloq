@@ -2,9 +2,9 @@
 
 struct CommandLineArgs;
 
-namespace Tests
+namespace tests
 {
-namespace Console
+namespace console
 {
     CommandLineArgs run();
 }

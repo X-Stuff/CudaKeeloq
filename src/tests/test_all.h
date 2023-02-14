@@ -9,7 +9,7 @@
 #include "tests/test_keeloq.h"
 #include "tests/test_pattern.h"
 
-namespace Tests
+namespace tests
 {
-	__host__ bool CheckCudaIsWorking();
+	__host__ bool cuda_check_working();
 }

@@ -24,7 +24,7 @@ inline void read_alphabets(CommandLineArgs& target, cxxopts::ParseResult& result
 
     for (const auto& alphabet_arg : alphabet_args)
     {
-        auto alphabet_bytes = Host::Utils::ReadAlphabetBinaryFile(alphabet_arg.c_str());
+        auto alphabet_bytes = host::utils::read_alphabet_binary_file(alphabet_arg.c_str());
         if (alphabet_bytes.size() > 0)
         {
             target.alphabets.emplace_back(alphabet_bytes);
@@ -86,7 +86,7 @@ inline void parse_dictionary_mode(CommandLineArgs& target, cxxopts::ParseResult&
 
         for (const auto& dict_arg : dict)
         {
-            std::vector<Decryptor> from_file = Host::Utils::ReadWordDictionaryFile(dict_arg.c_str());
+            std::vector<Decryptor> from_file = host::utils::read_word_dictionary_file(dict_arg.c_str());
 
             if (from_file.size() > 0)
             {
@@ -117,7 +117,7 @@ inline void parse_dictionary_mode(CommandLineArgs& target, cxxopts::ParseResult&
 
         for (const auto& bin_dict_path : dicts)
         {
-            std::vector<Decryptor> decryptors = Host::Utils::ReadBinaryDictionaryFile(bin_dict_path.c_str(), mode);
+            std::vector<Decryptor> decryptors = host::utils::read_binary_dictionary_file(bin_dict_path.c_str(), mode);
 
             if (decryptors.size() > 0)
             {

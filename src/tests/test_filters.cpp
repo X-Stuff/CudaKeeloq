@@ -9,9 +9,7 @@
 #include "bruteforce/generators/generator_bruteforce.h"
 
 
-namespace Tests
-{
-    bool FiltersGeneration()
+bool tests::filters_generation()
     {
         BruteforceFiltersTestInputs test_cases[] = {
            { 0x1111334404bbccee, BruteforceFilters::Flags::Max6ZerosInARow, true },
@@ -60,7 +58,7 @@ namespace Tests
 
         // GPU tests
         DoubleArray<BruteforceFiltersTestInputs> test_inputs(test_cases, NumTests);
-        LaunchFiltersTests(test_inputs.CUDA_mem, NumTests);
+        cuda_check_bruteforce_filters(test_inputs.CUDA_mem, NumTests);
         test_inputs.read_GPU(); // for asserts
 
         for (uint8_t i = 0; i < NumTests; ++i)
@@ -104,4 +102,3 @@ namespace Tests
         result.read();
         return result_success;
     }
-}

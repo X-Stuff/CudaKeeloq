@@ -20,7 +20,7 @@ CommandLineArgs debugTestCommandlineArgs()
 
 
     CommandLineArgs cmd;
-    cmd.inputs = Tests::Keeloq::GenInputs(debugKey);
+    cmd.inputs = tests::keeloq::gen_inputs(debugKey);
     cmd.alphabets.emplace_back(MultibaseDigit("abcdef"_b));
     cmd.alphabets.emplace_back(MultibaseDigit( { 0xC0, 0xFF, 0xEE, 0x00, 0xDE, 0xAD, 0x66 }));
 
@@ -124,7 +124,7 @@ void bruteforce(const CommandLineArgs& args)
             }
 
             // do the bruteforce
-            auto kernelResults = keeloq::kernels::BruteMain(kernelInput, attackRound.CudaBlocks(), attackRound.CudaThreads());
+            auto kernelResults = keeloq::kernels::cuda_brute(kernelInput, attackRound.CudaBlocks(), attackRound.CudaThreads());
             match = attackRound.check_results(kernelResults);
 
             auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -171,9 +171,9 @@ void bruteforce(const CommandLineArgs& args)
 
 int main(int argc, const char** argv)
 {
-    assert(Tests::CheckCudaIsWorking());
+    assert(tests::cuda_check_working());
 
-    if (!keeloq::kernels::IsWorking())
+    if (!keeloq::kernels::cuda_is_working())
     {
         printf("Error: This device cannot compute keeloq right. Single encryption and decryption mismatch.");
         assert(false);
@@ -191,11 +191,11 @@ int main(int argc, const char** argv)
         if (args.run_tests)
         {
             printf("\n...RUNNING TESTS...\n");
-            Tests::Console::run();
+            tests::console::run();
 
-            Tests::PatternGeneration();
-            Tests::AlphabetGeneration();
-            Tests::FiltersGeneration();
+            tests::pattern_generation();
+            tests::alphabet_generation();
+            tests::filters_generation();
 
             printf("\n...TESTS FINISHED...\n");
         }

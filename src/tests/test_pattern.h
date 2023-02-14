@@ -2,7 +2,7 @@
 
 #include "common.h"
 
-namespace Tests
+namespace tests
 {
-    bool PatternGeneration();
+    bool pattern_generation();
 }
