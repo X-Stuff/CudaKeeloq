@@ -28,16 +28,27 @@ __global__ void Kernel_keeloq_test(KernelResult::TCudaPtr ret)
     }
 }
 
-__global__ void Kernel_keeloq_main(KeeloqKernelInput::TCudaPtr CUDA_inputs, KernelResult::TCudaPtr ret)
+// Main kernel for keeloq decryptions if provided several enc parcels
+__global__ void Kernel_keeloq_main_multi(KeeloqKernelInput::TCudaPtr CUDA_inputs, KernelResult::TCudaPtr ret)
 {
     CudaContext ctx = CudaContext::Get();
-
-    auto& encoded_data = *CUDA_inputs->encdata;
-    auto& decryptors = *CUDA_inputs->decryptors;
     auto& results = *CUDA_inputs->results;
 
-    uint8_t num_errors = keeloq_decryption_run(ctx, *CUDA_inputs);
-    uint8_t num_matches = keeloq_analyze_results(ctx, results, decryptors.num, encoded_data.num);
+    uint8_t num_errors = keeloq_decryption_run<false>(ctx, *CUDA_inputs);
+    uint8_t num_matches = keeloq_analyze_results<false>(ctx, results, CUDA_inputs->decryptors->num, CUDA_inputs->encdata->num);
+
+    atomicAdd(&ret->error,  num_errors);
+    atomicAdd(&ret->value, num_matches);
+}
+
+// Optimized special case main keeloq kernel for single encrypted input (when analyzing serial number from fixed code)
+__global__ void Kernel_keeloq_main_single(KeeloqKernelInput::TCudaPtr CUDA_inputs, KernelResult::TCudaPtr ret)
+{
+    CudaContext ctx = CudaContext::Get();
+    auto& results = *CUDA_inputs->results;
+
+    uint8_t num_errors = keeloq_decryption_run<true>(ctx, *CUDA_inputs);
+    uint8_t num_matches = keeloq_analyze_results<true>(ctx, results, CUDA_inputs->decryptors->num, 1);
 
     atomicAdd(&ret->error,  num_errors);
     atomicAdd(&ret->value, num_matches);
@@ -50,7 +61,14 @@ __host__ KernelResult keeloq::kernels::cuda_brute(KeeloqKernelInput& mainInputs,
 {
     KernelResult kernel_results;
 
-    Kernel_keeloq_main<<<ThreadBlocks, ThreadsInBlock>>>(mainInputs.ptr(), kernel_results.ptr());
+    if (mainInputs.encdata->host().num > 1)
+    {
+        Kernel_keeloq_main_multi<<<ThreadBlocks, ThreadsInBlock>>>(mainInputs.ptr(), kernel_results.ptr());
+    }
+    else
+    {
+        Kernel_keeloq_main_single<<<ThreadBlocks, ThreadsInBlock>>>(mainInputs.ptr(), kernel_results.ptr());
+    }
 
     mainInputs.read();
     kernel_results.read();

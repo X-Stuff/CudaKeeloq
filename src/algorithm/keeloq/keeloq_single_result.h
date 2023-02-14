@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 #include "algorithm/keeloq/keeloq_learning_types.h"
+#include "algorithm/keeloq/keeloq_encrypted.h"
 
 
 /**
@@ -34,7 +35,7 @@ struct SingleResult
 	uint32_t seed;
 
 	// Input data
-	uint64_t ota;
+	EncParcel packet;
 
 	// Set by GPU after analysis if there was a match
 	KeeloqLearningType::Type match;

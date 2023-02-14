@@ -5,10 +5,9 @@
 #include <vector>
 
 #include "algorithm/keeloq/keeloq_learning_types.h"
+#include "algorithm/keeloq/keeloq_encrypted.h"
 #include "bruteforce/bruteforce_config.h"
 
-// Forward declarations
-typedef uint64_t EncData;
 
 /**
  *  Aggregated configuration of application
@@ -16,7 +15,7 @@ typedef uint64_t EncData;
 struct CommandLineArgs
 {
     // Input encrypted data (3 caught OTA values)
-    std::vector<EncData> inputs;
+    std::vector<EncParcel> inputs;
 
     // How brute will be performed (may be several iterations)
     std::vector<BruteforceConfig> brute_configs;
@@ -46,7 +45,8 @@ public:
     // Checks if arguments enough for bruteforcing
     bool can_bruteforce();
 
-    void init_inputs(const std::vector<EncData>& inp);
+    // Init enc parcel collection with raw OTA values
+    void init_inputs(const std::vector<uint64_t>& inp);
 
     void init_cuda(uint16_t b, uint16_t t, uint16_t l);
 

@@ -44,7 +44,7 @@ bool tests::pattern_generation()
 
     const uint64_t debugKey = "heelo_world"_u64;
 
-    CudaVector<EncData> encrypted  = tests::keeloq::gen_inputs(debugKey);
+    CudaVector<EncParcel> encrypted  = tests::keeloq::gen_inputs(debugKey);
 
     CudaVector<Decryptor> decryptors(NumBlocks * NumThreads);
     CudaVector<SingleResult> results(decryptors.size() * encrypted.size());

@@ -20,7 +20,7 @@ CommandLineArgs debugTestCommandlineArgs()
 
 
     CommandLineArgs cmd;
-    cmd.inputs = tests::keeloq::gen_inputs(debugKey);
+    cmd.inputs = tests::keeloq::gen_inputs(debugKey, 1);
     cmd.alphabets.emplace_back(MultibaseDigit("abcdef"_b));
     cmd.alphabets.emplace_back(MultibaseDigit( { 0xC0, 0xFF, 0xEE, 0x00, 0xDE, 0xAD, 0x66 }));
 

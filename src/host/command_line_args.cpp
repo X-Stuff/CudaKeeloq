@@ -10,7 +10,11 @@ bool CommandLineArgs::can_bruteforce()
 
 void CommandLineArgs::init_inputs(const std::vector<uint64_t>& inp)
  {
-	 inputs = inp;
+	 inputs.reserve(inp.size());
+     for (uint64_t ota : inp)
+     {
+        inputs.push_back(EncParcel(ota));
+     }
  }
 
  void CommandLineArgs::init_cuda(uint16_t b, uint16_t t, uint16_t l)
