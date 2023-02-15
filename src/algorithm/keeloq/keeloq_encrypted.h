@@ -32,8 +32,11 @@ struct EncParcel
     // hopping code in parcel
     __device__ __host__ inline uint32_t hop() const { return hopping; }
 
-    // first 18 bits of serial (can be used in decryption)
+    // first 18 bits of fixed code - serial (can be used in decryption)
     __device__ __host__ inline uint32_t srl() const { return fixed & 0x3FF; }
+
+    // last 4 bits of fixed code - button (can be used in decryption)
+    __device__ __host__ inline uint32_t btn() const { return fixed >> 28; }
 
 private:
 

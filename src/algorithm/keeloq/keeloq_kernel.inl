@@ -116,7 +116,8 @@ namespace
 
     // In case of single input we checking fixed part of parcel's serial (28-bit serial | 4-bit button)
     // with decoded serial
-    __device__ KeeloqLearningType::Type analyze_result_srl(const SingleResult& result, uint8_t expected, const KeeloqLearningMask type_mask)
+    template<bool forceall>
+    __device__ KeeloqLearningType::Type analyze_single_result(const SingleResult& result, uint32_t exp_srl, uint8_t exp_btn, const KeeloqLearningMask type_mask)
     {
         uint8_t match_count = 0; // 0 or 1. if bigger - double match
         KeeloqLearningType::Type match_learning_type = KeeloqLearningType::INVALID;
@@ -125,8 +126,13 @@ namespace
         UNROLL
         for (uint8_t lrn = 0; lrn < SingleResult::ResultsCount; ++lrn)
         {
-            uint32_t srl = (SingleResult::read_results_from_cache(result, lrn) >> 16) & 0x3ff;
-            bool has_match = type_mask[lrn] != 0 && srl == expected && srl != 0;
+            // Allow compiler optimize it
+            bool allowed = forceall || type_mask[lrn] != 0;
+
+            uint32_t dec = SingleResult::read_results_from_cache(result, lrn);
+            uint32_t srl = (dec >> 16) & 0x3ff;
+            uint32_t btn = (dec >> 28);
+            bool has_match = allowed && srl == exp_srl && srl != 0 && btn == exp_btn;
 
             match_count += has_match;
             match_learning_type = (has_match * lrn + !has_match * match_learning_type);
@@ -373,13 +379,12 @@ __device__ uint8_t analyze_results_btn(const SingleResult* results, uint32_t num
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // run from result[0] to result[num] tries to detect if there is a match (man key valid)
+template<bool AllEnabled>
 __device__ uint8_t keeloq_find_matches(const CudaContext& ctx, SingleResult* results, uint32_t num, const KeeloqLearningMask type_mask)
 {
     uint8_t result_error = 0;
 
-    KeeloqLearningType::Type learning_type = KeeloqLearningType::AllEnabled(type_mask) ?
-        analyze_results_srl<true>(results, num, type_mask) :
-        analyze_results_srl<false>(results, num, type_mask);
+    KeeloqLearningType::Type learning_type = analyze_results_srl<AllEnabled>(results, num, type_mask);
 
     if (learning_type != KeeloqLearningType::INVALID)
     {
@@ -404,21 +409,14 @@ __device__ uint8_t keeloq_find_matches(const CudaContext& ctx, SingleResult* res
     return result_error;
 }
 
+template<bool AllLearnings>
 __device__ __host__ void keeloq_decrypt(const EncParcel& enc, uint64_t man, uint32_t seed, const KeeloqLearningMask type_mask, SingleResult::DecryptedArray& results)
 {
-    if (KeeloqLearningType::AllEnabled(type_mask)) // force all decryption learnings
-    {
-        // compiler should optimize out the ifs in that case since condition became `(true || XXXX`
-        keeloq_decrypt_all<true>(enc.hop(), enc.fix(), man, seed, type_mask, results);
-    }
-    else
-    {
-        keeloq_decrypt_all<false>(enc.hop(), enc.fix(), man, seed, type_mask, results);
-    }
+    keeloq_decrypt_all<AllLearnings>(enc.hop(), enc.fix(), man, seed, type_mask, results);
 }
 
 // run decryption parallel per thread and find matches
-template<bool SingleInput>
+template<bool SingleInput, bool AllEnabled>
 __device__ uint8_t keeloq_decryption_run(const CudaContext& ctx, KeeloqKernelInput& input)
 {
     auto& encrypted = *input.encdata;
@@ -438,13 +436,14 @@ __device__ uint8_t keeloq_decryption_run(const CudaContext& ctx, KeeloqKernelInp
         if (SingleInput)
         {
             SingleResult& result = results[decryptor_index];
+            const EncParcel& enc = encrypted[0];
 
             result.man = man;
             result.seed = seed;
-            result.packet = encrypted[0]; // useless copy
+            result.packet = enc; // useless copy
 
-            keeloq_decrypt(result.packet, result.man, result.seed, input.learning_types, result.results);
-            result.match = analyze_result_srl(result, result.packet.srl(), input.learning_types);
+            keeloq_decrypt<AllEnabled>(enc, result.man, result.seed, input.learning_types, result.results);
+            result.match = analyze_single_result<AllEnabled>(result, enc.srl(), enc.btn(), input.learning_types);
         }
         else
         {
@@ -461,11 +460,11 @@ __device__ uint8_t keeloq_decryption_run(const CudaContext& ctx, KeeloqKernelInp
 
                 result.packet = encrypted[enc_index];
 
-                keeloq_decrypt(result.packet, result.man, result.seed, input.learning_types, result.results);
+                keeloq_decrypt<AllEnabled>(result.packet, result.man, result.seed, input.learning_types, result.results);
             }
 
             // now check find matches in check decryptors
-            result_error += keeloq_find_matches(ctx, &results[decryptor_index * encrypted.num], encrypted.num, input.learning_types);
+            result_error += keeloq_find_matches<AllEnabled>(ctx, &results[decryptor_index * encrypted.num], encrypted.num, input.learning_types);
         }
     }
 
@@ -530,7 +529,7 @@ __host__ EncParcel keeloq::GetOTA(uint64_t key, uint32_t serial, uint8_t button,
     uint8_t mask[KeeloqLearningType::ALL] = {0};
     mask[learning] = 1;
 
-    keeloq_decrypt(encrypted, key, 0, mask, results);
+    keeloq_decrypt<true>(encrypted, key, 0, mask, results);
     assert(results.data[learning] == unencrypted);
 #endif
 

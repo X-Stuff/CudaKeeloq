@@ -8,6 +8,12 @@
 
 #include "keeloq_kernel.inl"
 
+constexpr bool SingleInput = true;
+constexpr bool MultipleInput = false;
+
+constexpr bool AllLearnings = true;
+constexpr bool SeparateLearning = false;
+
 __global__ void Kernel_keeloq_test(KernelResult::TCudaPtr ret)
 {
     CudaContext ctx = CudaContext::Get();
@@ -34,7 +40,12 @@ __global__ void Kernel_keeloq_main_multi(KeeloqKernelInput::TCudaPtr CUDA_inputs
     CudaContext ctx = CudaContext::Get();
     auto& results = *CUDA_inputs->results;
 
-    uint8_t num_errors = keeloq_decryption_run<false>(ctx, *CUDA_inputs);
+    bool all_enabled = KeeloqLearningType::AllEnabled(CUDA_inputs->learning_types);
+
+    uint8_t num_errors = all_enabled ?
+        keeloq_decryption_run<MultipleInput, AllLearnings>(ctx, *CUDA_inputs) :
+        keeloq_decryption_run<MultipleInput, SeparateLearning>(ctx, *CUDA_inputs);
+
     uint8_t num_matches = keeloq_analyze_results<false>(ctx, results, CUDA_inputs->decryptors->num, CUDA_inputs->encdata->num);
 
     atomicAdd(&ret->error,  num_errors);
@@ -47,7 +58,12 @@ __global__ void Kernel_keeloq_main_single(KeeloqKernelInput::TCudaPtr CUDA_input
     CudaContext ctx = CudaContext::Get();
     auto& results = *CUDA_inputs->results;
 
-    uint8_t num_errors = keeloq_decryption_run<true>(ctx, *CUDA_inputs);
+    bool all_enabled = KeeloqLearningType::AllEnabled(CUDA_inputs->learning_types);
+
+    uint8_t num_errors = all_enabled ?
+        keeloq_decryption_run<SingleInput, AllLearnings>(ctx, *CUDA_inputs) :
+        keeloq_decryption_run<SingleInput, SeparateLearning>(ctx, *CUDA_inputs);
+
     uint8_t num_matches = keeloq_analyze_results<true>(ctx, results, CUDA_inputs->decryptors->num, 1);
 
     atomicAdd(&ret->error,  num_errors);
