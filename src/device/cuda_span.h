@@ -40,8 +40,8 @@ struct Span
     __host__ __device__ inline uint32_t num() const { return size; }
 
     // fall back if T is not simple type
-    __host__ __device__ std::enable_if<!std::is_integral_v<T>, T&>::type __ldca(T* ptr) { return *ptr; }
-    __host__ __device__ std::enable_if<!std::is_integral_v<T>, const T&>::type __ldca(T* ptr) const { return *ptr; }
+    __host__ __device__ typename std::enable_if<!std::is_integral_v<T>, T&>::type __ldca(T* ptr) { return *ptr; }
+    __host__ __device__ typename std::enable_if<!std::is_integral_v<T>, const T&>::type __ldca(T* ptr) const { return *ptr; }
 
 private:
 
