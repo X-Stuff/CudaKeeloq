@@ -98,6 +98,9 @@
     <ClInclude Include="src\tests\test_console.h">
       <Filter>tests</Filter>
     </ClInclude>
+    <ClInclude Include="src\device\cuda_span.h">
+      <Filter>device</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp" />

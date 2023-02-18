@@ -15,7 +15,7 @@ CC_FLAGS=-std=c++17 -Wall
 CC_INCLUDE=-I./src/ -I./ThirdParty/ -I./ThirdParty/cpp-terminal
 
 NVCC=nvcc
-NVCC_FLAGS=--gpu-architecture=compute_80 --gpu-code=sm_80
+NVCC_FLAGS=--gpu-architecture=compute_80 --gpu-code=sm_80 --std=c++17
 NVCC_INCLUDE=-I./src/
 
 # CUDA library directory:

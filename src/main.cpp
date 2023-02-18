@@ -11,16 +11,16 @@
 #include "tests/test_all.h"
 
 
-CommandLineArgs debugTestCommandlineArgs()
+CommandLineArgs debugTestCommandlineArgs(int num_gen_input = 3)
 {
     constexpr uint64_t debugKey =  0xC0FFEE00DEAD6666;
 
     uint64_t first = debugKey & 0xFFFFFFFFFF000000;
-    uint64_t count = 0xFFFFFF;
+    uint64_t count = 0xFFFFFFF;
 
 
     CommandLineArgs cmd;
-    cmd.inputs = tests::keeloq::gen_inputs(debugKey, 1);
+    cmd.inputs = tests::keeloq::gen_inputs(debugKey, num_gen_input);
     cmd.alphabets.emplace_back(MultibaseDigit("abcdef"_b));
     cmd.alphabets.emplace_back(MultibaseDigit( { 0xC0, 0xFF, 0xEE, 0x00, 0xDE, 0xAD, 0x66 }));
 
@@ -60,7 +60,7 @@ CommandLineArgs debugTestCommandlineArgs()
     cmd.selected_learning = { }; // ALL
 
     cmd.match_stop = false;
-    cmd.run_bench = false;
+    cmd.run_bench = true;
     cmd.run_tests = false;
 
 #if _DEBUG

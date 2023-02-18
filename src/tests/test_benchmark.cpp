@@ -10,6 +10,7 @@
 #include "bruteforce/bruteforce_round.h"
 
 #include "algorithm/keeloq/keeloq_kernel.h"
+#include "tests/test_keeloq.h"
 
 
 void benchmark::run(const CommandLineArgs& args)
@@ -125,13 +126,11 @@ void benchmark::all(const CommandLineArgs& args)
 {
     console_clear();
     CommandLineArgs copy = args;
-    copy.inputs = { 0, 1, 2 };
+    copy.inputs = tests::keeloq::gen_inputs(0xFF123FF3434FFFFF);
 
-    copy.cuda_loops = 2;
     copy.selected_learning = {};
     run(copy);
 
-    copy.cuda_loops = 2;
     copy.selected_learning = { KeeloqLearningType::Simple };
     run(copy);
 

@@ -98,7 +98,7 @@ Keeloq OTA packet divided into 2 parts `fix` and `hop`.
   - `fix` - 4-bit encoded `button` and 28-bit `serial` number of transmitter
   - `hop` - encoded `serial`, `button` and `counter`
 So in single mode decoded `serial` will be matched to stripped `serial` from `fix` part.
-This is not accurate and may give you *phantoms*.
+This is not accurate and gives you tons of *phantoms*.
 
 In case of `normal` inputs (2-3) - the analysis will be slightly more complex.
   - All inputs will be decode with same key
