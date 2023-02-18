@@ -15,7 +15,11 @@ CommandLineArgs debugTestCommandlineArgs(int num_gen_input = 3)
 {
     constexpr uint64_t debugKey =  0xC0FFEE00DEAD6666;
 
+#if _DEBUG
     uint64_t first = debugKey & 0xFFFFFFFFFF000000;
+#else
+    uint64_t first = debugKey & 0xFFFFFFFFF0000000;
+#endif
     uint64_t count = 0xFFFFFFF;
 
 
@@ -60,7 +64,7 @@ CommandLineArgs debugTestCommandlineArgs(int num_gen_input = 3)
     cmd.selected_learning = { }; // ALL
 
     cmd.match_stop = false;
-    cmd.run_bench = true;
+    cmd.run_bench = false;
     cmd.run_tests = false;
 
 #if _DEBUG
