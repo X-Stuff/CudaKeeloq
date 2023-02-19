@@ -93,11 +93,17 @@ Specified 2 patterns - 2 attacks will be launched:
 
 #### Bruteforce range
 
-* `--start=<value>` - defines the initial value from which bruteforce begins. Applies to all types except dictionary. For alphabet or pattern types, should be specified value which can be converted to pattern or alphabet. e.g. if you use alphabet `77:88:FF:AA:BB` and specify `--start=0x778899FFAABBAABB` - bruteforce will start from `778877FFAABBAABB` since `99` is not exist in alphabet it will be replace with the first byte in alphabet.
+* `--start=<value>` - defines the initial value from which bruteforce begins. Applies to all types except dictionary ( default is `0` ).
+For alphabet or pattern types, should be specified value which can be converted to pattern or alphabet. e.g.
+if you use alphabet `77:88:FF:AA:BB` and specify `--start=0x778899FFAABBAABB` - bruteforce will start from `0x7788`**`77`**`FFAABBAABB` since `99` is not exist in alphabet it will be replace with the first byte in alphabet.
+If you specify `0` as start value bruteforce will start from `0x77777..`.
 
-* `--count=<value>` - number of keys to generate and check. If you using simple +1 mode it will define the last key to check. In other mode determine the last key might be not trivial task.
+* `--count=<value>` - number of keys to generate and check ( default is `uint64 max` - means all ).
+If you using simple +1 mode it will define the last key to check. In other mode determine the last key might be not trivial task.
 
-* `--seed=<value>` - seed value. It used only in `SECURE` and `FAAC` learning modes, so you better do bruteforce with not `ALL` learning mode.
+* `--seed=<value>` - seed value. It used only in `SECURE` and `FAAC` learning modes. Providing `seed` without a learning mode will just significantly reduce bruteforce speed.
+If you definitely know that captured data encrypted with `seed`'ed algorithm - specify `--learning-type=4,5,8,9` (`SECURE` and `FAAC` both with `_rev` variation), no sense in that case to calculate the others. And vice versa, if you don't know the `seed` - do not specify it, otherwise - useless calculation would be done.
+Not supported in `dictionary` mode.
 
 
 #### Modes
@@ -178,9 +184,9 @@ Here and below `=x[y]` - `x` value for normal mode, `y` for reversed.
 * `--learning-type=4[5]` - Secure learning (requires seed)
 * `--learning-type=6[7]` - XOR learning
 * `--learning-type=8[9]` - FAAC learning (requires seed)
-* `--learning-type=10[11]` - UNKNOWN TYPE1
-* `--learning-type=12[13]` - UNKNOWN TYPE2
-* `--learning-type=14[15]` - UNKNOWN TYPE3
+* `--learning-type=10[11]` - *UNKNOWN TYPE1*
+* `--learning-type=12[13]` - *UNKNOWN TYPE2*
+* `--learning-type=14[15]` - *UNKNOWN TYPE3*
 
 ### Miscellaneous
 
@@ -193,6 +199,8 @@ Here and below `=x[y]` - `x` value for normal mode, `y` for reversed.
  ## Performance
 
  For my laptop's GPU ( 3080Ti ) the best results with `8196` CUDA Blocks and maximum CUDA threads (from device info - `1024`) - it gives me approx.:
-  * `15` MKeys/s for `ALL` learning types if `seed` is **not** provided
-  * `9` MKeys/s for `ALL` learning types if `seed` **is** specified
-  * `230` MKeys for `Simple` ( the easiest type single keeloq decryption ).
+  *  `9` MKeys/s for `ALL` learning types if `seed` **is** specified.
+  * `16` MKeys/s for `ALL` learning types if `seed` is **not** provided.
+  * `240` MKeys for `Simple` ( the easiest type single keeloq decryption ).
+  * `90` MKeys for `Normal` and `Secure`.
+  * `80` MKeys for `FAAC`.

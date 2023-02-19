@@ -26,15 +26,18 @@ void benchmark::run(const CommandLineArgs& args, const BruteforceConfig& benchma
 
     printf("BENCHMARK BEGIN\n\nConfig is: Alphabet\n");
 #ifndef NO_INNER_LOOPS
-    printf("Num loops inside CUDA\t\t\t: %u (from cmd)\n", args.cuda_loops);
+    printf("Num loops inside CUDA                   : %u\n", args.cuda_loops);
 #endif // !NO_INNER_LOOPS
-    printf("Max Available CUDA Threads per block\t: %u\n"
-        "Max Available CUDA Blocks\t\t: %u\n"
-        "Num total calculations\t\t\t: %" PRIu64 " (Millions)\n"
-        "Learning (from cmd)\t\t\t: %s\n\n",
+    printf(
+        "Max Available CUDA Threads per block       : %u\n"
+        "Max Available CUDA Blocks                  : %u\n"
+        "Num total calculations                     : %" PRIu64 " (Millions)\n"
+        "Learning                                   : %s\n"
+        "Seed specified                             : %s\n\n",
         MaxCudaThreads, MaxCudaBlocks,
         (TargetCalculations / 1000000),
-        KeeloqLearningType::to_string(args.selected_learning).c_str());
+        KeeloqLearningType::to_string(args.selected_learning).c_str(),
+        (benchmarkConfig.start.seed() == 0 ? "false" : "true"));
 
 
     bool in_progress = true;
@@ -122,7 +125,7 @@ void benchmark::all(const CommandLineArgs& args)
     cudaDeviceProp prop;
     cudaGetDeviceProperties(&prop, 0);
 
-    std::vector<uint16_t> CudaBlocks  = { 128, 256, 512, 1024, 2048, 4096, 8196 };
+    std::vector<uint16_t> CudaBlocks  = { 256, 512, 1024, 2048, 4096, 8196 };
     std::vector<uint16_t> CudaThreads = { 128, 256, 512, 1024, 2048 };
 
     BruteforceConfig benchmarkConfig_no_seed = BruteforceConfig::GetAlphabet(Decryptor(0, 0), "0123456789abcdefgh"_b);
@@ -137,13 +140,19 @@ void benchmark::all(const CommandLineArgs& args)
     run(copy, benchmarkConfig_no_seed, CudaBlocks, CudaThreads);
 
     copy.selected_learning = { KeeloqLearningType::Simple };
-    run(copy, benchmarkConfig_wt_seed, CudaBlocks, CudaThreads);
+    run(copy, benchmarkConfig_no_seed, CudaBlocks, CudaThreads);
 
     copy.selected_learning = { KeeloqLearningType::Normal };
-    run(copy, benchmarkConfig_wt_seed, CudaBlocks, CudaThreads);
+    run(copy, benchmarkConfig_no_seed, CudaBlocks, CudaThreads);
 
     copy.selected_learning = { KeeloqLearningType::Secure };
     run(copy, benchmarkConfig_wt_seed, CudaBlocks, CudaThreads);
+
+    copy.selected_learning = { KeeloqLearningType::Faac };
+    run(copy, benchmarkConfig_wt_seed, CudaBlocks, CudaThreads);
+
+    copy.selected_learning = { KeeloqLearningType::Simple, KeeloqLearningType::Normal, KeeloqLearningType::Xor};
+    run(copy, benchmarkConfig_no_seed, CudaBlocks, CudaThreads);
 
 #ifndef NO_INNER_LOOPS
     copy.cuda_loops = 4;
