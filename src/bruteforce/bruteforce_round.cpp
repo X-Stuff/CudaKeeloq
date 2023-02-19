@@ -10,9 +10,9 @@
 #include <cuda_runtime_api.h>
 
 
-BruteforceRound::BruteforceRound(const std::vector<EncData>& data, const BruteforceConfig& gen, std::vector<KeeloqLearningType::Type> selected_learning,
+BruteforceRound::BruteforceRound(const std::vector<EncParcel>& enc, const BruteforceConfig& gen, std::vector<KeeloqLearningType::Type> selected_learning,
     uint32_t blocks, uint32_t threads, uint32_t iterations)
-    : encrypted_data(data)
+    : encrypted_data(enc)
 {
 #if NO_INNER_LOOPS
     iterations = 1;
@@ -80,7 +80,7 @@ size_t BruteforceRound::get_mem_size() const
 {
     assert(inited);
     return
-        encrypted_data.size() * sizeof(EncData) +
+        encrypted_data.size() * sizeof(EncParcel) +
         decryptors.size() * sizeof(Decryptor) +
         block_results.size() * sizeof(SingleResult);
 }
@@ -154,7 +154,7 @@ void BruteforceRound::alloc()
     // ALLOCATE ON GPU
     if (kernel_inputs.encdata == nullptr)
     {
-        kernel_inputs.encdata = CudaArray<EncData>::allocate(encrypted_data);
+        kernel_inputs.encdata = CudaArray<EncParcel>::allocate(encrypted_data);
     }
 
     if (kernel_inputs.decryptors == nullptr)

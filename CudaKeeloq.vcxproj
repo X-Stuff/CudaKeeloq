@@ -88,6 +88,7 @@
       <ExtensibleWholeProgramCompilation>false</ExtensibleWholeProgramCompilation>
       <NvccCompilation>compile</NvccCompilation>
       <Keep>false</Keep>
+      <AdditionalOptions>--std=c++17 %(AdditionalOptions)</AdditionalOptions>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -116,6 +117,7 @@
       <CodeGeneration>compute_80,sm_80</CodeGeneration>
       <GenerateLineInfo>false</GenerateLineInfo>
       <GPUDebugInfo>false</GPUDebugInfo>
+      <AdditionalOptions>--std=c++17 %(AdditionalOptions)</AdditionalOptions>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">
@@ -144,6 +146,7 @@
       <CodeGeneration>compute_80,sm_80</CodeGeneration>
       <GenerateLineInfo>true</GenerateLineInfo>
       <GPUDebugInfo>false</GPUDebugInfo>
+      <AdditionalOptions>--std=c++17 %(AdditionalOptions)</AdditionalOptions>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -168,10 +171,12 @@
     <ClInclude Include="src\device\cuda_context.h" />
     <ClInclude Include="src\device\cuda_double_array.h" />
     <ClInclude Include="src\device\cuda_object.h" />
+    <ClInclude Include="src\device\cuda_span.h" />
     <ClInclude Include="src\device\cuda_vector.h" />
     <ClInclude Include="src\host\command_line_args.h" />
     <ClInclude Include="src\host\console.h" />
     <ClInclude Include="src\host\host_utils.h" />
+    <ClInclude Include="src\host\timer.h" />
     <ClInclude Include="src\kernels\kernel_result.h" />
     <ClInclude Include="src\tests\test_console.h" />
     <ClInclude Include="src\tests\test_keeloq.h" />

@@ -16,9 +16,7 @@ __global__ void DEFINE_GENERATOR_KERNEL(GeneratorBruteforceSimple, KeeloqKernelI
 
 	CUDA_FOR_THREAD_ID(ctx, decryptor_index, decryptors.num)
 	{
-		Decryptor& decryptor = decryptors[decryptor_index];
-
-		decryptor.man = start.man + decryptor_index;
+		decryptors[decryptor_index] = Decryptor(start.man() + decryptor_index, start.seed());
 	}
 }
 

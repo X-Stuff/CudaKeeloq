@@ -19,7 +19,7 @@
 struct KeeloqKernelInput : TGenericGpuObject<KeeloqKernelInput>
 {
     // Constant per-run input data (captured encoded)
-    CudaArray<EncData>* encdata;
+    CudaArray<EncParcel>* encdata;
 
     // Single-run set of decryptors
     CudaArray<Decryptor>* decryptors;
@@ -37,7 +37,7 @@ struct KeeloqKernelInput : TGenericGpuObject<KeeloqKernelInput>
     {
     }
 
-    KeeloqKernelInput(CudaArray<EncData>* enc, CudaArray<Decryptor>* dec, CudaArray<SingleResult>* res, const BruteforceConfig& config)
+    KeeloqKernelInput(CudaArray<EncParcel>* enc, CudaArray<Decryptor>* dec, CudaArray<SingleResult>* res, const BruteforceConfig& config)
         : TGenericGpuObject<KeeloqKernelInput>(this), encdata(enc), decryptors(dec), results(res), learning_types(), config(config)
     {
         KeeloqLearningType::full_mask(learning_types);

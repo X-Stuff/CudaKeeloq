@@ -98,6 +98,12 @@
     <ClInclude Include="src\tests\test_console.h">
       <Filter>tests</Filter>
     </ClInclude>
+    <ClInclude Include="src\device\cuda_span.h">
+      <Filter>device</Filter>
+    </ClInclude>
+    <ClInclude Include="src\host\timer.h">
+      <Filter>host</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp" />

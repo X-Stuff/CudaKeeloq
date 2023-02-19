@@ -76,9 +76,6 @@ __device__ __host__ inline uint32_t keeloq_common_encrypt(const uint32_t data, c
     return x;
 }
 
-__device__ __host__ void keeloq_decrypt(uint64_t ota, uint64_t man, uint32_t seed, const KeeloqLearningMask type_mask, SingleResult::DecryptedArray& results);
-
-
 namespace keeloq
 {
 namespace kernels
@@ -93,6 +90,6 @@ __host__ KernelResult cuda_brute(KeeloqKernelInput & mainInputs, uint16_t Thread
 }
 
 // Get enrcypted OTA data for specific configuration with key and learning ( xor simple and normal supported )
-__host__ uint64_t GetOTA(uint64_t key, uint32_t serial, uint8_t button, uint16_t count, KeeloqLearningType::Type learning);
+__host__ EncParcel GetOTA(uint64_t key, uint32_t seed, uint32_t serial, uint8_t button, uint16_t count, KeeloqLearningType::Type learning);
 
 }

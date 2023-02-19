@@ -33,18 +33,18 @@ void SingleResult::DecryptedArray::print() const
 
 void SingleResult::print(bool onlymatch /* = true */) const
 {
-    printf("Results (Input: 0x%" PRIX64 " - Man key: 0x%" PRIX64 " )\n\n", ota, man);
+    printf("Results (Input: 0x%" PRIX64 " - Man key: 0x%" PRIX64 " )\n\n", encrypted.ota, decryptor.man());
 
     for (uint8_t i = 0; i < ResultsCount; ++i)
     {
         bool isMatch = match == i;
         if (!onlymatch)
         {
-            results.print(i, ota, isMatch);
+            decrypted.print(i, encrypted.ota, isMatch);
         }
         else if (isMatch)
         {
-            results.print(i, ota, isMatch);
+            decrypted.print(i, encrypted.ota, isMatch);
         }
     }
     printf("\n");

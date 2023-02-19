@@ -73,7 +73,9 @@ bool tests::filters_generation()
 
         constexpr auto NumToGenerate = 0xFFFFF;
 
-        auto testConfig = BruteforceConfig::GetBruteforce(0xAADEADBEEFA00000, NumToGenerate,
+        auto first_decryptor = Decryptor(0xAADEADBEEFA00000, 0);
+
+        auto testConfig = BruteforceConfig::GetBruteforce(first_decryptor, NumToGenerate,
             BruteforceFilters{
                 BruteforceFilters::Flags::All,     // SmartFilterFlags::AsciiAny;       //
                 BruteforceFilters::Flags::BytesIncremental | BruteforceFilters::Flags::BytesRepeat4,    // SmartFilterFlags::BytesRepeat4;   //
@@ -93,7 +95,7 @@ bool tests::filters_generation()
         for (size_t i = 0; !found && i < decryptors.size(); ++i)
         {
             // looking for exact code - check nothing missed
-            found |= decryptors.cpu()[i].man == 0xAADEADBEEFA63ED2;
+            found |= decryptors.cpu()[i].man() == 0xAADEADBEEFA63ED2;
         }
 
         assert(found);

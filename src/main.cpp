@@ -10,45 +10,55 @@
 
 #include "tests/test_all.h"
 
-
-CommandLineArgs debugTestCommandlineArgs()
+CommandLineArgs demoTestCommandlineArgs(int num_gen_input = 3)
 {
     constexpr uint64_t debugKey =  0xC0FFEE00DEAD6666;
 
-    uint64_t first = debugKey & 0xFFFFFFFFFF000000;
-    uint64_t count = 0xFFFFFF;
+#if _DEBUG
+    uint64_t first = debugKey & 0xFFFFFFFFFFC00000;
+#else
+    uint64_t first = debugKey & 0xFFFFFFFFF0000000;
+#endif
+    uint64_t count = 0xFFFFFFF;
 
+    Decryptor first_decryptor_ptrn(0, tests::keeloq::default_seed);
+    Decryptor first_decryptor_brtf(first, tests::keeloq::default_seed);
 
     CommandLineArgs cmd;
-    cmd.inputs = tests::keeloq::gen_inputs(debugKey);
+    cmd.inputs = tests::keeloq::gen_inputs<KeeloqLearningType::Faac>(debugKey, num_gen_input);
     cmd.alphabets.emplace_back(MultibaseDigit("abcdef"_b));
     cmd.alphabets.emplace_back(MultibaseDigit( { 0xC0, 0xFF, 0xEE, 0x00, 0xDE, 0xAD, 0x66 }));
 
     // Dictionary
-    cmd.brute_configs.emplace_back(BruteforceConfig::GetDictionary({ 666, debugKey - 1, debugKey, debugKey + 1 }));
+    cmd.brute_configs.emplace_back(BruteforceConfig::GetDictionary({
+        Decryptor(666, tests::keeloq::default_seed),
+        Decryptor(debugKey - 1, tests::keeloq::default_seed),
+        Decryptor(debugKey, tests::keeloq::default_seed),
+        Decryptor(debugKey + 1, tests::keeloq::default_seed)
+    }));
 
     // Alphabet
-    cmd.brute_configs.emplace_back(BruteforceConfig::GetAlphabet(0, cmd.alphabets[1]));
-    cmd.brute_configs.emplace_back(BruteforceConfig::GetAlphabet(0, cmd.alphabets[0]));
+    cmd.brute_configs.emplace_back(BruteforceConfig::GetAlphabet(first_decryptor_ptrn, cmd.alphabets[1]));
+    cmd.brute_configs.emplace_back(BruteforceConfig::GetAlphabet(first_decryptor_ptrn, cmd.alphabets[0]));
 
-    // Pattern
-    cmd.brute_configs.emplace_back(BruteforceConfig::GetPattern(0, BruteforcePattern(
+    // Pattern (reversed)
+    cmd.brute_configs.emplace_back(BruteforceConfig::GetPattern(first_decryptor_ptrn, BruteforcePattern(
         {
             BruteforcePattern::ParseBytes("c0|c1|c2|c3"),
             BruteforcePattern::ParseBytes("F0-FF"),
             BruteforcePattern::ParseBytes("E0-EF"),
             BruteforcePattern::ParseBytes("00-99"),
-            { 0xDE, 0xED },
-            { 0xAD, 0xDA },
+            { 0xED, 0xDE },
+            { 0xDA, 0xAD },
             { 0x11, 0x22, 0x33, 0x44, 0x55, 0x66 },
             { 0x11, 0x22, 0x33, 0x44, 0x55, 0x66 }
         }, "N/A")));
 
     // Simple
-    cmd.brute_configs.emplace_back(BruteforceConfig::GetBruteforce(first, count));
+    cmd.brute_configs.emplace_back(BruteforceConfig::GetBruteforce(first_decryptor_brtf, count));
 
     // Filters
-    cmd.brute_configs.emplace_back(BruteforceConfig::GetBruteforce(first, count, BruteforceFilters
+    cmd.brute_configs.emplace_back(BruteforceConfig::GetBruteforce(first_decryptor_brtf, count, BruteforceFilters
         {
             // Include only
             BruteforceFilters::Flags::All,
@@ -66,7 +76,7 @@ CommandLineArgs debugTestCommandlineArgs()
 #if _DEBUG
     cmd.init_cuda(512, 0, 1);
 #else
-    cmd.init_cuda(8196, 0, 1);
+    cmd.init_cuda(4096, 0, 1);
 #endif
 
     return cmd;
@@ -143,12 +153,12 @@ void bruteforce(const CommandLineArgs& args)
 
                 console_cursor_ret_up(2);
 
-                printf("[%c][%zd/%zd]\t %" PRIu64 "(ms)/batch Speed: %" PRIu64 " KKeys/s\tLast key:0x%" PRIX64 " (%u)\n",
+                printf("[%c][%zd/%zd]    %" PRIu64 "(ms)/batch Speed: %" PRIu64 " KKeys/s   Last key:0x%" PRIX64 " (%u)         \n",
                     WAIT_CHAR(batch),
                     batch, batchesInRound,
                     duration.count(),
                     kilo_result_per_second,
-                    kernelInput.config.last.man, kernelInput.config.last.seed);
+                    kernelInput.config.last.man(), kernelInput.config.last.seed());
 
                 auto overall = std::chrono::duration_cast<std::chrono::seconds>(
                     std::chrono::system_clock::now() - roundStartTime);
@@ -180,46 +190,52 @@ int main(int argc, const char** argv)
         return 1;
     }
 
-    console_set_width(CONSOLE_WIDTH);
+    // Be default if no arguments specified - launch demo mode
+    bool demo_mode = argc <= 1;
+    auto args = demo_mode ? demoTestCommandlineArgs() : CommandLineArgs::parse(argc, argv);
 
-    auto args = argc > 1 ? console::parse_command_line(argc, argv) : debugTestCommandlineArgs();
+    bool had_tests = args.run_bench || args.run_tests;
 
-    bool should_bruteforce = args.run_bench || args.run_tests;
-
-    if (should_bruteforce)
+    if (args.run_tests)
     {
-        if (args.run_tests)
-        {
-            printf("\n...RUNNING TESTS...\n");
-            tests::console::run();
+        printf("\n...RUNNING TESTS...\n");
+        tests::console::run();
 
-            tests::pattern_generation();
-            tests::alphabet_generation();
-            tests::filters_generation();
+        tests::pattern_generation();
+        tests::alphabet_generation();
+        tests::filters_generation();
 
-            printf("\n...TESTS FINISHED...\n");
-        }
-
-        if (args.run_bench)
-        {
-            benchmark::all(args);
-        }
+        printf("\n...TESTS FINISHED...\n");
     }
-    else
+
+    if (args.run_bench)
     {
-        if (args.can_bruteforce())
+        benchmark::all(args);
+    }
+
+    if (args.can_bruteforce())
+    {
+        if (demo_mode)
         {
-            bruteforce(args);
-        }
-        else
-        {
-            printf("\nNot enough arguments for bruteforce\n");
-            return 1;
+            printf(R"(
+                     ___                   __  ___        __
+                    / _ \___ __ _  ___    /  |/  /__  ___/ /__
+                   / // / -_)  ' \/ _ \  / /|_/ / _ \/ _  / -_)
+                  /____/\__/_/_/_/\___/ /_/  /_/\___/\_,_/\__/
+
+                )");
         }
 
-        // this will free all memory as well
-        cudaDeviceReset();
+        bruteforce(args);
     }
+    else if (!had_tests)
+    {
+        printf("\nNot enough arguments for bruteforce\n");
+        return 1;
+    }
+
+    // this will free all memory as well
+    cudaDeviceReset();
 
     console::set_cursor_state(true);
     return 0;

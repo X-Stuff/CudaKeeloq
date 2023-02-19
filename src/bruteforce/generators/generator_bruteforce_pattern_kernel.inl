@@ -21,11 +21,13 @@ __global__ void DEFINE_GENERATOR_KERNEL(GeneratorBruteforcePattern, KeeloqKernel
 	// bytes in the key show how much ring is rotated
 	// and what 'letter' it should have.
 	// Or also it can be considered as 8-digit N-based number
-	MultibaseNumber start = pattern.init(input->config.start.man);
+	MultibaseNumber start = pattern.init(input->config.start.man());
+
+    const uint32_t seed = input->config.start.seed();
 
 	CUDA_FOR_THREAD_ID(ctx, decryptor_index, decryptors.num)
 	{
-		decryptors[decryptor_index].man = pattern.next(start, decryptor_index).number();
+        decryptors[decryptor_index] = Decryptor(pattern.next(start, decryptor_index).number(), seed);
 	}
 }
 
