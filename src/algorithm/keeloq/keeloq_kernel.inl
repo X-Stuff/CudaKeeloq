@@ -96,6 +96,7 @@ __device__ uint8_t is_cnt_match(const Span<SingleResult>& results, KeeloqLearnin
     uint32_t expected_cnt = results[0].decrypted.cnt(learning_type);
     uint32_t lrn_matches = 1;
 
+    UNROLL
     for (uint8_t item = 1; item < NumInputs; ++item)
     {
         uint32_t cnt = results[item].decrypted.cnt(learning_type);
@@ -156,17 +157,17 @@ __device__ KeeloqLearningType::Type get_match_learning(const Span<SingleResult>&
                 is_btn_match<NumInputs>(results, lrn) &&
                 is_cnt_match<NumInputs>(results, lrn);
 
-        #if _DEBUG
-            if (match_count > 0 && has_match)
-            {
-                auto ctx = CudaContext::Get();
-                printf("get_match_learning(): %u, detected multiple match. Prev learning: %d Now learning: %d. Man: 0x%llX Inputs:[ 0x%llX; 0x%llX; 0x%llX]\n",
-                    ctx.thread_id,
-                    match_learning_type, lrn,
-                    results[0].decryptor.man,
-                    results[0].encrypted.ota, results[1].encrypted.ota, results[2].encrypted.ota);
-            }
-        #endif
+    #if _DEBUG
+        if (match_count > 0 && has_match)
+        {
+            auto ctx = CudaContext::Get();
+            printf("get_match_learning(): %u, detected multiple match. Prev learning: %d Now learning: %d. Man: 0x%llX Inputs:[ 0x%llX; 0x%llX; 0x%llX]\n",
+                ctx.thread_id,
+                match_learning_type, lrn,
+                results[0].decryptor.man,
+                results[0].encrypted.ota, results[1].encrypted.ota, results[2].encrypted.ota);
+        }
+    #endif
 
             match_count += has_match;
             match_learning_type = (has_match * lrn + !has_match * match_learning_type);
@@ -335,16 +336,12 @@ __device__ __host__ inline void keeloq_decrypt_all(uint32_t data, uint32_t fix, 
     {
         if ((AllLearnings && seed != 0) || type_mask[KeeloqLearningType::Secure])
         {
-            assert(seed != 0);
-
             n_key = keeloq_common_secure_learning(fix, seed, key);
             decrypted.data[KeeloqLearningType::Secure] = keeloq_common_decrypt(data, n_key);
         }
 
         if ((AllLearnings && seed != 0) || type_mask[KeeloqLearningType::Secure_Rev])
         {
-            assert(seed != 0);
-
             n_key = keeloq_common_secure_learning(fix, seed, key_rev);
             decrypted.data[KeeloqLearningType::Secure_Rev] = keeloq_common_decrypt(data, n_key);
         }
@@ -369,16 +366,12 @@ __device__ __host__ inline void keeloq_decrypt_all(uint32_t data, uint32_t fix, 
     {
         if ((AllLearnings && seed != 0) || type_mask[KeeloqLearningType::Faac])
         {
-            assert(seed != 0);
-
             n_key = keeloq_common_faac_learning(seed, key);
             decrypted.data[KeeloqLearningType::Faac] = keeloq_common_decrypt(data, n_key);
         }
 
         if ((AllLearnings && seed != 0) || type_mask[KeeloqLearningType::Faac_Rev])
         {
-            assert(seed != 0);
-
             n_key = keeloq_common_faac_learning(seed, key_rev);
             decrypted.data[KeeloqLearningType::Faac_Rev] = keeloq_common_decrypt(data, n_key);
         }
@@ -499,18 +492,17 @@ template<uint8_t NumInputs>
 __device__ uint8_t inline keeloq_analyze_results(const CudaContext& ctx, const CudaArray<SingleResult>& all_results, const KeeloqKernelInput::TCudaPtr KernelInputs)
 {
     uint8_t num_matches = 0;
-    uint32_t num_encrypted = KernelInputs->encdata->num;
 
     // outer loop for thread decryptor
     KEELOQ_INNER_LOOP(ctx, decryptor_index, KernelInputs->decryptors->num)
     {
-        if (NumInputs == 1)
+        if constexpr (NumInputs == 1)
         {
             num_matches += (all_results[decryptor_index].match != KeeloqLearningType::INVALID);
         }
         else
         {
-            const SingleResult* decryptor_results = &all_results[decryptor_index * num_encrypted];
+            const SingleResult* decryptor_results = &all_results[decryptor_index * KernelInputs->encdata->num];
 
             // inner loop for each result of this decryptor
             UNROLL
