@@ -13,31 +13,41 @@
  */
 struct Decryptor
 {
-	uint64_t man;
+    Decryptor() = default;
 
-    uint32_t seed;
-
-	Decryptor() = default;
-	Decryptor(uint64_t key, uint32_t s = 0) : man(key), seed(s), man_rev(misc::rev_bytes(man)) {}
+    __host__ __device__ Decryptor(uint64_t k, uint32_t s) : key(k), key_seed(s), key_rev(misc::rev_bytes(key)) {}
 
 	__host__ __device__ inline bool operator==(const Decryptor& other)
 	{
-		return man == other.man && seed == other.seed;
+		return key == other.key && key_seed == other.key_seed;
 	}
 
 	__host__ __device__ inline bool operator<(const Decryptor& other)
 	{
-		return man < other.man;
+		return key < other.key;
 	}
 
+    // Get manufacturer key
+    __host__ __device__ inline uint64_t man() const { return key; }
+
+    // Get seed
+    __host__ __device__ inline uint32_t seed() const { return key_seed; }
+
     // Get byte-reversed manufacturer key
-    __host__ __device__ inline uint64_t nam() const { return man_rev; }
+    __host__ __device__ inline uint64_t nam() const { return key_rev; }
 
     // If decryptor was initialized properly
-    __host__ __device__ inline bool is_valid() const { return man != 0; }
+    __host__ __device__ inline bool is_valid() const { return key != 0; }
 
-private:
+protected:
+
+    // manufacturer key
+    uint64_t key;
+
+    // seed (for special learning types only)
+    uint32_t key_seed;
 
     // reversed manufacturer key
-    uint64_t man_rev;
+    uint64_t key_rev;
+
 };

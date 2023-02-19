@@ -19,6 +19,9 @@
 
 std::vector<Decryptor> host::utils::read_word_dictionary_file(const char* file)
 {
+    // TODO: Support as <key>:<seed>
+    constexpr uint32_t SEED_UNSUPPORTED = 0;
+
     std::vector<Decryptor> results;
 
     if (FILE* file_dict = fopen(file, "r"))
@@ -36,7 +39,7 @@ std::vector<Decryptor> host::utils::read_word_dictionary_file(const char* file)
 
             if (auto key = strtoull(line, nullptr, base))
             {
-                results.push_back(key);
+                results.push_back(Decryptor(key, SEED_UNSUPPORTED));
             }
             else
             {
@@ -52,6 +55,9 @@ std::vector<Decryptor> host::utils::read_word_dictionary_file(const char* file)
 
 std::vector<Decryptor> host::utils::read_binary_dictionary_file(const char* file, uint8_t mode)
 {
+    // TODO: Support as... no idea
+    constexpr uint32_t SEED_UNSUPPORTED = 0;
+
     std::vector<Decryptor> decryptors;
 
     if (FILE* bin_file = fopen(file, "rb"))
@@ -63,11 +69,13 @@ std::vector<Decryptor> host::utils::read_binary_dictionary_file(const char* file
             uint64_t reversed = *(uint64_t*)key;
             uint64_t as_is = bswap_64(reversed);
 
-            decryptors.push_back(mode == 0 ? as_is : reversed);
+            uint64_t key = mode == 0 ? as_is : reversed;
+
+            decryptors.push_back(Decryptor(key, SEED_UNSUPPORTED));
             if (mode == 2)
             {
                 // reversed already added above
-                decryptors.push_back(as_is);
+                decryptors.push_back(Decryptor(as_is, SEED_UNSUPPORTED));
             }
         }
 

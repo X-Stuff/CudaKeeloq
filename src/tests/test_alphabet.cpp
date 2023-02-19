@@ -14,7 +14,7 @@ bool tests::alphabet_generation()
     constexpr auto NumBlocks = 64;
     constexpr auto NumThreads = 64;
 
-    auto testConfig = BruteforceConfig::GetAlphabet(0x0, "abcd"_b, 0xFFFFFFFF);
+    auto testConfig = BruteforceConfig::GetAlphabet(Decryptor(0,0), "abcd"_b, 0xFFFFFFFF);
 
     CudaVector<Decryptor> decryptors(NumBlocks * NumThreads);
 
@@ -26,12 +26,12 @@ bool tests::alphabet_generation()
 
         decryptors.read();
 
-        assert((decryptors.cpu()[0].man & 0x0000FFFFFFFFFFFF) == 0x616161616161);
+        assert((decryptors.cpu()[0].man() & 0x0000FFFFFFFFFFFF) == 0x616161616161);
 
         generatorInputs.NextDecryptor();
     }
 
-    assert(decryptors.cpu()[4095].man == 0x6464646464646464);
+    assert(decryptors.cpu()[4095].man() == 0x6464646464646464);
 
     return true;
 }

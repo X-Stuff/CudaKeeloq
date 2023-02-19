@@ -83,6 +83,26 @@ namespace
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+namespace debug
+{
+// Some problems with printf - looks like silently hit instruction limit
+__device__ __noinline__ void assert_single_match_count(uint8_t match_count, bool has_match, KeeloqLearningType::Type curr, KeeloqLearningType::Type newone,
+    const Span<SingleResult>& results)
+{
+    if (match_count > 0 && has_match)
+    {
+        auto ctx = CudaContext::Get();
+        printf("get_match_learning(): %u, detected multiple match. Prev learning: %d Now learning: %d. Man: 0x%llX Inputs:[ 0x%llX; 0x%llX; 0x%llX]\n",
+            ctx.thread_id,
+            curr, newone,
+            results[0].decryptor.man(),
+            results[0].encrypted.ota, results[1].encrypted.ota, results[2].encrypted.ota);
+    }
+}
+}
+
+
 namespace
 {
 
@@ -157,17 +177,9 @@ __device__ KeeloqLearningType::Type get_match_learning(const Span<SingleResult>&
                 is_btn_match<NumInputs>(results, lrn) &&
                 is_cnt_match<NumInputs>(results, lrn);
 
-    #if _DEBUG
-        if (match_count > 0 && has_match)
-        {
-            auto ctx = CudaContext::Get();
-            printf("get_match_learning(): %u, detected multiple match. Prev learning: %d Now learning: %d. Man: 0x%llX Inputs:[ 0x%llX; 0x%llX; 0x%llX]\n",
-                ctx.thread_id,
-                match_learning_type, lrn,
-                results[0].decryptor.man,
-                results[0].encrypted.ota, results[1].encrypted.ota, results[2].encrypted.ota);
-        }
-    #endif
+        #if _DEBUG
+            debug::assert_single_match_count(match_count, has_match, match_learning_type, lrn, results);
+        #endif
 
             match_count += has_match;
             match_learning_type = (has_match * lrn + !has_match * match_learning_type);
@@ -232,10 +244,10 @@ namespace
 template<KeeloqLearningType::Type type>
 __device__ __host__ inline uint32_t keeloq_decrypt_single(uint32_t data, uint32_t fix, const Decryptor& decryptor)
 {
-    uint64_t key = decryptor.man;
+    uint64_t key = decryptor.man();
     uint64_t key_rev = decryptor.nam();
     uint64_t n_key = 0;
-    uint32_t seed = decryptor.seed;
+    uint32_t seed = decryptor.seed();
 
     switch (type)
     {
@@ -300,10 +312,10 @@ template<bool AllLearnings>
 __device__ __host__ inline void keeloq_decrypt_all(uint32_t data, uint32_t fix, const Decryptor& decryptor,
     const KeeloqLearningType::Type type_mask[], SingleResult::DecryptedArray& decrypted)
 {
-    uint64_t key = decryptor.man;
+    uint64_t key = decryptor.man();
     uint64_t key_rev = decryptor.nam();
     uint64_t n_key = 0;
-    uint32_t seed = decryptor.seed;
+    uint32_t seed = decryptor.seed();
 
     // Simple Learning
     {
@@ -471,7 +483,6 @@ __device__ uint8_t inline keeloq_decryption_run(const CudaContext& ctx, KeeloqKe
                 result.match = KeeloqLearningType::INVALID;
 
                 result.decryptor = decryptor;
-                result.decryptor.seed = enc_index;
                 result.encrypted = encrypted[enc_index];
 
                 keeloq_decrypt<AllLearnings>(result.encrypted, decryptor, input.learning_types, result.decrypted);
@@ -516,6 +527,25 @@ __device__ uint8_t inline keeloq_analyze_results(const CudaContext& ctx, const C
     return num_matches;
 }
 
+
+template <uint8_t NumInputs>
+__device__ void Kernel_keeloq_main(KeeloqKernelInput::TCudaPtr KernelInputs, KernelResult::TCudaPtr ret)
+{
+    CudaContext ctx = CudaContext::Get();
+    auto& results = *KernelInputs->results;
+
+    bool all_learnings = KeeloqLearningType::AllEnabled(KernelInputs->learning_types);
+
+    uint8_t num_errors = all_learnings ?
+        keeloq_decryption_run<NumInputs, EveryLearning>(ctx, *KernelInputs) :
+        keeloq_decryption_run<NumInputs, MaskLearnings>(ctx, *KernelInputs);
+
+    uint8_t num_matches = keeloq_analyze_results<NumInputs>(ctx, results, KernelInputs);
+
+    atomicAdd(&ret->error, num_errors);
+    atomicAdd(&ret->value, num_matches);
+}
+
 }
 
 
@@ -543,24 +573,20 @@ __global__ void Kernel_keeloq_test(KernelResult::TCudaPtr ret)
 }
 
 
-template <uint8_t NumInputs>
-__device__ void Kernel_keeloq_main(KeeloqKernelInput::TCudaPtr KernelInputs, KernelResult::TCudaPtr ret)
+__global__ void Kenrel_keeloq_single_check(uint64_t ota, uint64_t man, uint32_t seed, KeeloqLearningType::Type learning, KernelResult::TCudaPtr ret)
 {
-    CudaContext ctx = CudaContext::Get();
-    auto& results = *KernelInputs->results;
+    SingleResult::DecryptedArray decrypted;
 
-    bool all_learnings = KeeloqLearningType::AllEnabled(KernelInputs->learning_types);
+    EncParcel enc(ota);
+    Decryptor decryptor(man, seed);
+    KeeloqAllLearningsMask all;
 
-    uint8_t num_errors = all_learnings ?
-        keeloq_decryption_run<NumInputs, EveryLearning>(ctx, *KernelInputs) :
-        keeloq_decryption_run<NumInputs, MaskLearnings>(ctx, *KernelInputs);
+    // printf("OTA: 0x%llX. Man: 0x%llX, seed: %u, learning: %d\n", ota, man, seed, learning);
 
-    uint8_t num_matches = keeloq_analyze_results<NumInputs>(ctx, results, KernelInputs);
+    keeloq_decrypt<EveryLearning>(enc, decryptor, all.mask, decrypted);
 
-    atomicAdd(&ret->error, num_errors);
-    atomicAdd(&ret->value, num_matches);
+    ret->value = decrypted.data[learning];
 }
-
 
 // Main kernel for keeloq decryptions if provided several enc parcels
 __global__ void Kernel_keeloq_main_multi(KeeloqKernelInput::TCudaPtr KernelInputs, KernelResult::TCudaPtr ret)
@@ -614,7 +640,7 @@ __host__ bool keeloq::kernels::cuda_is_working()
 }
 
 
-__host__ EncParcel keeloq::GetOTA(uint64_t key, uint32_t serial, uint8_t button, uint16_t count, KeeloqLearningType::Type learning)
+__host__ EncParcel keeloq::GetOTA(uint64_t key, uint32_t seed, uint32_t serial, uint8_t button, uint16_t count, KeeloqLearningType::Type learning)
 {
     serial &= 0x0FFFFFFF;
 
@@ -631,6 +657,9 @@ __host__ EncParcel keeloq::GetOTA(uint64_t key, uint32_t serial, uint8_t button,
     case KeeloqLearningType::Xor:
         n_key = keeloq_common_magic_xor_type1_learning(serial, key);
         break;
+    case KeeloqLearningType::Faac:
+        n_key = keeloq_common_faac_learning(seed, key);
+        break;
     default:
         break;
     }
@@ -640,11 +669,29 @@ __host__ EncParcel keeloq::GetOTA(uint64_t key, uint32_t serial, uint8_t button,
 
 #if _DEBUG
     SingleResult::DecryptedArray results;
-    uint8_t mask[KeeloqLearningType::ALL] = {0};
+    uint8_t mask[KeeloqLearningType::ALL] = { 0 };
     mask[learning] = 1;
+    mask[learning + 1] = 1; // rev as well
 
-    keeloq_decrypt<true>(encrypted, Decryptor(key, 0), mask, results);
+    Decryptor fwd_dec(key, seed);
+    Decryptor rev_dec(fwd_dec.nam(), seed);
+
+    // CPU
+    keeloq_decrypt<MaskLearnings>(encrypted, fwd_dec, mask, results);
     assert(results.data[learning] == unencrypted);
+
+    keeloq_decrypt<MaskLearnings>(encrypted, rev_dec, mask, results);
+    assert(results.data[learning + 1] == unencrypted);
+
+    // GPU
+    KernelResult kernel_results;
+    Kenrel_keeloq_single_check<<<1, 1 >>>(encrypted, fwd_dec.man(), fwd_dec.seed(), learning, kernel_results.ptr());
+    kernel_results.read();
+    assert(kernel_results.value == unencrypted);
+
+    Kenrel_keeloq_single_check<<<1, 1 >>>(encrypted, rev_dec.man(), rev_dec.seed(), learning + 1, kernel_results.ptr());
+    kernel_results.read();
+    assert(kernel_results.value == unencrypted);
 #endif
 
     return encrypted;

@@ -42,6 +42,7 @@ constexpr char WAIT_SPIN[] = "|/-\\";
 #define ARG_BINDICT "bin-dict"
 #define ARG_BINDMODE "bin-dict-mode"
 #define ARG_START "start"
+#define ARG_SEED "seed"
 #define ARG_COUNT "count"
 #define ARG_ALPHABET "alphabet"
 #define ARG_PATTERN "pattern"

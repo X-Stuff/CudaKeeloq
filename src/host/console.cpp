@@ -94,7 +94,7 @@ inline void parse_dictionary_mode(CommandLineArgs& target, cxxopts::ParseResult&
             }
             else if (auto key = strtoull(dict_arg.c_str(), nullptr, 16))
             {
-                decryptors.push_back(key);
+                decryptors.push_back(Decryptor(key, 0));
             }
             else
             {
@@ -136,14 +136,20 @@ inline void parse_dictionary_mode(CommandLineArgs& target, cxxopts::ParseResult&
 inline void parse_bruteforce_mode(CommandLineArgs& target, cxxopts::ParseResult& result)
 {
     auto start_key = result[ARG_START].as<uint64_t>();
+    auto seed = result[ARG_SEED].as<uint32_t>();
+    Decryptor first_decryptor(start_key, seed);
+
     auto count_key = result[ARG_COUNT].as<size_t>();
 
-    target.brute_configs.push_back(BruteforceConfig::GetBruteforce(start_key, count_key));
+    target.brute_configs.push_back(BruteforceConfig::GetBruteforce(first_decryptor, count_key));
 }
 
 inline void parse_bruteforce_filtered_mode(CommandLineArgs& target, cxxopts::ParseResult& result)
 {
     auto start_key = result[ARG_START].as<uint64_t>();
+    auto seed = result[ARG_SEED].as<uint32_t>();
+    Decryptor first_decryptor(start_key, seed);
+
     auto count_key = result[ARG_COUNT].as<size_t>();
 
     auto include_filter = result[ARG_IFILTER].as<BruteforceFilters::Flags::Type>();
@@ -155,23 +161,29 @@ inline void parse_bruteforce_filtered_mode(CommandLineArgs& target, cxxopts::Par
         exclude_filter,
     };
 
-    target.brute_configs.push_back(BruteforceConfig::GetBruteforce(start_key, count_key, filters));
+    target.brute_configs.push_back(BruteforceConfig::GetBruteforce(first_decryptor, count_key, filters));
 }
 
 inline void parse_alphabet_mode(CommandLineArgs& target, cxxopts::ParseResult& result)
 {
     auto start_key = result[ARG_START].as<uint64_t>();
+    auto seed = result[ARG_SEED].as<uint32_t>();
+    Decryptor first_decryptor(start_key, seed);
+
     auto count_key = result[ARG_COUNT].as<size_t>();
 
     for (const auto& alphabet : target.alphabets)
     {
-        target.brute_configs.push_back(BruteforceConfig::GetAlphabet(start_key, alphabet, count_key));
+        target.brute_configs.push_back(BruteforceConfig::GetAlphabet(first_decryptor, alphabet, count_key));
     }
 }
 
 inline void parse_pattern_mode(CommandLineArgs& target, cxxopts::ParseResult& result)
 {
     auto start_key = result[ARG_START].as<uint64_t>();
+    auto seed = result[ARG_SEED].as<uint32_t>();
+    Decryptor first_decryptor(start_key, seed);
+
     auto count_key = result[ARG_COUNT].as<size_t>();
 
     const auto& args = result[ARG_PATTERN].as<std::vector<std::string>>();
@@ -249,7 +261,7 @@ inline void parse_pattern_mode(CommandLineArgs& target, cxxopts::ParseResult& re
         std::reverse(result.begin(), result.end());
 
         // Add pattern attack to config
-        target.brute_configs.push_back(BruteforceConfig::GetPattern(start_key, BruteforcePattern(std::move(result), pattern_arg), count_key));
+        target.brute_configs.push_back(BruteforceConfig::GetPattern(first_decryptor, BruteforcePattern(std::move(result), pattern_arg), count_key));
     }
 }
 
@@ -327,12 +339,14 @@ CommandLineArgs console::parse_command_line(int argc, const char** argv)
             cxxopts::value<std::vector<std::string>>(), "[f1,w1,...]")
         (ARG_BINDICT, "Binary dictionary file(s) - each 8 bytes of the file will be used as key (do not check duplicates or zeros)",
             cxxopts::value<std::vector<std::string>>(), "[b1,b2,...]")
-        (ARG_BINDMODE, "Byteorder mode for binary dictionary. 0 - as is. 1 - reverse, 2 - add both",
+        (ARG_BINDMODE, "Byte order mode for binary dictionary. 0 - as is. 1 - reverse, 2 - add both",
             cxxopts::value<uint8_t>()->default_value("0"), "mode")
 
         // Common (Bruteforce, Alphabet) - set start and end of execution
         (ARG_START, "The first key value which will be used for selected mode(s)",
             cxxopts::value<std::uint64_t>()->default_value("0"), "first")
+        (ARG_SEED, "The seed which is used for bruteforce. If you specify it, most probably you need to check seed-only learning types (SECURE, FAAC)",
+            cxxopts::value<std::uint64_t>()->default_value("0"), "seed")
         (ARG_COUNT, "How many keys selected mode(s) should check.",
             cxxopts::value<std::uint64_t>()->default_value("0xFFFFFFFFFFFFFFFF"), "len")
 

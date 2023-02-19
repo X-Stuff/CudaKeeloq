@@ -13,7 +13,7 @@
 #include "tests/test_keeloq.h"
 
 
-void benchmark::run(const CommandLineArgs& args)
+void benchmark::run(const CommandLineArgs& args, const BruteforceConfig& benchmarkConfig, const std::vector<uint16_t>& CudaBlocks, const std::vector<uint16_t>& CudaThreads)
 {
 #if _DEBUG
     constexpr size_t TargetCalculations = 10000000;
@@ -21,13 +21,8 @@ void benchmark::run(const CommandLineArgs& args)
     constexpr size_t TargetCalculations = 100000000;
 #endif
 
-    constexpr uint16_t CudaBlocks[] = { 128, 256, 512, 1024, 2048, 4096, 8196 };
-    constexpr uint16_t CudaThreads[] = { 128, 256, 512, 1024, 2048 };
-
     static const uint32_t MaxCudaThreads = CommandLineArgs::max_cuda_threads();
     static const uint32_t MaxCudaBlocks = CommandLineArgs::max_cuda_blocks();
-
-    BruteforceConfig benchmarkConfig = BruteforceConfig::GetAlphabet(0, "0123456789abcdefgh"_b);
 
     printf("BENCHMARK BEGIN\n\nConfig is: Alphabet\n");
 #ifndef NO_INNER_LOOPS
@@ -124,18 +119,34 @@ void benchmark::run(const CommandLineArgs& args)
 
 void benchmark::all(const CommandLineArgs& args)
 {
+    cudaDeviceProp prop;
+    cudaGetDeviceProperties(&prop, 0);
+
+    std::vector<uint16_t> CudaBlocks  = { 128, 256, 512, 1024, 2048, 4096, 8196 };
+    std::vector<uint16_t> CudaThreads = { 128, 256, 512, 1024, 2048 };
+
+    BruteforceConfig benchmarkConfig_no_seed = BruteforceConfig::GetAlphabet(Decryptor(0, 0), "0123456789abcdefgh"_b);
+    BruteforceConfig benchmarkConfig_wt_seed = BruteforceConfig::GetAlphabet(Decryptor(0, 1234567), "0123456789abcdefgh"_b);
+
     console_clear();
     CommandLineArgs copy = args;
     copy.inputs = tests::keeloq::gen_inputs(0xFF123FF3434FFFFF);
 
     copy.selected_learning = {};
-    run(copy);
+    run(copy, benchmarkConfig_wt_seed, CudaBlocks, CudaThreads);
+    run(copy, benchmarkConfig_no_seed, CudaBlocks, CudaThreads);
 
     copy.selected_learning = { KeeloqLearningType::Simple };
-    run(copy);
+    run(copy, benchmarkConfig_wt_seed, CudaBlocks, CudaThreads);
+
+    copy.selected_learning = { KeeloqLearningType::Normal };
+    run(copy, benchmarkConfig_wt_seed, CudaBlocks, CudaThreads);
+
+    copy.selected_learning = { KeeloqLearningType::Secure };
+    run(copy, benchmarkConfig_wt_seed, CudaBlocks, CudaThreads);
 
 #ifndef NO_INNER_LOOPS
     copy.cuda_loops = 4;
-    run(copy);
+    run(copy, CudaBlocks, CudaThreads);
 #endif
 }

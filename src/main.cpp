@@ -22,37 +22,45 @@ CommandLineArgs debugTestCommandlineArgs(int num_gen_input = 3)
 #endif
     uint64_t count = 0xFFFFFFF;
 
+    Decryptor first_decryptor_ptrn(0, tests::keeloq::default_seed);
+    Decryptor first_decryptor_brtf(first, tests::keeloq::default_seed);
+
 
     CommandLineArgs cmd;
-    cmd.inputs = tests::keeloq::gen_inputs(debugKey, num_gen_input);
+    cmd.inputs = tests::keeloq::gen_inputs<KeeloqLearningType::Faac>(debugKey, num_gen_input);
     cmd.alphabets.emplace_back(MultibaseDigit("abcdef"_b));
     cmd.alphabets.emplace_back(MultibaseDigit( { 0xC0, 0xFF, 0xEE, 0x00, 0xDE, 0xAD, 0x66 }));
 
     // Dictionary
-    cmd.brute_configs.emplace_back(BruteforceConfig::GetDictionary({ 666, debugKey - 1, debugKey, debugKey + 1 }));
+    cmd.brute_configs.emplace_back(BruteforceConfig::GetDictionary({
+        Decryptor(666, tests::keeloq::default_seed),
+        Decryptor(debugKey - 1, tests::keeloq::default_seed),
+        Decryptor(debugKey, tests::keeloq::default_seed),
+        Decryptor(debugKey + 1, tests::keeloq::default_seed)
+    }));
 
     // Alphabet
-    cmd.brute_configs.emplace_back(BruteforceConfig::GetAlphabet(0, cmd.alphabets[1]));
-    cmd.brute_configs.emplace_back(BruteforceConfig::GetAlphabet(0, cmd.alphabets[0]));
+    cmd.brute_configs.emplace_back(BruteforceConfig::GetAlphabet(first_decryptor_ptrn, cmd.alphabets[1]));
+    cmd.brute_configs.emplace_back(BruteforceConfig::GetAlphabet(first_decryptor_ptrn, cmd.alphabets[0]));
 
     // Pattern
-    cmd.brute_configs.emplace_back(BruteforceConfig::GetPattern(0, BruteforcePattern(
+    cmd.brute_configs.emplace_back(BruteforceConfig::GetPattern(first_decryptor_ptrn, BruteforcePattern(
         {
             BruteforcePattern::ParseBytes("c0|c1|c2|c3"),
             BruteforcePattern::ParseBytes("F0-FF"),
             BruteforcePattern::ParseBytes("E0-EF"),
             BruteforcePattern::ParseBytes("00-99"),
-            { 0xDE, 0xED },
-            { 0xAD, 0xDA },
+            { 0xED, 0xDE },
+            { 0xDA, 0xAD },
             { 0x11, 0x22, 0x33, 0x44, 0x55, 0x66 },
             { 0x11, 0x22, 0x33, 0x44, 0x55, 0x66 }
         }, "N/A")));
 
     // Simple
-    cmd.brute_configs.emplace_back(BruteforceConfig::GetBruteforce(first, count));
+    cmd.brute_configs.emplace_back(BruteforceConfig::GetBruteforce(first_decryptor_brtf, count));
 
     // Filters
-    cmd.brute_configs.emplace_back(BruteforceConfig::GetBruteforce(first, count, BruteforceFilters
+    cmd.brute_configs.emplace_back(BruteforceConfig::GetBruteforce(first_decryptor_brtf, count, BruteforceFilters
         {
             // Include only
             BruteforceFilters::Flags::All,
@@ -64,7 +72,7 @@ CommandLineArgs debugTestCommandlineArgs(int num_gen_input = 3)
     cmd.selected_learning = { }; // ALL
 
     cmd.match_stop = false;
-    cmd.run_bench = false;
+    cmd.run_bench = true;
     cmd.run_tests = false;
 
 #if _DEBUG
@@ -152,7 +160,7 @@ void bruteforce(const CommandLineArgs& args)
                     batch, batchesInRound,
                     duration.count(),
                     kilo_result_per_second,
-                    kernelInput.config.last.man, kernelInput.config.last.seed);
+                    kernelInput.config.last.man(), kernelInput.config.last.seed());
 
                 auto overall = std::chrono::duration_cast<std::chrono::seconds>(
                     std::chrono::system_clock::now() - roundStartTime);

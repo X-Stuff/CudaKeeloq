@@ -32,7 +32,7 @@ BruteforceConfig GetSingleKeyConfig(uint64_t key, bool rev = true)
     }
 
     BruteforcePattern br_pattern(std::move(pattern), "Test");
-    return BruteforceConfig::GetPattern(0x0, br_pattern, 0xFFFFFFFF);
+    return BruteforceConfig::GetPattern(Decryptor(0,0), br_pattern, 0xFFFFFFFF);
 }
 }
 
@@ -63,8 +63,8 @@ bool tests::pattern_generation()
 
     decryptors.read();
     results.read();
-    assert(decryptors.cpu()[0].man == debugKey);
+    assert(decryptors.cpu()[0].man() == debugKey);
 
-    return decryptors.cpu()[0].man == debugKey;
+    return decryptors.cpu()[0].man() == debugKey;
 }
 

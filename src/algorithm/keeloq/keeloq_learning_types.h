@@ -106,3 +106,22 @@ private:
 
     static const size_t LearningNamesCount;
 };
+
+
+/**
+ * Simple struct to have nicer code when want to use full mask
+ */
+struct KeeloqAllLearningsMask
+{
+    KeeloqLearningType::Type mask[KeeloqLearningType::TypeMaskLength];
+
+    __device__ __host__ KeeloqAllLearningsMask()
+    {
+        UNROLL
+        for (uint8_t i = 0; i < KeeloqLearningType::ALL; ++i)
+        {
+            mask[i] = 0;
+        }
+        mask[KeeloqLearningType::ALL] = 1;
+    }
+};

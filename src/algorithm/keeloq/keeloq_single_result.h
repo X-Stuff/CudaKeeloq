@@ -21,6 +21,8 @@ struct SingleResult
 	struct DecryptedArray
 	{
 		// fixed side array for every learning type
+        // If is in global memory (common case) - use operator[] - though cache
+        // If is thread local - use direct access
 		uint32_t data[ResultsCount];
 
         __host__ __device__ inline uint32_t operator[](uint32_t index) const

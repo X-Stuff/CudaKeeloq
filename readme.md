@@ -91,6 +91,15 @@ Specified 2 patterns - 2 attacks will be launched:
 
 * `--inputs=[i1, i2, i3]` - inputs are captured "over the air" bytes, you need to provide 1-3 in format of hexadecimal number: `0x1122334455667788`.
 
+#### Bruteforce range
+
+* `--start=<value>` - defines the initial value from which bruteforce begins. Applies to all types except dictionary. For alphabet or pattern types, should be specified value which can be converted to pattern or alphabet. e.g. if you use alphabet `77:88:FF:AA:BB` and specify `--start=0x778899FFAABBAABB` - bruteforce will start from `778877FFAABBAABB` since `99` is not exist in alphabet it will be replace with the first byte in alphabet.
+
+* `--count=<value>` - number of keys to generate and check. If you using simple +1 mode it will define the last key to check. In other mode determine the last key might be not trivial task.
+
+* `--seed=<value>` - seed value. It used only in `SECURE` and `FAAC` learning modes, so you better do bruteforce with not `ALL` learning mode.
+
+
 #### Modes
 
 In case of `single` input - the match check will be done only by match 18-bits of `serial`.
@@ -183,4 +192,7 @@ Here and below `=x[y]` - `x` value for normal mode, `y` for reversed.
 
  ## Performance
 
- For my laptop's GPU ( 3080Ti ) the best results with `8196` CUDA Blocks and maximum CUDA threads (from device info - `1024`) - it gives me approx. `15` MKeys/s for `ALL` learning types and `230` MKeys for `Simple`.
+ For my laptop's GPU ( 3080Ti ) the best results with `8196` CUDA Blocks and maximum CUDA threads (from device info - `1024`) - it gives me approx.:
+  * `15` MKeys/s for `ALL` learning types if `seed` is **not** provided
+  * `9` MKeys/s for `ALL` learning types if `seed` **is** specified
+  * `230` MKeys for `Simple` ( the easiest type single keeloq decryption ).
