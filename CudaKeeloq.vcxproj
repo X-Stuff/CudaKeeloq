@@ -176,6 +176,7 @@
     <ClInclude Include="src\host\command_line_args.h" />
     <ClInclude Include="src\host\console.h" />
     <ClInclude Include="src\host\host_utils.h" />
+    <ClInclude Include="src\host\timer.h" />
     <ClInclude Include="src\kernels\kernel_result.h" />
     <ClInclude Include="src\tests\test_console.h" />
     <ClInclude Include="src\tests\test_keeloq.h" />

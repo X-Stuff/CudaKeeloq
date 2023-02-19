@@ -101,6 +101,9 @@
     <ClInclude Include="src\device\cuda_span.h">
       <Filter>device</Filter>
     </ClInclude>
+    <ClInclude Include="src\host\timer.h">
+      <Filter>host</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp" />

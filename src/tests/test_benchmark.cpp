@@ -1,9 +1,11 @@
 #include "common.h"
 
 #include <numeric>
+#include <algorithm>
 
 #include "test_benchmark.h"
 #include "host/console.h"
+#include "host/timer.h"
 
 #include "bruteforce/generators/generator_bruteforce.h"
 #include "bruteforce/bruteforce_config.h"
@@ -61,16 +63,16 @@ void benchmark::run(const CommandLineArgs& args, const BruteforceConfig& benchma
             size_t keysInBatch = benchmarkRound.keys_per_batch();
             size_t numBatches = std::max<size_t>(1, TargetCalculations / keysInBatch);
 
-            auto roundStartTime = std::chrono::system_clock::now();
-
-            std::vector<uint64_t> batches_kResults_per_sec(numBatches);
+            std::vector<uint64_t> batches_kResults_per_sec;
 
             console::set_cursor_state(false);
             printf("\n");
 
+            auto roundTimer = Timer<std::chrono::system_clock>::start();
+
             for (size_t i = 0; in_progress && i < numBatches; ++i)
             {
-                auto batchStartTime = std::chrono::high_resolution_clock::now();
+                auto batchTimer = Timer<std::chrono::high_resolution_clock>::start();
 
                 KeeloqKernelInput& kernelInput = benchmarkRound.Inputs();
                 kernelInput.NextDecryptor();
@@ -78,16 +80,14 @@ void benchmark::run(const CommandLineArgs& args, const BruteforceConfig& benchma
                 GeneratorBruteforce::PrepareDecryptors(kernelInput, NumCudaBlocks, NumCudaThreads);
                 keeloq::kernels::cuda_brute(kernelInput, NumCudaBlocks, NumCudaThreads);
 
-                auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
-                    std::chrono::high_resolution_clock::now() - batchStartTime);
-
-                batches_kResults_per_sec[i] = duration.count() == 0 ? 0 : keysInBatch / duration.count();
-
-                auto overall = std::chrono::duration_cast<std::chrono::seconds>(
-                    std::chrono::system_clock::now() - roundStartTime);
+                auto elapsedMs = batchTimer.elapsed().count();
+                if (elapsedMs > 0)
+                {
+                    batches_kResults_per_sec.push_back(keysInBatch / elapsedMs);
+                }
 
                 console_cursor_ret_up(1);
-                console::progress_bar(i / (double)numBatches, overall);
+                console::progress_bar(i / (double)numBatches, roundTimer.elapsed_secods());
 
                 if (console::read_esc_press())
                 {
@@ -100,9 +100,6 @@ void benchmark::run(const CommandLineArgs& args, const BruteforceConfig& benchma
 
             if (in_progress)
             {
-                auto overall = std::chrono::duration_cast<std::chrono::milliseconds>(
-                    std::chrono::system_clock::now() - roundStartTime);
-
                 std::sort(batches_kResults_per_sec.begin(), batches_kResults_per_sec.end());
 
                 console_cursor_ret_up(1);
@@ -112,7 +109,7 @@ void benchmark::run(const CommandLineArgs& args, const BruteforceConfig& benchma
                 printf("| CUDA: %" PRIu16 " x %" PRIu16 " \t| MEM: %" PRIu64 " MB\t | Time (ms): %" PRIu64 " \t |\tSpeed (K/s): %" PRIu64 " (avg.) %" PRIu64 " (mean) |\t\t\t\t\n",
                     NumCudaBlocks, NumCudaThreads,
                     benchmarkRound.get_mem_size() / (1024 * 1024),
-                    overall.count(),
+                    roundTimer.elapsed().count(),
                     std::reduce(batches_kResults_per_sec.begin(), batches_kResults_per_sec.end()) / numBatches,
                     batches_kResults_per_sec[numBatches / 2]);
             }

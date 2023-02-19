@@ -17,5 +17,6 @@ std::vector<Decryptor> read_binary_dictionary_file(const char* file, uint8_t mod
 
 // Read first 256 bytes of a binary file as alphabet
 std::vector<uint8_t> read_alphabet_binary_file(const char* file);
+
 }
 }
