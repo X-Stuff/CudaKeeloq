@@ -16,7 +16,7 @@ CommandLineArgs debugTestCommandlineArgs(int num_gen_input = 3)
     constexpr uint64_t debugKey =  0xC0FFEE00DEAD6666;
 
 #if _DEBUG
-    uint64_t first = debugKey & 0xFFFFFFFFFF000000;
+    uint64_t first = debugKey & 0xFFFFFFFFFFC00000;
 #else
     uint64_t first = debugKey & 0xFFFFFFFFF0000000;
 #endif
@@ -72,13 +72,13 @@ CommandLineArgs debugTestCommandlineArgs(int num_gen_input = 3)
     cmd.selected_learning = { }; // ALL
 
     cmd.match_stop = false;
-    cmd.run_bench = true;
+    cmd.run_bench = false;
     cmd.run_tests = false;
 
 #if _DEBUG
     cmd.init_cuda(512, 0, 1);
 #else
-    cmd.init_cuda(8196, 0, 1);
+    cmd.init_cuda(4096, 0, 1);
 #endif
 
     return cmd;
@@ -155,7 +155,7 @@ void bruteforce(const CommandLineArgs& args)
 
                 console_cursor_ret_up(2);
 
-                printf("[%c][%zd/%zd]\t %" PRIu64 "(ms)/batch Speed: %" PRIu64 " KKeys/s\tLast key:0x%" PRIX64 " (%u)\n",
+                printf("[%c][%zd/%zd]    %" PRIu64 "(ms)/batch Speed: %" PRIu64 " KKeys/s   Last key:0x%" PRIX64 " (%u)         \n",
                     WAIT_CHAR(batch),
                     batch, batchesInRound,
                     duration.count(),

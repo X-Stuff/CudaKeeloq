@@ -211,9 +211,9 @@ __device__ KeeloqLearningType::Type analyze_multiple_results(const CudaContext& 
 // In case of single input we checking fixed part of parcel's serial (28-bit serial | 4-bit button)
 // with decoded serial
 template<bool AllLearnings>
-__device__ KeeloqLearningType::Type analyze_single_result(const SingleResult& result, uint32_t exp_srl, uint8_t exp_btn, const KeeloqLearningMask type_mask)
+__device__ KeeloqLearningType::Type analyze_single_result(const SingleResult& result, uint32_t exp_srl, uint8_t exp_btn, const KeeloqLearningMask type_mask, uint8_t& match_count)
 {
-    uint8_t match_count = 0; // 0 or 1. if bigger - double match
+    match_count = 0; // 0 or 1. if bigger - double match
     KeeloqLearningType::Type match_learning_type = KeeloqLearningType::INVALID;
 
     // outer loop - over all learning types
@@ -232,7 +232,6 @@ __device__ KeeloqLearningType::Type analyze_single_result(const SingleResult& re
         match_learning_type = (has_match * lrn + !has_match * match_learning_type);
     }
 
-    assert(match_count <= 1 && "analyze_single_result() Multiple match - should not be possible!");
     return match_learning_type;
 }
 
@@ -441,16 +440,79 @@ __device__ __host__ inline void keeloq_decrypt(const EncParcel& enc, const Decry
     keeloq_decrypt_all<AllLearnings>(enc.hop(), enc.fix(), decryptor, type_mask, results);
 }
 
+
+/**
+ *  Generally will decrypt encrypted input(s) and set their `.match` fields according of decryption result
+ * with provided Decryptor
+ *
+ * Most common way to use this:
+ *  - You have 3 inputs
+ *  - You call this method to decrypt and analyze 1-st input
+ *  - if first input has at least 1 match ( by fixed part srl and button )
+ *    * call decrypt for the rest of inputs
+ *    * properly analyze their decrypted parts (each 3 decrypted inputs should have same serial, button, and (increasing) counter
+ *  - if first input doesn't have any match - further calculations pointless
+ */
+template<uint8_t NumResults, bool AllLearnings, uint8_t FirstResult = 0>
+__device__ uint8_t inline keeloq_decrypt_and_analyze(const CudaContext& ctx,
+    const CudaArray<EncParcel>& encrypted, const Decryptor& decryptor, const KeeloqLearningMask learnings, Span<SingleResult>& results)
+{
+    if constexpr (NumResults == 1)
+    {
+        const EncParcel& enc = encrypted[0];
+
+        uint8_t match_count = 0;
+        SingleResult& result = results[0];
+
+        result.decryptor = decryptor;
+        result.encrypted = enc; // useless copy
+
+        keeloq_decrypt<AllLearnings>(enc, decryptor, learnings, result.decrypted);
+
+        result.match = analyze_single_result<AllLearnings>(result, enc.srl(), enc.btn(), learnings, match_count);
+
+        // In case of single input that means that key has 2 (most probably) phantoms
+        return match_count > 1;
+    }
+    else
+    {
+        assert(encrypted.num >= NumResults && "Encrypted array size doesn't match results array!");
+
+        // inner loop for each input for decryptor - make decryption
+        UNROLL
+        for (uint32_t i = FirstResult; i < NumResults; ++i)
+        {
+            SingleResult& result = results[i];
+            result.match = KeeloqLearningType::INVALID;
+
+            result.decryptor = decryptor;
+            result.encrypted = encrypted[i];
+
+            keeloq_decrypt<AllLearnings>(result.encrypted, decryptor, learnings, result.decrypted);
+        }
+
+        // now check all decrypted results if they match somehow
+        analyze_multiple_results<NumResults, AllLearnings>(ctx, results, learnings);
+        return 0;
+    }
+}
+
+
 // run decryption parallel per thread and find matches
-template<uint8_t NumInputs, bool AllLearnings>
+template<uint8_t NumInputs, bool AllLearnings, bool UseFastCheck = true>
 __device__ uint8_t inline keeloq_decryption_run(const CudaContext& ctx, KeeloqKernelInput& input)
 {
+    static_assert(NumInputs > 0 && NumInputs <= 3, "Invalid inputs number!");
+
+    constexpr bool UseFullCheck = NumInputs > 1 && !UseFastCheck;
+
     const auto& encrypted = *input.encdata;
+    const auto& decryptors = *input.decryptors;
+
+    auto& all_results = *input.results;
+
     assert(encrypted.num >= NumInputs && "Number of encrypted inputs less than expected with template argument");
     assert(NumInputs == 1 || encrypted[0].ota != encrypted[1].ota && "Inputs are the same!");
-
-    const auto& decryptors = *input.decryptors;
-    auto& results = *input.results;
 
     uint8_t result_error = 0;
 
@@ -459,39 +521,46 @@ __device__ uint8_t inline keeloq_decryption_run(const CudaContext& ctx, KeeloqKe
     {
         const Decryptor& decryptor = decryptors[decryptor_index];
 
-        if constexpr (NumInputs == 1)
+        Span<SingleResult> results(&all_results[decryptor_index * encrypted.num], NumInputs);
+
+        if constexpr (UseFullCheck)
         {
-            SingleResult& result = results[decryptor_index];
-
-            const EncParcel& encrypted_input = encrypted[0];
-
-            result.decryptor = decryptor;
-            result.encrypted = encrypted_input; // useless copy
-
-            keeloq_decrypt<AllLearnings>(encrypted_input, decryptor, input.learning_types, result.decrypted);
-            result.match = analyze_single_result<AllLearnings>(result, encrypted_input.srl(), encrypted_input.btn(), input.learning_types);
+            // only multiple input - decrypt all and then check
+            keeloq_decrypt_and_analyze<NumInputs, AllLearnings, 0>(ctx, encrypted, decryptor, input.learning_types, results);
         }
         else
         {
-            // inner loop for each input for decryptor - make decryption
-            UNROLL
-            for (uint32_t enc_index = 0; enc_index < NumInputs; enc_index++)
+            // Single input
+            auto multiple_match = keeloq_decrypt_and_analyze<1, AllLearnings>(ctx, encrypted, decryptor, input.learning_types, results);
+            if constexpr (NumInputs == 1)
             {
-                size_t result_index = decryptor_index * NumInputs + enc_index;
-
-                SingleResult& result = results[result_index];
-                result.match = KeeloqLearningType::INVALID;
-
-                result.decryptor = decryptor;
-                result.encrypted = encrypted[enc_index];
-
-                keeloq_decrypt<AllLearnings>(result.encrypted, decryptor, input.learning_types, result.decrypted);
+                // Single mode only. in multiple - it's ok, we'll check just the rest
+                result_error += multiple_match;
             }
 
-            // now check find matches in check decryptors
-            Span<SingleResult> span_results(&results[decryptor_index * encrypted.num], NumInputs);
+            // Multiple input
+            if constexpr (NumInputs >= 2)
+            {
+                assert(encrypted[0].fix() == encrypted[1].fix() && "Cannot `UseFastCheck` if fixed part of encrypted packets are not the same!");
 
-            analyze_multiple_results<NumInputs, AllLearnings>(ctx, span_results, input.learning_types);
+                SingleResult& first_result = results[0];
+
+                // Even if this is `if` - still it's faster
+                if (first_result.match == KeeloqLearningType::INVALID)
+                {
+                    UNROLL
+                    for (uint32_t i = 1; i < NumInputs; ++i)
+                    {
+                        results[i].match = KeeloqLearningType::INVALID;
+                    }
+                }
+                else
+                {
+                    // since 1-st was already decrypted - starting index is 1
+                    keeloq_decrypt_and_analyze<NumInputs, AllLearnings, 1>(
+                        ctx, encrypted, decryptor, input.learning_types, results);
+                }
+            }
         }
     }
 
@@ -528,8 +597,8 @@ __device__ uint8_t inline keeloq_analyze_results(const CudaContext& ctx, const C
 }
 
 
-template <uint8_t NumInputs>
-__device__ void Kernel_keeloq_main(KeeloqKernelInput::TCudaPtr KernelInputs, KernelResult::TCudaPtr ret)
+template <uint8_t NumInputs, bool UseFastCheck = true>
+__device__ void __noinline__ Kernel_keeloq_main(KeeloqKernelInput::TCudaPtr KernelInputs, KernelResult::TCudaPtr ret)
 {
     CudaContext ctx = CudaContext::Get();
     auto& results = *KernelInputs->results;
@@ -537,8 +606,8 @@ __device__ void Kernel_keeloq_main(KeeloqKernelInput::TCudaPtr KernelInputs, Ker
     bool all_learnings = KeeloqLearningType::AllEnabled(KernelInputs->learning_types);
 
     uint8_t num_errors = all_learnings ?
-        keeloq_decryption_run<NumInputs, EveryLearning>(ctx, *KernelInputs) :
-        keeloq_decryption_run<NumInputs, MaskLearnings>(ctx, *KernelInputs);
+        keeloq_decryption_run<NumInputs, EveryLearning, UseFastCheck>(ctx, *KernelInputs) :
+        keeloq_decryption_run<NumInputs, MaskLearnings, UseFastCheck>(ctx, *KernelInputs);
 
     uint8_t num_matches = keeloq_analyze_results<NumInputs>(ctx, results, KernelInputs);
 
@@ -591,7 +660,8 @@ __global__ void Kenrel_keeloq_single_check(uint64_t ota, uint64_t man, uint32_t 
 // Main kernel for keeloq decryptions if provided several enc parcels
 __global__ void Kernel_keeloq_main_multi(KeeloqKernelInput::TCudaPtr KernelInputs, KernelResult::TCudaPtr ret)
 {
-    uint32_t encrypted_num = (uint32_t)KernelInputs->encdata->num;
+    const CudaArray<EncParcel>& encdata = *KernelInputs->encdata;
+    uint32_t encrypted_num = (uint32_t)encdata.num;
 
     switch (encrypted_num)
     {
@@ -602,13 +672,31 @@ __global__ void Kernel_keeloq_main_multi(KeeloqKernelInput::TCudaPtr KernelInput
     }
     case 2:
     {
-        Kernel_keeloq_main<TwoEncInputs>(KernelInputs, ret);
+        if (encdata[0].fix() == encdata[1].fix())
+        {
+            Kernel_keeloq_main<TwoEncInputs, true>(KernelInputs, ret);
+        }
+        else
+        {
+            // Optimizations fallback
+            // fixed parts not matched - cant use fast check
+            Kernel_keeloq_main<TwoEncInputs, false>(KernelInputs, ret);
+        }
         break;
     }
     case 3:
     default:
     {
-        Kernel_keeloq_main<ThreeEncInputs>(KernelInputs, ret);
+        if (encdata[0].fix() == encdata[1].fix() && encdata[1].fix() == encdata[2].fix())
+        {
+            Kernel_keeloq_main<ThreeEncInputs, true>(KernelInputs, ret);
+        }
+        else
+        {
+            // Optimizations fallback
+            // fixed parts not matched - cant use fast check
+            Kernel_keeloq_main<ThreeEncInputs, false>(KernelInputs, ret);
+        }
         break;
     }
     }

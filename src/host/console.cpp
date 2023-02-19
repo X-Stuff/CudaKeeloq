@@ -346,7 +346,7 @@ CommandLineArgs console::parse_command_line(int argc, const char** argv)
         (ARG_START, "The first key value which will be used for selected mode(s)",
             cxxopts::value<std::uint64_t>()->default_value("0"), "first")
         (ARG_SEED, "The seed which is used for bruteforce. If you specify it, most probably you need to check seed-only learning types (SECURE, FAAC)",
-            cxxopts::value<std::uint64_t>()->default_value("0"), "seed")
+            cxxopts::value<std::uint32_t>()->default_value("0"), "seed")
         (ARG_COUNT, "How many keys selected mode(s) should check.",
             cxxopts::value<std::uint64_t>()->default_value("0xFFFFFFFFFFFFFFFF"), "len")
 
