@@ -239,6 +239,10 @@ __host__ __device__ constexpr bool operator&(const LearningDectyptionMode& a, co
     return (static_cast<int>(a) & static_cast<int>(b)) != 0;
 }
 
+__host__ __device__ constexpr LearningDectyptionMode operator|(const LearningDectyptionMode& a, const LearningDectyptionMode& b)
+{
+    return static_cast<LearningDectyptionMode>(static_cast<int>(a) | static_cast<int>(b));
+}
 
 template<KeeloqLearningType::Type type>
 __device__ __host__ inline uint32_t keeloq_decrypt_single(uint32_t data, uint32_t fix, const Decryptor& decryptor)
@@ -307,7 +311,7 @@ __device__ __host__ inline uint32_t keeloq_decrypt_single(uint32_t data, uint32_
     }
 }
 
-template<bool ForceDecrypt>
+template<bool ForceDecrypt, bool DisableRev = false>
 __device__ __host__ inline void keeloq_decrypt_seed_all(uint32_t data, uint32_t fix, const Decryptor& decryptor,
     const KeeloqLearningType::Mask& learnings_mask, SingleResult::DecryptedArray& decrypted)
 {
@@ -316,30 +320,25 @@ __device__ __host__ inline void keeloq_decrypt_seed_all(uint32_t data, uint32_t 
     uint64_t n_key = 0;
     uint32_t seed = decryptor.seed();
 
-
-    // Secure Learning
+    if (ForceDecrypt || learnings_mask[KeeloqLearningType::Secure])
     {
-        if (ForceDecrypt || learnings_mask[KeeloqLearningType::Secure])
-        {
-            n_key = keeloq_common_secure_learning(fix, seed, key);
-            decrypted.data[KeeloqLearningType::Secure] = keeloq_common_decrypt(data, n_key);
-        }
+        n_key = keeloq_common_secure_learning(fix, seed, key);
+        decrypted.data[KeeloqLearningType::Secure] = keeloq_common_decrypt(data, n_key);
+    }
 
+    if (ForceDecrypt || learnings_mask[KeeloqLearningType::Faac])
+    {
+        n_key = keeloq_common_faac_learning(seed, key);
+        decrypted.data[KeeloqLearningType::Faac] = keeloq_common_decrypt(data, n_key);
+    }
+
+    if constexpr (!DisableRev)
+    {
         if (ForceDecrypt || learnings_mask[KeeloqLearningType::Secure_Rev])
         {
             n_key = keeloq_common_secure_learning(fix, seed, key_rev);
             decrypted.data[KeeloqLearningType::Secure_Rev] = keeloq_common_decrypt(data, n_key);
         }
-    }
-
-    // FAAC
-    {
-        if (ForceDecrypt || learnings_mask[KeeloqLearningType::Faac])
-        {
-            n_key = keeloq_common_faac_learning(seed, key);
-            decrypted.data[KeeloqLearningType::Faac] = keeloq_common_decrypt(data, n_key);
-        }
-
         if (ForceDecrypt || learnings_mask[KeeloqLearningType::Faac_Rev])
         {
             n_key = keeloq_common_faac_learning(seed, key_rev);
@@ -348,12 +347,11 @@ __device__ __host__ inline void keeloq_decrypt_seed_all(uint32_t data, uint32_t 
     }
 }
 
-template<bool ForceDecrypt>
+template<bool ForceDecrypt, bool DisableRev = false>
 __device__ __host__ inline void keeloq_decrypt_normal_all(uint32_t data, uint32_t fix, const Decryptor& decryptor,
     const KeeloqLearningType::Mask& learnings_mask, SingleResult::DecryptedArray& decrypted)
 {
     uint64_t key = decryptor.man();
-    uint64_t key_rev = decryptor.nam();
     uint64_t n_key = 0;
 
     // Simple Learning
@@ -361,10 +359,6 @@ __device__ __host__ inline void keeloq_decrypt_normal_all(uint32_t data, uint32_
         if (ForceDecrypt || learnings_mask[KeeloqLearningType::Simple])
         {
             decrypted.data[KeeloqLearningType::Simple] = keeloq_common_decrypt(data, key);
-        }
-        if (ForceDecrypt || learnings_mask[KeeloqLearningType::Simple_Rev])
-        {
-            decrypted.data[KeeloqLearningType::Simple_Rev] = keeloq_common_decrypt(data, key_rev);
         }
     }
     //###########################
@@ -376,11 +370,6 @@ __device__ __host__ inline void keeloq_decrypt_normal_all(uint32_t data, uint32_
             n_key = keeloq_common_normal_learning(fix, key);
             decrypted.data[KeeloqLearningType::Normal] = keeloq_common_decrypt(data, n_key);
         }
-        if (ForceDecrypt || learnings_mask[KeeloqLearningType::Normal_Rev])
-        {
-            n_key = keeloq_common_normal_learning(fix, key_rev);
-            decrypted.data[KeeloqLearningType::Normal_Rev] = keeloq_common_decrypt(data, n_key);
-        }
     }
 
     // Magic xor type1 learning
@@ -391,11 +380,6 @@ __device__ __host__ inline void keeloq_decrypt_normal_all(uint32_t data, uint32_
             decrypted.data[KeeloqLearningType::Xor] = keeloq_common_decrypt(data, n_key);
         }
 
-        if (ForceDecrypt || learnings_mask[KeeloqLearningType::Xor_Rev])
-        {
-            n_key = keeloq_common_magic_xor_type1_learning(fix, key_rev);
-            decrypted.data[KeeloqLearningType::Xor_Rev] = keeloq_common_decrypt(data, n_key);
-        }
     }
 
     // SERIAL_TYPE_1
@@ -406,11 +390,6 @@ __device__ __host__ inline void keeloq_decrypt_normal_all(uint32_t data, uint32_
             decrypted.data[KeeloqLearningType::Serial1] = keeloq_common_decrypt(data, n_key);
         }
 
-        if (ForceDecrypt || learnings_mask[KeeloqLearningType::Serial1_Rev])
-        {
-            n_key = keeloq_common_magic_serial_type1_learning(fix, key_rev);
-            decrypted.data[KeeloqLearningType::Serial1_Rev] = keeloq_common_decrypt(data, n_key);
-        }
     }
 
     // SERIAL_TYPE_2
@@ -421,11 +400,6 @@ __device__ __host__ inline void keeloq_decrypt_normal_all(uint32_t data, uint32_
             decrypted.data[KeeloqLearningType::Serial2] = keeloq_common_decrypt(data, n_key);
         }
 
-        if (ForceDecrypt || learnings_mask[KeeloqLearningType::Serial2_Rev])
-        {
-            n_key = keeloq_common_magic_serial_type2_learning(fix, key_rev);
-            decrypted.data[KeeloqLearningType::Serial2_Rev] = keeloq_common_decrypt(data, n_key);
-        }
     }
 
     // SERIAL_TYPE_3
@@ -435,7 +409,38 @@ __device__ __host__ inline void keeloq_decrypt_normal_all(uint32_t data, uint32_
             n_key = keeloq_common_magic_serial_type3_learning(fix, key);
             decrypted.data[KeeloqLearningType::Serial3] = keeloq_common_decrypt(data, n_key);
         }
+    }
 
+
+    // Reverse key calculations
+    if constexpr (!DisableRev)
+    {
+        uint64_t key_rev = decryptor.nam();
+
+        if (ForceDecrypt || learnings_mask[KeeloqLearningType::Simple_Rev])
+        {
+            decrypted.data[KeeloqLearningType::Simple_Rev] = keeloq_common_decrypt(data, key_rev);
+        }
+        if (ForceDecrypt || learnings_mask[KeeloqLearningType::Normal_Rev])
+        {
+            n_key = keeloq_common_normal_learning(fix, key_rev);
+            decrypted.data[KeeloqLearningType::Normal_Rev] = keeloq_common_decrypt(data, n_key);
+        }
+        if (ForceDecrypt || learnings_mask[KeeloqLearningType::Xor_Rev])
+        {
+            n_key = keeloq_common_magic_xor_type1_learning(fix, key_rev);
+            decrypted.data[KeeloqLearningType::Xor_Rev] = keeloq_common_decrypt(data, n_key);
+        }
+        if (ForceDecrypt || learnings_mask[KeeloqLearningType::Serial1_Rev])
+        {
+            n_key = keeloq_common_magic_serial_type1_learning(fix, key_rev);
+            decrypted.data[KeeloqLearningType::Serial1_Rev] = keeloq_common_decrypt(data, n_key);
+        }
+        if (ForceDecrypt || learnings_mask[KeeloqLearningType::Serial2_Rev])
+        {
+            n_key = keeloq_common_magic_serial_type2_learning(fix, key_rev);
+            decrypted.data[KeeloqLearningType::Serial2_Rev] = keeloq_common_decrypt(data, n_key);
+        }
         if (ForceDecrypt || learnings_mask[KeeloqLearningType::Serial3_Rev])
         {
             n_key = keeloq_common_magic_serial_type3_learning(fix, key_rev);
@@ -450,16 +455,18 @@ __device__ __host__ inline void keeloq_decrypt(const EncParcel& enc, const Decry
     constexpr bool ForceDecrypt = Mode & LearningDectyptionMode::Force;
     constexpr bool ExplicitDecrypt = Mode & LearningDectyptionMode::Explicit;
 
+    constexpr bool DisableReverseKeys = Mode & LearningDectyptionMode::NoRev;
+
     static_assert(ForceDecrypt != ExplicitDecrypt, "Can't be only Force or Explicit");
 
     if constexpr (Mode & LearningDectyptionMode::Normal)
     {
-        keeloq_decrypt_normal_all<ForceDecrypt>(enc.hop(), enc.fix(), decryptor, learnings_mask, results);
+        keeloq_decrypt_normal_all<ForceDecrypt, DisableReverseKeys>(enc.hop(), enc.fix(), decryptor, learnings_mask, results);
     }
 
     if constexpr (Mode & LearningDectyptionMode::Seeded)
     {
-        keeloq_decrypt_seed_all<ForceDecrypt>(enc.hop(), enc.fix(), decryptor, learnings_mask, results);
+        keeloq_decrypt_seed_all<ForceDecrypt, DisableReverseKeys>(enc.hop(), enc.fix(), decryptor, learnings_mask, results);
     }
 }
 
@@ -642,7 +649,7 @@ __device__ void __noinline__ Kernel_keeloq_main(KeeloqKernelInput::TCudaPtr Kern
     if (seedOnly)
     {
         num_errors = forceAll ?
-            keeloq_decryption_run<NumInputs, LearningDectyptionMode::ForceSeeded, UseFastCheck>(ctx, *KernelInputs) :
+            keeloq_decryption_run<NumInputs, LearningDectyptionMode::ForceSeeded | LearningDectyptionMode::NoRev, UseFastCheck>(ctx, *KernelInputs) :
             keeloq_decryption_run<NumInputs, LearningDectyptionMode::ExplicitSeeded, UseFastCheck>(ctx, *KernelInputs);
     }
     else if (forceAll)

@@ -26,7 +26,7 @@ BruteforceConfig BruteforceConfig::GetBruteforce(Decryptor first, size_t size, c
 
 BruteforceConfig BruteforceConfig::GetSeedBruteforce(Decryptor first)
 {
-    return BruteforceConfig(first, BruteforceType::Seed, ((uint32_t)-1) - first.seed());
+    return BruteforceConfig(first, BruteforceType::Seed, (uint32_t)-1);
 }
 
 BruteforceConfig BruteforceConfig::GetAlphabet(Decryptor first, const MultibaseDigit& alphabet, size_t num)
@@ -125,7 +125,8 @@ std::string BruteforceConfig::toString() const
     }
     case BruteforceType::Seed:
     {
-        return str::format<std::string>("Type: %s. Start Seed:%u", pGeneratorName, start.seed());
+        return str::format<std::string>("Type: %s. Manufacturer key: 0x%llX Start Seed:%u",
+            pGeneratorName, start.man(), start.seed());
     }
     }
     return str::format<std::string>("UNSUPPORTED Type (%d): %s", (int)type, pGeneratorName);

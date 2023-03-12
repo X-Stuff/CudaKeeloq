@@ -3,6 +3,7 @@
 #include "common.h"
 
 #include <stdlib.h>
+#include <cstring>
 
 #include "host_utils.h"
 

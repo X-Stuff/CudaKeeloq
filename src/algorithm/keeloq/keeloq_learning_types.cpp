@@ -1,5 +1,8 @@
 #include "keeloq_learning_types.h"
 
+#include <cstring>
+
+
 const char* KeeloqLearningType::LearningNames[] = {
 	"KEELOQ_LEARNING_SIMPLE",
 	"KEELOQ_LEARNING_SIMPLE_REV",

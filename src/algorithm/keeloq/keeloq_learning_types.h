@@ -21,6 +21,9 @@ enum class LearningDectyptionMode
 
     Seeded = 1 << 3,
 
+    // Disable Reverse manufacturer key calculations
+    NoRev = 1 << 4,
+
     // Run only learning types without seed
     ForceNormal = Force | Normal,
 
@@ -33,9 +36,10 @@ enum class LearningDectyptionMode
     // Explicit defined but with seed only
     ExplicitSeeded = Explicit | Seeded,
 
-    // RUNS ALL LEARNING TYPES. Seeded Included, eve if seed is 0
+    // RUNS ALL LEARNING TYPES. Seeded Included, even if seed is 0
     ForceAll = ForceNormal | ForceSeeded,
 
+    // Runs runtime checks if learning type need to be calculated (specified via mask)
     ExplicitAll = ExplicitNormal | ExplicitSeeded
 };
 
@@ -124,13 +128,6 @@ public:
 
         return LearningNames[type];
     }
-
-public:
-    // Normal modes array, used in kernel to iterate over learning types which doesn't have seed
-    static constexpr Type NormalTypes[] = { Simple, Simple_Rev, Normal, Normal_Rev, Xor, Xor_Rev, Serial1, Serial1_Rev, Serial2, Serial2_Rev, Serial3, Serial3_Rev };
-
-    // Seeded modes array, used in kernel to iterate over learning types with seeds
-    static constexpr Type SeededTypes[] = { Secure, Secure_Rev, Faac, Faac_Rev };
 
 private:
 
