@@ -123,6 +123,10 @@ std::string BruteforceConfig::toString() const
     {
         return str::format<std::string>("Type: %s. Words num: %zd", pGeneratorName, dict_size());
     }
+    case BruteforceType::Seed:
+    {
+        return str::format<std::string>("Type: %s. Start Seed:%u", pGeneratorName, start.seed());
+    }
     }
     return str::format<std::string>("UNSUPPORTED Type (%d): %s", (int)type, pGeneratorName);
 }

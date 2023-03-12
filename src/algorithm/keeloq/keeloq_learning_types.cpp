@@ -35,6 +35,11 @@ std::string KeeloqLearningType::to_string(const std::vector<Type>& learning_type
 
 std::string KeeloqLearningType::Mask::to_string() const
 {
+    if (is_all_enabled())
+    {
+        return LearningNames[KeeloqLearningType::LAST];
+    }
+
     std::string result;
     for (auto type = 0; type < KeeloqLearningType::LAST; ++type)
     {
