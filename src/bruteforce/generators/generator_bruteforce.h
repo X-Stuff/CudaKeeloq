@@ -49,4 +49,7 @@ struct GeneratorBruteforce
 DECLARE_GENERATOR(GeneratorBruteforcePattern, KeeloqKernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls);
 DECLARE_GENERATOR(GeneratorBruteforceFiltered, KeeloqKernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls);
 DECLARE_GENERATOR(GeneratorBruteforceSimple, KeeloqKernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls);
+DECLARE_GENERATOR(GeneratorBruteforceSeed, KeeloqKernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls);
+
+
 

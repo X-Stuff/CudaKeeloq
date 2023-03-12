@@ -10,7 +10,7 @@
 #include <cuda_runtime_api.h>
 
 
-BruteforceRound::BruteforceRound(const std::vector<EncParcel>& enc, const BruteforceConfig& gen, std::vector<KeeloqLearningType::Type> selected_learning,
+BruteforceRound::BruteforceRound(const std::vector<EncParcel>& enc, const BruteforceConfig& config, std::vector<KeeloqLearningType::Type> selected_learning,
     uint32_t blocks, uint32_t threads, uint32_t iterations)
     : encrypted_data(enc)
 {
@@ -24,10 +24,7 @@ BruteforceRound::BruteforceRound(const std::vector<EncParcel>& enc, const Brutef
 
     num_decryptors_per_batch = iterations * threads * blocks;
 
-    kernel_inputs.config = gen;
-    memset(kernel_inputs.learning_types, 0, sizeof(kernel_inputs.learning_types));
-
-    KeeloqLearningType::to_mask(selected_learning, kernel_inputs.learning_types);
+    kernel_inputs.Initialize(config, KeeloqLearningType::to_mask(selected_learning));
 }
 
 const std::vector<SingleResult>& BruteforceRound::read_results_gpu()
@@ -140,7 +137,7 @@ std::string BruteforceRound::to_string() const
         "\tDecryptors per batch:%zd\n"
         "\tConfig: %s",
         CudaBlocks(), CudaThreads(), CudaThreadIterations(),
-        encrypted_data.size(), KeeloqLearningType::to_string(kernel_inputs.learning_types).c_str(), results_per_batch(), keys_per_batch(), Config().toString().c_str());
+        encrypted_data.size(), kernel_inputs.GetLearningMask().to_string().c_str(), results_per_batch(), keys_per_batch(), Config().toString().c_str());
 }
 
 

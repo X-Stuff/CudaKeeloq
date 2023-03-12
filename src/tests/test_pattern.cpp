@@ -42,7 +42,7 @@ bool tests::pattern_generation()
     constexpr auto NumBlocks = 64;
     constexpr auto NumThreads = 64;
 
-    const uint64_t debugKey = "heelo_world"_u64;
+    const uint64_t debugKey = "hello_world"_u64;
 
     CudaVector<EncParcel> encrypted  = tests::keeloq::gen_inputs(debugKey);
 
@@ -56,7 +56,11 @@ bool tests::pattern_generation()
         return false;
     }
 
-    KeeloqKernelInput generatorInputs(encrypted.gpu(), decryptors.gpu(), results.gpu(), config);
+    KeeloqKernelInput generatorInputs;
+    generatorInputs.encdata = encrypted.gpu();
+    generatorInputs.decryptors = decryptors.gpu();
+    generatorInputs.results = results.gpu();
+    generatorInputs.Initialize(config, KeeloqLearningType::full_mask());
 
     GeneratorBruteforce::PrepareDecryptors(generatorInputs, NumBlocks, NumThreads);
     auto result = ::keeloq::kernels::cuda_brute(generatorInputs, NumBlocks, NumThreads);

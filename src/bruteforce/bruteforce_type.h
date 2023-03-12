@@ -27,6 +27,9 @@ struct BruteforceType
         // ASCII pattern like ?A:01:??:3?:*
         Pattern,
 
+        // Simple +1 seed bruteforce. Since seed is 32bit value, seed bruteforce may be done in a acceptable amount of time
+        Seed,
+
         // Not for usage
         LAST,
     };

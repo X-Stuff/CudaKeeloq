@@ -24,6 +24,11 @@ BruteforceConfig BruteforceConfig::GetBruteforce(Decryptor first, size_t size, c
     return result;
 }
 
+BruteforceConfig BruteforceConfig::GetSeedBruteforce(Decryptor first)
+{
+    return BruteforceConfig(first, BruteforceType::Seed, ((uint32_t)-1) - first.seed());
+}
+
 BruteforceConfig BruteforceConfig::GetAlphabet(Decryptor first, const MultibaseDigit& alphabet, size_t num)
 {
     auto result = GetPattern(first, BruteforcePattern(alphabet), num);

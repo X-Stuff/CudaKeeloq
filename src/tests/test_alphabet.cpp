@@ -18,7 +18,9 @@ bool tests::alphabet_generation()
 
     CudaVector<Decryptor> decryptors(NumBlocks * NumThreads);
 
-    KeeloqKernelInput generatorInputs(nullptr, decryptors.gpu(), nullptr, testConfig);
+    KeeloqKernelInput generatorInputs;
+    generatorInputs.decryptors = decryptors.gpu();
+    generatorInputs.Initialize(testConfig, KeeloqLearningType::full_mask());
 
     for (int i = 0; i < 16; ++i)
     {

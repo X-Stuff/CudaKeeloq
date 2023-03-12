@@ -214,5 +214,8 @@
     </None>
     <None Include=".editorconfig" />
     <None Include="makefile" />
+    <None Include="src\bruteforce\generators\generator_bruteforce_seed_kernel.inl">
+      <Filter>bruteforce\generators</Filter>
+    </None>
   </ItemGroup>
 </Project>

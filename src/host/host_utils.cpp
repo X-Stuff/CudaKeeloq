@@ -54,7 +54,7 @@ bool parse_seed(char* seed_str, uint32_t& seed)
 
     int base = 10;
 
-    if (auto parsed = strtoull(seed_str, nullptr, base))
+    if (auto parsed = strtoul(seed_str, nullptr, base))
     {
         seed = parsed;
         return true;
