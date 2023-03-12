@@ -6,7 +6,8 @@ const char* BruteforceType::GeneratorTypeName[] = {
     "Simple",
     "Filtered",
     "Alphabet",
-    "Pattern"
+    "Pattern",
+    "Seed"
 };
 
 const size_t BruteforceType::GeneratorTypeNamesCount = sizeof(GeneratorTypeName) / sizeof(char*);

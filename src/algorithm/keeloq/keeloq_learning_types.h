@@ -8,10 +8,40 @@
 #include <cuda_runtime_api.h>
 
 
-// Array of learning booleans
-// If value at index which equals KeeloqLearningType::Type is true
-// that means this learning type is enabled
-using KeeloqLearningMask = uint8_t[];
+enum class LearningDectyptionMode
+{
+    // Explicit defined learning types
+    Invalid  = 0,
+
+    Explicit = 1 << 0,
+
+    Force = 1 << 1,
+
+    Normal = 1 << 2,
+
+    Seeded = 1 << 3,
+
+    // Disable Reverse manufacturer key calculations
+    NoRev = 1 << 4,
+
+    // Run only learning types without seed
+    ForceNormal = Force | Normal,
+
+    // Run only learning types with seed
+    ForceSeeded = Force | Seeded,
+
+    // Explicit defined but without seed
+    ExplicitNormal = Explicit | Normal,
+
+    // Explicit defined but with seed only
+    ExplicitSeeded = Explicit | Seeded,
+
+    // RUNS ALL LEARNING TYPES. Seeded Included, even if seed is 0
+    ForceAll = ForceNormal | ForceSeeded,
+
+    // Runs runtime checks if learning type need to be calculated (specified via mask)
+    ExplicitAll = ExplicitNormal | ExplicitSeeded
+};
 
 /**
  * reference: https://github.com/DarkFlippers/unleashed-firmware/blob/dev/lib/subghz/protocols/keeloq_common.h
@@ -48,22 +78,34 @@ struct KeeloqLearningType
 
         LAST,
 
-        // Name for internal use
-        ALL = LAST,
-
-        // For array initialization
-        TypeMaskLength = ALL + 1,
-
         INVALID = 0xff,
+    };
+
+    struct Mask
+    {
+        friend struct KeeloqLearningType;
+
+        // Default mask when all learning types are enabled
+        static constexpr Type All[LAST] = { true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true };
+
+        __host__ __device__ __inline__ bool operator[](uint8_t index) const { return values[index]; }
+
+        void set(uint8_t index, bool is_enabled) { values[index] = is_enabled; }
+
+        bool is_all_enabled() const;
+
+        std::string to_string() const;
+
+        private:
+            uint8_t values[LAST] = { 0 };
     };
 
 public:
 
-    static std::string to_string(const Type learning_types[]);
     static std::string to_string(const std::vector<Type>& learning_types);
 
-    static void full_mask(Type out_mask[]) { to_mask({}, out_mask); }
-    static void to_mask(const std::vector<Type>& in_types, Type out_mask[]);
+    static Mask to_mask(const std::vector<Type>& in_types);
+    static Mask full_mask() { return to_mask({}); }
 
     static constexpr const char* ValueString(Type type)
     {
@@ -87,41 +129,9 @@ public:
         return LearningNames[type];
     }
 
-    // Checks if
-    template<Type type>
-    __device__ __host__ static inline bool OneEnabled(const KeeloqLearningMask mask)
-    {
-        static_assert(type <= KeeloqLearningType::LAST, "Invalid learning type provided! It Should be less or equal to LAST. LAST means all");
-        return mask[type];
-    }
-
-    __device__ __host__ static inline bool AllEnabled(const KeeloqLearningMask mask)
-    {
-        return OneEnabled<KeeloqLearningType::LAST>(mask);
-    }
-
 private:
 
     static const char* LearningNames[];
 
     static const size_t LearningNamesCount;
-};
-
-
-/**
- * Simple struct to have nicer code when want to use full mask
- */
-struct KeeloqAllLearningsMask
-{
-    KeeloqLearningType::Type mask[KeeloqLearningType::TypeMaskLength];
-
-    __device__ __host__ KeeloqAllLearningsMask()
-    {
-        UNROLL
-        for (uint8_t i = 0; i < KeeloqLearningType::ALL; ++i)
-        {
-            mask[i] = 0;
-        }
-        mask[KeeloqLearningType::ALL] = 1;
-    }
 };

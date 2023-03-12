@@ -20,7 +20,7 @@ void print_args(const char** args, size_t num)
 CommandLineArgs tests::console::run()
 {
     const char* commandline[] = {
-        "CudaKeeloq.exe",
+        APP_NAME,
         "--" ARG_INPUTS"=0xC65D52A0A81FD504,0xCCA9B335A81FD504,0xE0DA7372A81FD504",
         "--" ARG_BLOCKS"=32",
         "--" ARG_THREADS"=32",
@@ -33,6 +33,7 @@ CommandLineArgs tests::console::run()
         "--" ARG_BINDMODE"=2",
 
         "--" ARG_START"=1",
+        "--" ARG_SEED"=777",
         "--" ARG_COUNT"=0xFFFF",
 
         "--" ARG_ALPHABET"=61:62:63:64:zz:AB,examples/alphabet.bin",
@@ -52,15 +53,26 @@ CommandLineArgs tests::console::run()
         "-h"
     };
 
+    const char* commandlineInvalidSeedMode[] = {
+        APP_NAME,
+        "--" ARG_INPUTS"=0xC65D52A0A81FD504,0xCCA9B335A81FD504,0xE0DA7372A81FD504",
+        "--" ARG_BLOCKS"=32",
+        "--" ARG_MODE"=5"
+    };
+
     // Print Help
     print_args(help, sizeof(help) / sizeof(char*));
     CommandLineArgs args = CommandLineArgs::parse(sizeof(help) / sizeof(char*), help);
+
+    print_args(commandlineInvalidSeedMode, sizeof(commandlineInvalidSeedMode) / sizeof(char*));
+    args = CommandLineArgs::parse(sizeof(commandlineInvalidSeedMode) / sizeof(char*), commandlineInvalidSeedMode);
+    assert(args.brute_configs.size() == 0);
 
     print_args(commandline, sizeof(commandline) / sizeof(char*));
     args = CommandLineArgs::parse(sizeof(commandline) / sizeof(char*), commandline);
 
     assert(args.alphabets.size() == 2);
-    assert(args.brute_configs.size() == 8);
+    assert(args.brute_configs.size() == 9);
 
     assert(args.match_stop);
     assert(args.run_bench);

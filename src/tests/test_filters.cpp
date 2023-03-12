@@ -83,7 +83,10 @@ bool tests::filters_generation()
 
         CudaVector<Decryptor> decryptors(NumToGenerate);
 
-        KeeloqKernelInput generatorInputs(nullptr, decryptors.gpu(), nullptr, testConfig);
+        KeeloqKernelInput generatorInputs;
+        generatorInputs.decryptors = decryptors.gpu();
+        generatorInputs.Initialize(testConfig, KeeloqLearningType::full_mask());
+
         KernelResult result;
 
         auto error = GeneratorBruteforce::PrepareDecryptors(generatorInputs, NumBlocks, NumThreads);

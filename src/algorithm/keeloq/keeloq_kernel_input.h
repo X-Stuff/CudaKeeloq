@@ -19,43 +19,65 @@
 struct KeeloqKernelInput : TGenericGpuObject<KeeloqKernelInput>
 {
     // Constant per-run input data (captured encoded)
-    CudaArray<EncParcel>* encdata;
+    CudaArray<EncParcel>* encdata = nullptr;
 
     // Single-run set of decryptors
-    CudaArray<Decryptor>* decryptors;
+    CudaArray<Decryptor>* decryptors = nullptr;
 
     // Single-run results
-    CudaArray<SingleResult>* results;
+    CudaArray<SingleResult>* results = nullptr;
 
-    // Which type of learning use for decryption // the last one indicates all
-    KeeloqLearningType::Type learning_types[KeeloqLearningType::TypeMaskLength];
-
-    // from this decryptor generation will start
-    BruteforceConfig config;
-
-    KeeloqKernelInput() : KeeloqKernelInput(nullptr, nullptr, nullptr, BruteforceConfig())
+    KeeloqKernelInput() : TGenericGpuObject<KeeloqKernelInput>(this)
     {
     }
 
-    KeeloqKernelInput(CudaArray<EncParcel>* enc, CudaArray<Decryptor>* dec, CudaArray<SingleResult>* res, const BruteforceConfig& config)
-        : TGenericGpuObject<KeeloqKernelInput>(this), encdata(enc), decryptors(dec), results(res), learning_types(), config(config)
+    KeeloqKernelInput(KeeloqKernelInput&& other) noexcept : TGenericGpuObject<KeeloqKernelInput>(this)
     {
-        KeeloqLearningType::full_mask(learning_types);
-    }
-
-    KeeloqKernelInput(KeeloqKernelInput&& other) noexcept : TGenericGpuObject<KeeloqKernelInput>(this) {
         encdata = other.encdata;
         decryptors = other.decryptors;
         results = other.results;
         config = other.config;
-        std::memcpy(learning_types, other.learning_types, sizeof(learning_types));
+        learnings = other.learnings;
     }
 
     KeeloqKernelInput& operator=(KeeloqKernelInput&& other) = delete;
     KeeloqKernelInput& operator=(const KeeloqKernelInput& other) = delete;
 
 public:
+    //
+    __device__ __inline__ const KeeloqLearningType::Mask& GetLearningMask() const { return learnings; }
+
+    //
+    __device__ __inline__ bool AllLearningsEnabled() const { return allLearnings; }
+
+    //
+    __device__ __inline__ const BruteforceConfig& GetConfig() const { return config; }
+
+public:
     void WriteDecryptors(const std::vector<Decryptor>& source, size_t from, size_t num);
 
     void NextDecryptor();
+
+    void Initialize(const BruteforceConfig& inConfig, const KeeloqLearningType::Mask& inLearnings);
+
+    // A "callback" which is called by generator. Used to prepare inputs for generators
+    void BeforeGenerateDecryptors();
+
+    // A "callback" which is called after generator creates Decryptors. Used to set correct last generated Decryptor
+    void AfterGeneratedDecryptors();
+
+    // Get Number of OTA inputs. Will do a GPU->CPU copy
+    size_t NumInputs() const;
+
+    // Does the fixed parts of inputs match? Will do a GPU->CPU copy
+    bool InputsFixMatch() const;
+private:
+    // Which type of learning use for decryption
+    KeeloqLearningType::Mask learnings;
+
+    // optimizations. Just a bool field that could be accessed from GPU
+    bool allLearnings = false;
+
+    // from this decryptor generation will start
+    BruteforceConfig config;
 };

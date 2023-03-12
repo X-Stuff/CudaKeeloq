@@ -157,7 +157,7 @@ size_t CudaArray<T>::copy(const TCudaArray* array, std::vector<T>& target)
     if (HOST_array.num > 0)
     {
         size_t allocated_bytes = HOST_array.num * sizeof(T);
-        target.reserve(HOST_array.num);
+        target.resize(HOST_array.num);
 
         auto error = cudaMemcpy((T*)target.data(), HOST_array.CUDA_data, allocated_bytes, cudaMemcpyDeviceToHost);
         CUDA_CHECK(error);

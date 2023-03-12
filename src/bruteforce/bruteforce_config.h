@@ -45,7 +45,8 @@ struct BruteforceConfig
 
 public:
 
-    BruteforceConfig() : BruteforceConfig(Decryptor(0, 0), BruteforceType::LAST, 0) {
+    BruteforceConfig() : BruteforceConfig(Decryptor(0, 0), BruteforceType::LAST, 0)
+    {
     }
 
 public:
@@ -55,6 +56,8 @@ public:
     static BruteforceConfig GetBruteforce(Decryptor first, size_t size);
 
     static BruteforceConfig GetBruteforce(Decryptor first, size_t size, const BruteforceFilters& filters);
+
+    static BruteforceConfig GetSeedBruteforce(Decryptor first);
 
     static BruteforceConfig GetAlphabet(Decryptor first, const MultibaseDigit& alphabet, size_t num = (size_t)-1);
 

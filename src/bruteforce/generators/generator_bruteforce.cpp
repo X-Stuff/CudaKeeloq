@@ -6,18 +6,25 @@
 
 int GeneratorBruteforce::PrepareDecryptors(KeeloqKernelInput& inputs, uint16_t blocks, uint16_t threads)
 {
+    const BruteforceConfig& config = inputs.GetConfig();
     KernelResult generator_results;
 
-    switch (inputs.config.type)
+    inputs.BeforeGenerateDecryptors();
+
+    switch (config.type)
     {
     case BruteforceType::Simple:
     {
         GeneratorBruteforceSimple::LaunchKernel(blocks, threads, inputs.ptr(), generator_results.ptr());
         break;
     }
+    case BruteforceType::Seed:
+    {
+        GeneratorBruteforceSeed::LaunchKernel(blocks, threads, inputs.ptr(), generator_results.ptr());
+        break;
+    }
     case BruteforceType::Filtered:
     {
-        inputs.config.filters.sync_key = inputs.config.start.man();
         GeneratorBruteforceFiltered::LaunchKernel(blocks, threads, inputs.ptr(), generator_results.ptr());
         break;
     }
@@ -32,15 +39,16 @@ int GeneratorBruteforce::PrepareDecryptors(KeeloqKernelInput& inputs, uint16_t b
         return 0;
     }
     default:
+
+        printf("Error: Invalid bruteforce type: %d %s! Don't know how to generate decryptors!\n",
+            (int)config.type, BruteforceType::Name(config.type));
         return 0;
     }
 
     inputs.read();          // it will not cause underneath arrays copy
     generator_results.read();
 
-    // last generated decryptor - is first on next batch
-    //  Warning: In case of non-aligned calculations "real" last decryptor may be somewhere in the middle of array
-    inputs.config.last = inputs.decryptors->host_last();
+    inputs.AfterGeneratedDecryptors();
 
     return generator_results.error;
 }

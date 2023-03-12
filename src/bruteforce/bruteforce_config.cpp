@@ -24,6 +24,11 @@ BruteforceConfig BruteforceConfig::GetBruteforce(Decryptor first, size_t size, c
     return result;
 }
 
+BruteforceConfig BruteforceConfig::GetSeedBruteforce(Decryptor first)
+{
+    return BruteforceConfig(first, BruteforceType::Seed, (uint32_t)-1);
+}
+
 BruteforceConfig BruteforceConfig::GetAlphabet(Decryptor first, const MultibaseDigit& alphabet, size_t num)
 {
     auto result = GetPattern(first, BruteforcePattern(alphabet), num);
@@ -117,6 +122,11 @@ std::string BruteforceConfig::toString() const
     case BruteforceType::Dictionary:
     {
         return str::format<std::string>("Type: %s. Words num: %zd", pGeneratorName, dict_size());
+    }
+    case BruteforceType::Seed:
+    {
+        return str::format<std::string>("Type: %s. Manufacturer key: 0x%llX Start Seed:%u",
+            pGeneratorName, start.man(), start.seed());
     }
     }
     return str::format<std::string>("UNSUPPORTED Type (%d): %s", (int)type, pGeneratorName);

@@ -3,6 +3,7 @@
 #include "common.h"
 
 #include <stdlib.h>
+#include <cstring>
 
 #include "host_utils.h"
 
@@ -16,35 +17,88 @@
 #endif
 
 
+namespace
+{
+
+bool parse_manufactorer_key(char* key_str, uint64_t& key)
+{
+    if (!key_str)
+    {
+        return 0;
+    }
+
+    int base = 0;
+    if (key_str[0] == '0' && (key_str[1] == 'b' || key_str[1] == 'B'))
+    {
+        key_str[0] = ' ';
+        key_str[1] = ' ';
+        base = 2;
+    }
+
+    if (auto parsed = strtoull(key_str, nullptr, base))
+    {
+        key = parsed;
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+bool parse_seed(char* seed_str, uint32_t& seed)
+{
+    if (!seed_str)
+    {
+        return 0;
+    }
+
+    int base = 10;
+
+    if (auto parsed = strtoul(seed_str, nullptr, base))
+    {
+        seed = parsed;
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+}
+
+
 
 std::vector<Decryptor> host::utils::read_word_dictionary_file(const char* file)
 {
-    // TODO: Support as <key>:<seed>
-    constexpr uint32_t SEED_UNSUPPORTED = 0;
-
     std::vector<Decryptor> results;
 
     if (FILE* file_dict = fopen(file, "r"))
     {
-        char line[66] = { 0 };
+        char line[256] = { 0 };
+        char delim[2] = ":";
+
         while (fgets(line, sizeof(line), file_dict))
         {
-            int base = 0;
-            if (line[0] == '0' && (line[1] == 'b' || line[1] == 'B'))
+            auto man_str = strtok(line, delim);
+            if (man_str == nullptr)
             {
-                line[0] = ' ';
-                line[1] = ' ';
-                base = 2;
+                man_str = line;
             }
 
-            if (auto key = strtoull(line, nullptr, base))
-            {
-                results.push_back(Decryptor(key, SEED_UNSUPPORTED));
-            }
-            else
+            uint64_t man = (uint64_t)0;
+            uint32_t seed = (uint32_t)0;
+
+            if (!parse_manufactorer_key(man_str, man))
             {
                 printf("Error: invalid line: `%s` in file: '%s'\n", line, file);
             }
+
+            auto seed_str = strtok(NULL, delim);
+            parse_seed(seed_str, seed);
+
+            results.emplace_back(man, seed);
         }
 
         fclose(file_dict);
@@ -53,11 +107,8 @@ std::vector<Decryptor> host::utils::read_word_dictionary_file(const char* file)
     return results;
 }
 
-std::vector<Decryptor> host::utils::read_binary_dictionary_file(const char* file, uint8_t mode)
+std::vector<Decryptor> host::utils::read_binary_dictionary_file(const char* file, uint8_t mode, uint32_t seed)
 {
-    // TODO: Support as... no idea
-    constexpr uint32_t SEED_UNSUPPORTED = 0;
-
     std::vector<Decryptor> decryptors;
 
     if (FILE* bin_file = fopen(file, "rb"))
@@ -71,11 +122,11 @@ std::vector<Decryptor> host::utils::read_binary_dictionary_file(const char* file
 
             uint64_t key = mode == 0 ? as_is : reversed;
 
-            decryptors.push_back(Decryptor(key, SEED_UNSUPPORTED));
+            decryptors.push_back(Decryptor(key, seed));
             if (mode == 2)
             {
                 // reversed already added above
-                decryptors.push_back(Decryptor(as_is, SEED_UNSUPPORTED));
+                decryptors.push_back(Decryptor(as_is, seed));
             }
         }
 

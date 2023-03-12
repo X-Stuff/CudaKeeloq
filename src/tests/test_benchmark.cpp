@@ -102,16 +102,31 @@ void benchmark::run(const CommandLineArgs& args, const BruteforceConfig& benchma
             {
                 std::sort(batches_kResults_per_sec.begin(), batches_kResults_per_sec.end());
 
+                uint64_t median = 0;
+                uint64_t avg = 0;
+
+                auto num_results = batches_kResults_per_sec.size();
+                if (num_results > 0)
+                {
+                    avg = std::reduce(batches_kResults_per_sec.begin(), batches_kResults_per_sec.end()) / num_results;
+                }
+
+                if (num_results > 2)
+                {
+                    median = num_results % 2 == 0 ?
+                        (batches_kResults_per_sec[num_results / 2] + batches_kResults_per_sec[num_results / 2 - 1]) / 2 :
+                        batches_kResults_per_sec[num_results / 2];
+                }
+
                 console_cursor_ret_up(1);
                 console::clear_line();
 
                 // Creating results
-                printf("| CUDA: %" PRIu16 " x %" PRIu16 " \t| MEM: %" PRIu64 " MB\t | Time (ms): %" PRIu64 " \t |\tSpeed (K/s): %" PRIu64 " (avg.) %" PRIu64 " (mean) |\t\t\t\t\n",
+                printf("| CUDA: %" PRIu16 " x %" PRIu16 " \t| MEM: %" PRIu64 " MB\t | Time (ms): %" PRIu64 " \t |\tSpeed (K/s): %" PRIu64 " (avg.) %" PRIu64 " (median) |\t\t\t\t\n",
                     NumCudaBlocks, NumCudaThreads,
                     benchmarkRound.get_mem_size() / (1024 * 1024),
                     roundTimer.elapsed().count(),
-                    std::reduce(batches_kResults_per_sec.begin(), batches_kResults_per_sec.end()) / numBatches,
-                    batches_kResults_per_sec[numBatches / 2]);
+                    avg, median);
             }
         }
     }

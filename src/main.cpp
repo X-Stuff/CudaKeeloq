@@ -41,6 +41,9 @@ CommandLineArgs demoTestCommandlineArgs(int num_gen_input = 3)
     cmd.brute_configs.emplace_back(BruteforceConfig::GetAlphabet(first_decryptor_ptrn, cmd.alphabets[1]));
     cmd.brute_configs.emplace_back(BruteforceConfig::GetAlphabet(first_decryptor_ptrn, cmd.alphabets[0]));
 
+    // Seed
+    cmd.brute_configs.emplace_back(BruteforceConfig::GetSeedBruteforce(Decryptor(debugKey, 0)));
+
     // Pattern (reversed)
     cmd.brute_configs.emplace_back(BruteforceConfig::GetPattern(first_decryptor_ptrn, BruteforcePattern(
         {
@@ -153,12 +156,14 @@ void bruteforce(const CommandLineArgs& args)
 
                 console_cursor_ret_up(2);
 
+                const Decryptor& last_used_decryptor = kernelInput.GetConfig().last;
+
                 printf("[%c][%zd/%zd]    %" PRIu64 "(ms)/batch Speed: %" PRIu64 " KKeys/s   Last key:0x%" PRIX64 " (%u)         \n",
                     WAIT_CHAR(batch),
                     batch, batchesInRound,
                     duration.count(),
                     kilo_result_per_second,
-                    kernelInput.config.last.man(), kernelInput.config.last.seed());
+                    last_used_decryptor.man(), last_used_decryptor.seed());
 
                 auto overall = std::chrono::duration_cast<std::chrono::seconds>(
                     std::chrono::system_clock::now() - roundStartTime);
@@ -185,7 +190,7 @@ int main(int argc, const char** argv)
 
     if (!keeloq::kernels::cuda_is_working())
     {
-        printf("Error: This device cannot compute keeloq right. Single encryption and decryption mismatch.");
+        printf("Error: This device cannot compute keeloq right. Single encryption and decryption mismatch.\n");
         assert(false);
         return 1;
     }

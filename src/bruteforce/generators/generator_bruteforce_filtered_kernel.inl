@@ -18,21 +18,23 @@ __device__ inline uint64_t RequestNewBlock(TPtr* from, uint32_t size)
 
 __global__ void DEFINE_GENERATOR_KERNEL(GeneratorBruteforceFiltered, KeeloqKernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls)
 {
-    assert(input->config.type == BruteforceType::Filtered);
+    const BruteforceConfig& config = input->GetConfig();
 
-    assert(input->config.start.man() > 0x100000000000 && "Starting key should be big enough to start bruteforcing. Consider pattern brute.");
+    assert(config.type == BruteforceType::Filtered);
 
-    assert(input->config.filters.include != BruteforceFilters::Flags::None && "Include filter None is invalid - will lead to infinite loop!");
-    assert(input->config.filters.exclude != BruteforceFilters::Flags::All && "Exclude filter All is invalid - will lead to infinite loop!");
+    assert(config.start.man() > 0x100000000000 && "Starting key should be big enough to start bruteforcing. Consider pattern brute.");
+
+    assert(config.filters.include != BruteforceFilters::Flags::None && "Include filter None is invalid - will lead to infinite loop!");
+    assert(config.filters.exclude != BruteforceFilters::Flags::All && "Exclude filter All is invalid - will lead to infinite loop!");
 
     CudaContext ctx = CudaContext::Get();
 
-    const uint32_t seed = input->config.start.seed();
+    const uint32_t seed = config.start.seed();
 
     CudaArray<Decryptor>& decryptors = *input->decryptors;
     size_t num_decryptors = decryptors.num;
 
-    BruteforceFilters& filters = input->config.filters;
+    const BruteforceFilters& filters = config.filters;
 
 
     // if we need to generate 24 keys, and we have 64 threads, 40 last should do nothing

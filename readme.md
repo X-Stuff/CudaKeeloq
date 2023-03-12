@@ -9,6 +9,16 @@ You will need 18446744073709551615 / 1000000000 / 3600 / 24 / 365 = 584 YEARS! t
 > My laptop 3080Ti can do only 230 MKeys/s
 So it's practically impossible to use this application "as is" in real life attack.
 
+## Version history
+
+ * `0.1.1`
+   - Added seed bruteforce mode (issue: https://github.com/x-stuff/CudaKeeloq/issues/2).
+   - Added support of specifying seed in a text dictionaries.
+   - Fixed some minor bugs and internal refactoring.
+   - Slightly improved performance (1-5%)
+ * `0.1.0`
+   - Initial public release.
+
 ## Capabilities
 
 * **Simple** (+1) bruteforce
@@ -19,6 +29,13 @@ So it's practically impossible to use this application "as is" in real life atta
   > You may specify exact set of bytes which should be used for generating keys during bruteforce. For example you may want to use only numbers, or only ascii symbols.
 * **Pattern** attack
   > This is like extended alphabet. You may specify individual set of bytes for each byte in 64bit key. For example you may want first byte be any value, but others be only numbers.
+* **Dictionary** attack
+  > Manufacturer keys will be taken from input files. Supports binary and text modes. In text mode it's allowed to specify a seed also.
+
+## Limitations
+
+ * Doesn't support mixed bruteforce mode, when you need to bruteforce keys and seeds. You have to specify either `seed` or `key` if you want to brute `secure` or `faac` types.
+ * Can't do binary dictionary window attack. If you want something similar, you can make 63 more files. Where each file's content will be shifted by 1-to-63 bit to the left.
 
 ## Build
 
@@ -85,11 +102,30 @@ Specified 2 patterns - 2 attacks will be launched:
   - First will check keys started (less significant bytes) from `..00FF`, then will be either `01` or `10` bytes, then bytes range `AA, AB, AC, AD ... FF`, then 2 any bytes [`0x00`:`0xFF`], and final 2 bytes will be `11` and `FF`.
   - Second has constant lower 32 bit value `ABCDEF00` and higher 32 bits will be bruted.
 
+#### Seed bruteforce
+
+```
+./CudaKeeloq --inputs xx,yy,zz --mode=5 --start=<man>
+```
+This will launch seed attack with specified manufacturer key: `<man>`. If `--learning-type=` not specified - will try to check all learning types with seed - `FAAC` and `Secure` ( `Rev` version dropped intentionally since manufacturer key explicitly set ). You can specify start seed with `--seed=` but it's kind of useless. Check all 32-bit values is matter of minutes, and check will be forced to do all over the `uint32` range anyway.
+
+#### Dictionary bruteforce
+
+```
+./CudaKeeloq --inputs xx,yy,zz --mode=0 --word-dict=0xFDE4531BBACAD12,examples/dictionary.words --bin-dict=examples/dictionary.bin --bin-dict-mode=1
+```
+This will launch 2 dictionary attacks:
+  1. Explicit key `0xFDE4531BBACAD12` from command line and parsed keys from `examples/dictionary.words`
+  2. Keys created from bytes of file `examples/dictionary.bin`. Since `--bin-dict-mode=1` specified, read 8-bytes from file will be reversed. So the bytes `01 00 00 00 ...` will become `uint64` number with value `1`.
+
+Other arguments for this mode aren't used.
+
 ## Command line arguments
 
 ### Inputs
 
 * `--inputs=[i1, i2, i3]` - inputs are captured "over the air" bytes, you need to provide 1-3 in format of hexadecimal number: `0x1122334455667788`.
+  > NOTE: It is possible to launch bruteforce over the single captured data, but there will be tons of false matches. You shouldn't use it. Even with 2 inputs chances are pretty high.
 
 #### Bruteforce range
 
@@ -150,7 +186,7 @@ Each bruteforce run must define a mode.
 Several modes can be specified at the same time like `--mode=0,1,3,4` but you should provide all expected arguments for each mode.
 
  * `--mode=0` - Dictionary. Expects (one or both):
-    - `--word-dict=[f1, w1, ...]` - `f1` - text dictionary file(s) with hexadecimal values, `w1` hexadecimal word itself
+    - `--word-dict=[f1, w1, ...]` - `f1` - text dictionary file(s) with hexadecimal values, `w1` hexadecimal word itself. Supports seed also, should be provided with `:` as delimiter (e.g.: `0xAABBCCDDEE:1234`) and as decimal number only.
     - `--bin-dict=[f1, f2]` - binary file(s) each 8 bytes of which will be used as dictionary word.
     Supports `--bin-dict-mode=M` where `M` = { `0`, `1`, `2`}. `0` - as is (big endian). `1` - reverse (little endian), `2` - both.
  * `--mode=1` - Simple bruteforce mode.
@@ -169,11 +205,13 @@ Several modes can be specified at the same time like `--mode=0,1,3,4` but you sh
         - `A|B|C` - means `A` or `B` or `C`
         - `AL[0..N]` - means alphabet from inputs (must be specified with `--alphabet=`)
     - `--alphabet=` - if pattern has `AL` - alphabet must be specified.
+ * `--mode=5` - Seed bruteforce mode. Expects:
+    - `--start=<man>` - Manufacturer key. This will be the only key to check. Instead of bruteforcing keys, this mode bruteforce seeds.
 
 ### Learning types
 
 By default the app will try to brute all known learning keys (16 or 12 depending if seed is specified), however if you know exact learning type, you might increase you bruteforce time x12-16 times. You may also specify several learning types simultaneously `--learning-type=0,5,7`.
-> NOTE: At some point using `ALL` learning types might be faster than explicitly specified due to GPU branching problem.
+> NOTE: Depending on your GPU, at some point, using `ALL` learning types *might be* faster than explicitly specified, due to the GPU branching problem.
 
 Each learning type has its `_REV` modification. That's mean it will use byte-reversed key for decryption. See more [keeloq_learning_types.h](src/algorithm/keeloq/keeloq_learning_types.h)
 
@@ -201,8 +239,8 @@ Here and below `=x[y]` - `x` value for normal mode, `y` for reversed.
  > Windows executable, release mode, MSVS 2022, CUDA 12.0.0
 
  For my laptop's GPU ( 3080Ti ) the best results with `8196` CUDA Blocks and maximum CUDA threads (from device info - `1024`) - it gives me approx.:
-  * `25` MKeys/s for `ALL` learning types if `seed` **is** specified.
-  * `48` MKeys/s for `ALL` learning types if `seed` is **not** provided.
+  * `28` MKeys/s for `ALL` learning types if `seed` **is** specified.
+  * `49` MKeys/s for `ALL` learning types if `seed` is **not** provided.
   * `500` MKeys for `Simple` ( the easiest type single keeloq decryption ).
   * `250` MKeys for `Normal` and `Secure`.
   * `220` MKeys for `FAAC`.

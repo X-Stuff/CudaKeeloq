@@ -33,7 +33,8 @@ void SingleResult::DecryptedArray::print() const
 
 void SingleResult::print(bool onlymatch /* = true */) const
 {
-    printf("Results (Input: 0x%" PRIX64 " - Man key: 0x%" PRIX64 " )\n\n", encrypted.ota, decryptor.man());
+    printf("Results (Input: 0x%" PRIX64 " - Man key: 0x%" PRIX64 " - Seed: %u )\n\n",
+        encrypted.ota, decryptor.man(), decryptor.seed());
 
     for (uint8_t i = 0; i < ResultsCount; ++i)
     {

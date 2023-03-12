@@ -5,7 +5,7 @@
 #include "host/host_utils.h"
 #include "host/console.h"
 
-#define CXXOPTS_NO_EXCEPTIONS
+//#define CXXOPTS_NO_EXCEPTIONS
 #include "cxxopts/include/cxxopts.hpp"
 
 
@@ -14,6 +14,12 @@ namespace
 
 inline void read_alphabets(CommandLineArgs& target, cxxopts::ParseResult& result)
 {
+    if (result.count(ARG_ALPHABET) == 0)
+    {
+        // no alphabets available
+        return;
+    }
+
     const auto& alphabet_args = result[ARG_ALPHABET].as<std::vector<std::string>>();
 
     for (const auto& alphabet_arg : alphabet_args)
@@ -104,6 +110,8 @@ inline void parse_dictionary_mode(CommandLineArgs& target, cxxopts::ParseResult&
 
     if (result[ARG_BINDICT].count() > 0)
     {
+        auto seed = result[ARG_SEED].as<uint32_t>();
+
         auto dicts = result[ARG_BINDICT].as<std::vector<std::string>>();
         auto mode = result[ARG_BINDMODE].as<uint8_t>();
 
@@ -111,7 +119,7 @@ inline void parse_dictionary_mode(CommandLineArgs& target, cxxopts::ParseResult&
 
         for (const auto& bin_dict_path : dicts)
         {
-            std::vector<Decryptor> decryptors = host::utils::read_binary_dictionary_file(bin_dict_path.c_str(), mode);
+            std::vector<Decryptor> decryptors = host::utils::read_binary_dictionary_file(bin_dict_path.c_str(), mode, seed);
 
             if (decryptors.size() > 0)
             {
@@ -136,6 +144,21 @@ inline void parse_bruteforce_mode(CommandLineArgs& target, cxxopts::ParseResult&
     auto count_key = result[ARG_COUNT].as<size_t>();
 
     target.brute_configs.push_back(BruteforceConfig::GetBruteforce(first_decryptor, count_key));
+}
+
+inline void parse_seed_mode(CommandLineArgs& target, cxxopts::ParseResult& result)
+{
+    if (result.count(ARG_START) == 0)
+    {
+        printf("Error: For seed mode, it's necessary to specify a manufacturer key with '--" ARG_START "' argument!\n");
+        return;
+    }
+
+    auto start_key = result[ARG_START].as<uint64_t>();
+    auto seed = result[ARG_SEED].as<uint32_t>();
+    Decryptor first_decryptor(start_key, seed);
+
+    target.brute_configs.push_back(BruteforceConfig::GetSeedBruteforce(first_decryptor));
 }
 
 inline void parse_bruteforce_filtered_mode(CommandLineArgs& target, cxxopts::ParseResult& result)
@@ -281,6 +304,12 @@ constexpr const char* Usage()
         "\n\tPattern applied 'as is' - big endian. The highest byte (0xXX.......) will be taken from 1st alphabet."
         "\n\tNext byte (0x..XX....) will be exact `0x11`."
         "\n\tNext byte (0x....XX..) will be `0xAB` or `0xBC`.\n"
+
+        "\nExample:\n"
+        "\t./" APP_NAME " --"  ARG_INPUTS " xxx,yy,zzz"
+        " --" ARG_MODE "=5 --" ARG_START "=0xAABBCCDDEEFF"
+        "\n\n\tThis will launch seed bruteforce attack for all seed learning types. "
+        "\n\tSpecifying '--" ARG_LTYPE "=a,b,c' will narrow learning types to provided ones."
         ;
 }
 
@@ -328,7 +357,8 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv)
             "\n\t1: - Simple +1."
             "\n\t2: - Simple +1 with filters."
             "\n\t3: - Alphabet. Bruteforce +1 using only specified bytes."
-            "\n\t4: - Pattern. Bruteforce with bytes selected by specified pattern.",
+            "\n\t4: - Pattern. Bruteforce with bytes selected by specified pattern."
+            "\n\t5: - Seed. Bruteforce only seed with provided manufacturer key (applied only to algorithms with seed).",
             cxxopts::value<std::vector<uint8_t>>(), "[m1,m2..]")
         (ARG_LTYPE,
             "Specific learning type (if you know your target well). Increases approximately x16 times (since doesn't calculate other types)"
@@ -457,6 +487,9 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv)
             case (uint8_t)BruteforceType::Pattern:
                 parse_pattern_mode(args, result);
                 break;
+            case (uint8_t)BruteforceType::Seed:
+                parse_seed_mode(args, result);
+                break;
             default:
                 break;
             }
@@ -464,8 +497,8 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv)
 
         if (args.brute_configs.size() == 0)
         {
-            printf("Error: Cannot parse inputs to at least one brute config! '%s'\n",
-                result[ARG_MODE].as<std::string>().c_str());
+            printf("Error: Cannot parse inputs to even single brute config! Result arguments:\n'%s'\n",
+                result.arguments_string().c_str());
         }
     }
     else
@@ -474,9 +507,10 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv)
             options.help().c_str());
     }
 
-    auto learning_type_bytes = result[ARG_LTYPE].as<std::vector<uint8_t>>();
-    if (learning_type_bytes.size() > 0)
+    if (result.count(ARG_LTYPE) > 0)
     {
+        auto learning_type_bytes = result[ARG_LTYPE].as<std::vector<uint8_t>>();
+
         args.selected_learning.clear();
         for (auto value : learning_type_bytes)
         {
@@ -504,7 +538,7 @@ void CommandLineArgs::init_inputs(const std::vector<uint64_t>& inp)
      }
  }
 
- void CommandLineArgs::init_cuda(uint16_t b, uint16_t t, uint16_t l)
+void CommandLineArgs::init_cuda(uint16_t b, uint16_t t, uint16_t l)
  {
 	 cuda_blocks	= b;
 	 assert(cuda_blocks < max_cuda_blocks() && "This GPU cannot use this much blocks!");
@@ -518,7 +552,7 @@ void CommandLineArgs::init_inputs(const std::vector<uint64_t>& inp)
 	 }
  }
 
- uint32_t CommandLineArgs::max_cuda_threads()
+uint32_t CommandLineArgs::max_cuda_threads()
  {
 	 cudaDeviceProp prop;
 	 cudaGetDeviceProperties(&prop, 0);
@@ -526,7 +560,7 @@ void CommandLineArgs::init_inputs(const std::vector<uint64_t>& inp)
 	 return prop.maxThreadsPerBlock;
  }
 
- uint32_t CommandLineArgs::max_cuda_blocks()
+uint32_t CommandLineArgs::max_cuda_blocks()
  {
 	 cudaDeviceProp prop;
 	 cudaGetDeviceProperties(&prop, 0);
