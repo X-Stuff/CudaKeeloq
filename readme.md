@@ -15,6 +15,7 @@ So it's practically impossible to use this application "as is" in real life atta
    - Added seed bruteforce mode (issue: https://github.com/x-stuff/CudaKeeloq/issues/2).
    - Added support of specifying seed in a text dictionaries.
    - Fixed some minor bugs and internal refactoring.
+   - Slightly improved performance (1-5%)
  * `0.1.0`
    - Initial public release.
 
@@ -238,8 +239,8 @@ Here and below `=x[y]` - `x` value for normal mode, `y` for reversed.
  > Windows executable, release mode, MSVS 2022, CUDA 12.0.0
 
  For my laptop's GPU ( 3080Ti ) the best results with `8196` CUDA Blocks and maximum CUDA threads (from device info - `1024`) - it gives me approx.:
-  * `25` MKeys/s for `ALL` learning types if `seed` **is** specified.
-  * `47` MKeys/s for `ALL` learning types if `seed` is **not** provided.
+  * `28` MKeys/s for `ALL` learning types if `seed` **is** specified.
+  * `49` MKeys/s for `ALL` learning types if `seed` is **not** provided.
   * `500` MKeys for `Simple` ( the easiest type single keeloq decryption ).
   * `250` MKeys for `Normal` and `Secure`.
   * `220` MKeys for `FAAC`.
