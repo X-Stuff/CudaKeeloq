@@ -65,6 +65,12 @@ public:
 
     // A "callback" which is called after generator creates Decryptors. Used to set correct last generated Decryptor
     void AfterGeneratedDecryptors();
+
+    // Get Number of OTA inputs. Will do a GPU->CPU copy
+    size_t NumInputs() const;
+
+    // Does the fixed parts of inputs match? Will do a GPU->CPU copy
+    bool InputsFixMatch() const;
 private:
     // Which type of learning use for decryption
     KeeloqLearningType::Mask learnings;

@@ -110,6 +110,8 @@ inline void parse_dictionary_mode(CommandLineArgs& target, cxxopts::ParseResult&
 
     if (result[ARG_BINDICT].count() > 0)
     {
+        auto seed = result[ARG_SEED].as<uint32_t>();
+
         auto dicts = result[ARG_BINDICT].as<std::vector<std::string>>();
         auto mode = result[ARG_BINDMODE].as<uint8_t>();
 
@@ -117,7 +119,7 @@ inline void parse_dictionary_mode(CommandLineArgs& target, cxxopts::ParseResult&
 
         for (const auto& bin_dict_path : dicts)
         {
-            std::vector<Decryptor> decryptors = host::utils::read_binary_dictionary_file(bin_dict_path.c_str(), mode);
+            std::vector<Decryptor> decryptors = host::utils::read_binary_dictionary_file(bin_dict_path.c_str(), mode, seed);
 
             if (decryptors.size() > 0)
             {

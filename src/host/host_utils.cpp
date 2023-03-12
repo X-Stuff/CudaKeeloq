@@ -107,11 +107,8 @@ std::vector<Decryptor> host::utils::read_word_dictionary_file(const char* file)
     return results;
 }
 
-std::vector<Decryptor> host::utils::read_binary_dictionary_file(const char* file, uint8_t mode)
+std::vector<Decryptor> host::utils::read_binary_dictionary_file(const char* file, uint8_t mode, uint32_t seed)
 {
-    // TODO: Support as... no idea
-    constexpr uint32_t SEED_UNSUPPORTED = 0;
-
     std::vector<Decryptor> decryptors;
 
     if (FILE* bin_file = fopen(file, "rb"))
@@ -125,11 +122,11 @@ std::vector<Decryptor> host::utils::read_binary_dictionary_file(const char* file
 
             uint64_t key = mode == 0 ? as_is : reversed;
 
-            decryptors.push_back(Decryptor(key, SEED_UNSUPPORTED));
+            decryptors.push_back(Decryptor(key, seed));
             if (mode == 2)
             {
                 // reversed already added above
-                decryptors.push_back(Decryptor(as_is, SEED_UNSUPPORTED));
+                decryptors.push_back(Decryptor(as_is, seed));
             }
         }
 

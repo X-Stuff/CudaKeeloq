@@ -483,48 +483,60 @@ __device__ __host__ inline void keeloq_decrypt(const EncParcel& enc, const Decry
  *    * properly analyze their decrypted parts (each 3 decrypted inputs should have same serial, button, and (increasing) counter
  *  - if first input doesn't have any match - further calculations pointless
  */
-template<uint8_t NumResults, LearningDectyptionMode LearningMode, uint8_t FirstResult = 0>
+template<uint8_t NumResults, LearningDectyptionMode LearningMode, uint8_t FirstResultIndex>
 __device__ uint8_t inline keeloq_decrypt_and_analyze(const CudaContext& ctx,
     const CudaArray<EncParcel>& encrypted, const Decryptor& decryptor, const KeeloqLearningType::Mask& learnings, Span<SingleResult>& results)
 {
-    if constexpr (NumResults == 1)
-    {
-        const EncParcel& enc = encrypted[0];
+    static_assert(NumResults > 1, "Use `keeloq_decrypt_and_quick_analyze()` if results number is less than 2");
+    static_assert(FirstResultIndex < NumResults, "Invalid template parameters!");
 
-        uint8_t match_count = 0;
-        SingleResult& result = results[0];
+    assert(encrypted.num >= NumResults && "Encrypted array size doesn't match results array!");
+
+    // inner loop for each input for decryptor - make decryption
+    UNROLL
+    for (uint32_t i = FirstResultIndex; i < NumResults; ++i)
+    {
+        SingleResult& result = results[i];
+        result.match = KeeloqLearningType::INVALID;
 
         result.decryptor = decryptor;
-        result.encrypted = enc; // useless copy
+        result.encrypted = encrypted[i];
 
-        keeloq_decrypt<LearningMode>(enc, decryptor, learnings, result.decrypted);
-
-        result.match = analyze_single_result(result, enc.srl(), enc.btn(), learnings, match_count);
-
-        // In case of single input that means that key has 2 (most probably) phantoms
-        return match_count > 1;
+        keeloq_decrypt<LearningMode>(result.encrypted, decryptor, learnings, result.decrypted);
     }
-    else
-    {
-        assert(encrypted.num >= NumResults && "Encrypted array size doesn't match results array!");
 
-        // inner loop for each input for decryptor - make decryption
-        UNROLL
-        for (uint32_t i = FirstResult; i < NumResults; ++i)
-        {
-            SingleResult& result = results[i];
-            result.match = KeeloqLearningType::INVALID;
+    // now check all decrypted results if they match somehow
+    analyze_multiple_results<NumResults, LearningMode>(ctx, results, learnings);
+    return 0;
+}
 
-            result.decryptor = decryptor;
-            result.encrypted = encrypted[i];
+/**
+ *  This function decrypts input specified in template argument @InputIndex
+ * And writes `result.match` if fixed part matches decrypted hopping.
+ * This is used as first filter before robust check over all inputs.
+ * There could be more than one match, in this method we do not care,
+ * we want to have indication that this decryptor has a possibility to be the correct one.
+ */
+template<LearningDectyptionMode LearningMode, uint8_t InputIndex>
+__device__ uint8_t inline keeloq_decrypt_and_quick_analyze(const CudaContext& ctx,
+    const CudaArray<EncParcel>& encrypted, const Decryptor& decryptor, const KeeloqLearningType::Mask& learnings, Span<SingleResult>& results)
+{
+    static_assert(InputIndex < 2, "You want Input index be 1 or 2 MOST LIKELY. Since last check should be the robust one");
 
-            keeloq_decrypt<LearningMode>(result.encrypted, decryptor, learnings, result.decrypted);
-        }
+    const EncParcel& enc = encrypted[InputIndex];
 
-        // now check all decrypted results if they match somehow
-        analyze_multiple_results<NumResults, LearningMode>(ctx, results, learnings);
-        return 0;
-    }
+    uint8_t match_count = 0;
+    SingleResult& result = results[InputIndex];
+
+    result.decryptor = decryptor;
+    result.encrypted = enc; // useless copy
+
+    keeloq_decrypt<LearningMode>(enc, decryptor, learnings, result.decrypted);
+
+    result.match = analyze_single_result(result, enc.srl(), enc.btn(), learnings, match_count);
+
+    // In case of single input that means that key has 2 (most probably) phantoms
+    return match_count > 1;
 }
 
 
@@ -538,9 +550,13 @@ __device__ uint8_t inline keeloq_decrypt_and_analyze(const CudaContext& ctx,
 template<uint8_t NumInputs, LearningDectyptionMode LearningMode, bool UseFastCheck = true>
 __device__ uint8_t inline keeloq_decryption_run(const CudaContext& ctx, KeeloqKernelInput& input)
 {
-    static_assert(NumInputs > 0 && NumInputs <= 3, "Invalid inputs number!");
-
     constexpr bool UseFullCheck = NumInputs > 1 && !UseFastCheck;
+    constexpr uint8_t First = 0;
+    constexpr uint8_t Second = 1;
+    constexpr uint8_t Third = 2;
+
+    static_assert(NumInputs > 0 && NumInputs <= 3, "Invalid inputs number!");
+    static_assert(First < Second && Second < Third, "Static assert just to get rid of warning");
 
     const auto& encrypted = *input.encdata;
     const auto& decryptors = *input.decryptors;
@@ -562,12 +578,12 @@ __device__ uint8_t inline keeloq_decryption_run(const CudaContext& ctx, KeeloqKe
         if constexpr (UseFullCheck)
         {
             // only multiple input - decrypt all and then check
-            keeloq_decrypt_and_analyze<NumInputs, LearningMode, 0>(ctx, encrypted, decryptor, input.GetLearningMask(), results);
+            keeloq_decrypt_and_analyze<NumInputs, LearningMode, First>(ctx, encrypted, decryptor, input.GetLearningMask(), results);
         }
         else
         {
             // Single input
-            auto multiple_match = keeloq_decrypt_and_analyze<1, LearningMode>(ctx, encrypted, decryptor, input.GetLearningMask(), results);
+            auto multiple_match = keeloq_decrypt_and_quick_analyze<LearningMode, First>(ctx, encrypted, decryptor, input.GetLearningMask(), results);
             if constexpr (NumInputs == 1)
             {
                 // Single mode only. in multiple - it's ok, we'll check just the rest
@@ -575,27 +591,49 @@ __device__ uint8_t inline keeloq_decryption_run(const CudaContext& ctx, KeeloqKe
             }
 
             // Multiple input
-            if constexpr (NumInputs >= 2)
+            if constexpr (NumInputs > 1)
             {
-                assert(encrypted[0].fix() == encrypted[1].fix() && "Cannot `UseFastCheck` if fixed part of encrypted packets are not the same!");
-
-                SingleResult& first_result = results[0];
+                assert(encrypted[First].fix() == encrypted[Second].fix() && "Cannot `UseFastCheck` if fixed part of encrypted packets are not the same!");
 
                 // Even if this is `if` - still it's faster
-                if (first_result.match == KeeloqLearningType::INVALID)
+                if (results[First].match != KeeloqLearningType::INVALID)
                 {
-                    UNROLL
-                    for (uint32_t i = 1; i < NumInputs; ++i)
+                    if constexpr (NumInputs > 2)
                     {
-                        results[i].match = KeeloqLearningType::INVALID;
+                        // Calling decrypt and fast check on next input
+                        keeloq_decrypt_and_quick_analyze<LearningMode, Second>(ctx, encrypted, decryptor, input.GetLearningMask(), results);
+
+                        if (results[Second].match != KeeloqLearningType::INVALID)
+                        {
+                            // since 1-st and 2-nd was already decrypted - starting index is 2
+                            // This will also reset the `result.match`
+                            keeloq_decrypt_and_analyze<NumInputs, LearningMode, Third>(ctx, encrypted, decryptor, input.GetLearningMask(), results);
+                        }
+                        else
+                        {
+                            UNROLL
+                            for (uint32_t i = First; i < NumInputs; ++i)
+                            {
+                                results[i].match = KeeloqLearningType::INVALID;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // since 1-st was already decrypted - starting index is 1
+                        // This will also reset the `result.match`
+                        keeloq_decrypt_and_analyze<NumInputs, LearningMode, Second>(ctx, encrypted, decryptor, input.GetLearningMask(), results);
                     }
                 }
                 else
                 {
-                    // since 1-st was already decrypted - starting index is 1
-                    keeloq_decrypt_and_analyze<NumInputs, LearningMode, 1>(
-                        ctx, encrypted, decryptor, input.GetLearningMask(), results);
+                    UNROLL
+                    for (uint32_t i = First; i < NumInputs; ++i)
+                    {
+                        results[i].match = KeeloqLearningType::INVALID;
+                    }
                 }
+
             }
         }
     }
@@ -641,7 +679,7 @@ __device__ void __noinline__ Kernel_keeloq_main(KeeloqKernelInput::TCudaPtr Kern
 
     bool forceAll = KernelInputs->AllLearningsEnabled();
 
-    bool hasSeed = KernelInputs->GetConfig().start.seed() != 0;
+    bool hasSeed = KernelInputs->GetConfig().start.seed() != 0 || KernelInputs->GetConfig().type == BruteforceType::Dictionary;
     bool seedOnly = KernelInputs->GetConfig().type == BruteforceType::Seed;
 
     uint8_t num_errors = 0;
@@ -716,49 +754,36 @@ __global__ void Kenrel_keeloq_single_check(uint64_t ota, uint64_t man, uint32_t 
     ret->value = decrypted.data[learning];
 }
 
-// Main kernel for keeloq decryptions if provided several enc parcels
-__global__ void Kernel_keeloq_main_multi(KeeloqKernelInput::TCudaPtr KernelInputs, KernelResult::TCudaPtr ret)
-{
-    const CudaArray<EncParcel>& encdata = *KernelInputs->encdata;
-    uint32_t encrypted_num = (uint32_t)encdata.num;
 
-    switch (encrypted_num)
+__global__ void Kernel_keeloq_main_one_input(KeeloqKernelInput::TCudaPtr KernelInputs, KernelResult::TCudaPtr ret)
+{
+    Kernel_keeloq_main<OneEncInput>(KernelInputs, ret);
+}
+
+__global__ void Kernel_keeloq_main_two_inputs(KeeloqKernelInput::TCudaPtr KernelInputs, KernelResult::TCudaPtr ret, bool fixed_parts_match)
+{
+    if (fixed_parts_match)
     {
-    case 1:
+        Kernel_keeloq_main<TwoEncInputs, true>(KernelInputs, ret);
+    }
+    else
     {
-        Kernel_keeloq_main<OneEncInput>(KernelInputs, ret);
-        break;
+        // Optimizations fallback
+        // fixed parts not matched - cant use fast check
+        Kernel_keeloq_main<TwoEncInputs, false>(KernelInputs, ret);
     }
-    case 2:
-    {
-        if (encdata[0].fix() == encdata[1].fix())
-        {
-            Kernel_keeloq_main<TwoEncInputs, true>(KernelInputs, ret);
-        }
-        else
-        {
-            // Optimizations fallback
-            // fixed parts not matched - cant use fast check
-            Kernel_keeloq_main<TwoEncInputs, false>(KernelInputs, ret);
-        }
-        break;
-    }
-    case 3:
-    default:
-    {
-        if (encdata[0].fix() == encdata[1].fix() && encdata[1].fix() == encdata[2].fix())
-        {
-            Kernel_keeloq_main<ThreeEncInputs, true>(KernelInputs, ret);
-        }
-        else
-        {
-            // Optimizations fallback
-            // fixed parts not matched - cant use fast check
-            Kernel_keeloq_main<ThreeEncInputs, false>(KernelInputs, ret);
-        }
-        break;
-    }
-    }
+}
+
+__global__ void Kernel_keeloq_main_three_inputs_fast(KeeloqKernelInput::TCudaPtr KernelInputs, KernelResult::TCudaPtr ret)
+{
+
+    Kernel_keeloq_main<ThreeEncInputs, true>(KernelInputs, ret);
+}
+
+__global__ void Kernel_keeloq_main_three_inputs_slow(KeeloqKernelInput::TCudaPtr KernelInputs, KernelResult::TCudaPtr ret)
+{
+
+    Kernel_keeloq_main<ThreeEncInputs, false>(KernelInputs, ret);
 }
 
 }
@@ -769,7 +794,34 @@ __host__ KernelResult keeloq::kernels::cuda_brute(KeeloqKernelInput& mainInputs,
 {
     KernelResult kernel_results;
 
-    Kernel_keeloq_main_multi<<<ThreadBlocks, ThreadsInBlock>>>(mainInputs.ptr(), kernel_results.ptr());
+    switch (mainInputs.NumInputs())
+    {
+    case 1:
+    {
+        Kernel_keeloq_main_one_input<<<ThreadBlocks, ThreadsInBlock>>>(mainInputs.ptr(), kernel_results.ptr());
+        break;
+    }
+    case 2:
+    {
+        Kernel_keeloq_main_two_inputs<<<ThreadBlocks, ThreadsInBlock>>>(mainInputs.ptr(), kernel_results.ptr(), mainInputs.InputsFixMatch());
+        break;
+    }
+    case 3:
+    default:
+    {
+        if (mainInputs.InputsFixMatch())
+        {
+            Kernel_keeloq_main_three_inputs_fast<<<ThreadBlocks, ThreadsInBlock>>>(mainInputs.ptr(), kernel_results.ptr());
+        }
+        else
+        {
+            Kernel_keeloq_main_three_inputs_slow<<<ThreadBlocks, ThreadsInBlock>>>(mainInputs.ptr(), kernel_results.ptr());
+        }
+
+        break;
+    }
+    }
+
 
     mainInputs.read();
     kernel_results.read();
