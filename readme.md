@@ -11,6 +11,9 @@ So it's practically impossible to use this application "as is" in real life atta
 
 ## Version history
 
+ * `0.1.2`
+   - Fixed `dockerfile`, added `CMD` (issue: https://github.com/X-Stuff/CudaKeeloq/issues/4).
+   - CUDA version updated to `12.2``
  * `0.1.1`
    - Added seed bruteforce mode (issue: https://github.com/x-stuff/CudaKeeloq/issues/2).
    - Added support of specifying seed in a text dictionaries.
@@ -42,7 +45,7 @@ So it's practically impossible to use this application "as is" in real life atta
 ### Windows
 #### Requirements
 
-* CUDA Toolkit v12.0.0
+* CUDA Toolkit v12.2.0
   - nvcc
   - cuda runtime
   - visual studio extension
@@ -55,6 +58,7 @@ So it's practically impossible to use this application "as is" in real life atta
 ### Linux
 #### Requirements
 * docker
+* NVIDIA Container [Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
 
 #### Compiling
 ```
@@ -64,9 +68,19 @@ This will create a container `cudakeeloq:local` with compiled app
 
 Run the bruteforcer
 ```
-$ ./run.sh
+$ ./run.sh <ARGS>
 ```
 > NOTE: You may need to have CUDA docker extension installed in order to have `--gpus` command line argument works.
+
+### Different CUDA Version
+
+#### Windows
+Open `.vcxproj` find and replace:
+ * `CUDA 12.2.targets` with desired version
+ * `CUDA 12.2.props` with disired version
+
+#### Linux
+Open `dockerfile` and change `CUDA_MAJOR`, `CUDA_MINOR` and `CUDA_PATCH` variables
 
 ## Run
 

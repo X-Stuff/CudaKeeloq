@@ -1,7 +1,7 @@
 ARG CONFIGURATION="release"
 ARG CUDA_MAJOR=12
-ARG CUDA_MINOR=0
-ARG CUDA_PATCH=1
+ARG CUDA_MINOR=2
+ARG CUDA_PATCH=0
 
 FROM nvidia/cuda:${CUDA_MAJOR}.${CUDA_MINOR}.${CUDA_PATCH}-devel-ubuntu22.04 as builder
 ARG CONFIGURATION
@@ -27,4 +27,5 @@ USER cuda
 
 WORKDIR /app
 COPY --chown=cuda:cuda --from=builder /workspace/x64/$CONFIGURATION/bin /app/
-ENTRYPOINT [ "/app/CudaKeeloq", "--help" ]
+ENTRYPOINT [ "/app/CudaKeeloq" ]
+CMD [ "--help" ]
