@@ -336,7 +336,7 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv)
         ("h," ARG_HELP, "Prints this help")
 
         // What to bruteforce
-        (ARG_INPUTS, "Comma separated uint64 values (it's better to have 3)",
+        (ARG_INPUTS, "Comma separated uint64 values (it's better to have 3), hopping first: 0x<HOPPING_32><FIXED_32>",
             cxxopts::value<std::vector<uint64_t>>(), "[k1, k1, k3]")
 
         // CUDA Setup
@@ -451,6 +451,20 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv)
         if (args.inputs.size() < 3)
         {
             printf("WARNING: No enough inputs: '%zd'! Need at least 3!\nHowever we'll proceed...\n", args.inputs.size());
+        }
+
+        if (args.inputs.size() > 0)
+        {
+            auto fix = args.inputs[0].fix();
+
+            for (int i = 1; i < args.inputs.size(); ++i)
+            {
+                if (args.inputs[i].fix() != fix)
+                {
+                    printf("WARNING: Invalid input at index:%d (0x%016llX) fixed code doesn't match first input!\n",
+                        i, args.inputs[i].ota);
+                }
+            }
         }
     }
     else

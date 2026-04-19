@@ -8,7 +8,7 @@
 #include <cuda_runtime_api.h>
 
 
-enum class LearningDectyptionMode
+enum class LearningDecryptionMode
 {
     // Explicit defined learning types
     Invalid  = 0,
