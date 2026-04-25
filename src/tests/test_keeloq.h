@@ -21,9 +21,9 @@ namespace keeloq
     // Generate test inputs for specific key
     std::vector<EncParcel> gen_inputs(uint64_t key, uint8_t num = 3,
         uint32_t serial = default_serial, uint16_t counter = default_counter, uint8_t button = default_button, uint32_t seed = default_seed,
-        KeeloqLearningType learning = KeeloqLearningType::Normal);
+        KeeloqLearning::Type learning = KeeloqLearning::Type::Normal);
 
-    template<KeeloqLearningType TLearning>
+    template<KeeloqLearning::Type TLearning>
     inline std::vector<EncParcel> gen_inputs(uint64_t key, uint8_t num = 3,
         uint32_t serial = default_serial, uint16_t counter = default_counter, uint8_t button = default_button, uint32_t seed = default_seed)
     {

@@ -21,34 +21,34 @@ struct SingleResult
 		// fixed side array for every learning type
         // If is in global memory (common case) - use operator[] - though cache
         // If is thread local - use direct access
-        KeeloqLearningMatrix::DecryptedResults data;
+        KeeloqLearning::DecryptedResults data;
 
         __host__ __device__ inline uint32_t operator[](uint32_t index) const
         {
-            assert(index < KeeloqLearningMatrix::DecryptedResultsSize && "Invalid index of decrypted data. Bigger than last element");
+            assert(index < KeeloqLearning::DecryptedResults::Size && "Invalid index of decrypted data. Bigger than last element");
 #if __CUDA_ARCH__
             return __ldca(&data[index]);
 #else
             return data[index];
 #endif
         }
-        __host__ __device__ inline uint32_t at(KeeloqLearningType learning, KeeloqLearningMod mod) const
+        __host__ __device__ inline uint32_t at(KeeloqLearning::Type learning, KeeloqLearning::Mod mod) const
         {
-            const auto index = KeeloqLearningMatrix::getIndex(learning, mod);
+            const auto index = KeeloqLearning::Matrix::getIndex(learning, mod);
             return (*this)[index];
         }
 
-        __host__ __device__ inline uint32_t srl(KeeloqLearningType learning, KeeloqLearningMod mod) const
+        __host__ __device__ inline uint32_t srl(KeeloqLearning::Type learning, KeeloqLearning::Mod mod) const
         {
             return (at(learning, mod) >> 16) & 0x3ff;
         }
 
-        __host__ __device__ inline uint32_t btn(KeeloqLearningType learning, KeeloqLearningMod mod) const
+        __host__ __device__ inline uint32_t btn(KeeloqLearning::Type learning, KeeloqLearning::Mod mod) const
         {
             return (at(learning, mod) >> 28);
         }
 
-        __host__ __device__ inline uint32_t cnt(KeeloqLearningType learning, KeeloqLearningMod mod) const
+        __host__ __device__ inline uint32_t cnt(KeeloqLearning::Type learning, KeeloqLearning::Mod mod) const
         {
             return (at(learning, mod) & 0x0000FFFF);
         }
@@ -70,7 +70,7 @@ struct SingleResult
 
 	// Index in array that represents pairs of learning types and modes.
     // Set by GPU after analysis if there was a match
-	KeeloqLearningMatrix::MatchIndex match = KeeloqLearningMatrix::NoMatch;
+    KeeloqLearning::MatchIndex match = KeeloqLearning::NoMatch;
 
 	void print(bool onlymatch = true) const;
 };

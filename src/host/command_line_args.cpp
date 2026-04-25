@@ -528,9 +528,9 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv)
         args.selected_learning.clear();
         for (auto value : learning_type_bytes)
         {
-            if (value < KeeloqLearningTypesNum)
+            if (value < KeeloqLearning::TypesNum)
             {
-                args.selected_learning.push_back({static_cast<KeeloqLearningType>(value), KeeloqLearningMod::Regular });
+                args.selected_learning.push_back({static_cast<KeeloqLearning::Type>(value), KeeloqLearning::Mod::Regular });
             }
         }
     }

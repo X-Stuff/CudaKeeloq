@@ -15,7 +15,7 @@ namespace
 
 void SingleResult::DecryptedArray::print(uint8_t resIndex, uint64_t ota, bool ismatch) const
 {
-    const auto [lrn, mode] = KeeloqLearningMatrix::getByIndex(resIndex);
+    const auto [lrn, mode] = KeeloqLearning::Matrix::getByIndex(resIndex);
 
     printf("[%-40s (%-8s)] Btn:0x%X\tSerial:0x%X (0x%" PRIX32 ")\tCounter:0x%X\t%s\n", KeeloqLearning::Name(lrn), KeeloqLearning::Name(mode),
         (data[resIndex] >> 28),              // Button
@@ -27,7 +27,7 @@ void SingleResult::DecryptedArray::print(uint8_t resIndex, uint64_t ota, bool is
 
 void SingleResult::DecryptedArray::print() const
 {
-    for (uint8_t resIndex = 0; resIndex < KeeloqLearningMatrix::InvalidResultIndex; ++resIndex)
+    for (uint8_t resIndex = 0; resIndex < KeeloqLearning::InvalidResultIndex; ++resIndex)
     {
         print(resIndex, -1, false);
     }
@@ -38,7 +38,7 @@ void SingleResult::print(bool onlymatch /* = true */) const
     printf("Results (Input: 0x%" PRIX64 " - Man key: 0x%" PRIX64 " - Seed: %u )\n\n",
         encrypted.ota, decryptor.man(), decryptor.seed());
 
-    for (uint8_t resIndex = 0; resIndex < KeeloqLearningMatrix::InvalidResultIndex; ++resIndex)
+    for (uint8_t resIndex = 0; resIndex < KeeloqLearning::InvalidResultIndex; ++resIndex)
     {
         bool isMatch = match == resIndex;
         if (!onlymatch)

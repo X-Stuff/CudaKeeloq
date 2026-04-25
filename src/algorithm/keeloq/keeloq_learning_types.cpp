@@ -3,8 +3,10 @@
 #include <string>
 #include <array>
 
+namespace KeeloqLearning
+{
 
-KeeloqLearningMatrix::KeeloqLearningMatrix(std::vector<LearningPair> pairs)
+Matrix::Matrix(std::vector<Pair> pairs)
 {
     if (pairs.empty())
     {
@@ -18,7 +20,7 @@ KeeloqLearningMatrix::KeeloqLearningMatrix(std::vector<LearningPair> pairs)
     }
 }
 
-std::string KeeloqLearningMatrix::to_string() const
+std::string Matrix::to_string() const
 {
     if (isAllEnabled())
     {
@@ -30,51 +32,53 @@ std::string KeeloqLearningMatrix::to_string() const
 
     at += snprintf(&buffer[at], sizeof(buffer) - at, "Matrix:\n" "\tSimple Normal  Secure  Xor  Faac  Serial1 Serial2 Serial3\n");
 
-    static constexpr auto ModNames = std::array<const char*, KeeloqLearningModsNum>{ "Reg", "Rev", "Inv" };
+    static constexpr auto ModNames = std::array<const char*, ModsNum>{ "Reg", "Rev", "Inv" };
 
-    for (auto i = 0; i < KeeloqLearningModsNum; ++i)
+    for (auto i = 0; i < ModsNum; ++i)
     {
-        auto mod = static_cast<KeeloqLearningMod>(i);
+        auto mod = static_cast<Mod>(i);
 
         at += snprintf(&buffer[at], sizeof(buffer) - at, "\t%s:   %6s %6s %6s %3s %5s %7s %7s %7s\n",
             ModNames[i],
-            isEnabled(KeeloqLearningType::Simple, mod) ? "+" : " ",
-            isEnabled(KeeloqLearningType::Normal, mod) ? "+" : " ",
-            isEnabled(KeeloqLearningType::Secure, mod) ? "+" : " ",
-            isEnabled(KeeloqLearningType::Xor,   mod) ? "+" : " ",
-            isEnabled(KeeloqLearningType::Faac,  mod) ? "+" : " ",
-            isEnabled(KeeloqLearningType::Serial1, mod) ? "+" : " ",
-            isEnabled(KeeloqLearningType::Serial2, mod) ? "+" : " ",
-            isEnabled(KeeloqLearningType::Serial3, mod) ? "+" : " "
+            isEnabled(Type::Simple, mod) ? "+" : " ",
+            isEnabled(Type::Normal, mod) ? "+" : " ",
+            isEnabled(Type::Secure, mod) ? "+" : " ",
+            isEnabled(Type::Xor,   mod) ? "+" : " ",
+            isEnabled(Type::Faac,  mod) ? "+" : " ",
+            isEnabled(Type::Serial1, mod) ? "+" : " ",
+            isEnabled(Type::Serial2, mod) ? "+" : " ",
+            isEnabled(Type::Serial3, mod) ? "+" : " "
         );
     }
 
     return std::string(buffer);
 }
 
-const char* KeeloqLearning::Name(KeeloqLearningType type)
+const char* KeeloqLearning::Name(Type type)
 {
     switch (type)
     {
-        case KeeloqLearningType::Simple: return "Simple";
-        case KeeloqLearningType::Normal: return "Normal";
-        case KeeloqLearningType::Secure: return "Secure";
-        case KeeloqLearningType::Xor: return "Xor";
-        case KeeloqLearningType::Faac: return "Faac";
-        case KeeloqLearningType::Serial1: return "Serial1";
-        case KeeloqLearningType::Serial2: return "Serial2";
-        case KeeloqLearningType::Serial3: return "Serial3";
+        case Type::Simple: return "Simple";
+        case Type::Normal: return "Normal";
+        case Type::Secure: return "Secure";
+        case Type::Xor: return "Xor";
+        case Type::Faac: return "Faac";
+        case Type::Serial1: return "Serial1";
+        case Type::Serial2: return "Serial2";
+        case Type::Serial3: return "Serial3";
         default: return "Unknown";
     }
 }
 
-const char* KeeloqLearning::Name(KeeloqLearningMod mod)
+const char* KeeloqLearning::Name(Mod mod)
 {
     switch (mod)
     {
-        case KeeloqLearningMod::Regular: return "Regular";
-        case KeeloqLearningMod::ReversedKey: return "ReversedKey";
-        case KeeloqLearningMod::InvertedDec: return "InvertedDec";
+        case Mod::Regular: return "Regular";
+        case Mod::ReversedKey: return "ReversedKey";
+        case Mod::InvertedDec: return "InvertedDec";
         default: return "Unknown";
     }
+}
+
 }

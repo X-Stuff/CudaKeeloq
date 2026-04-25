@@ -44,7 +44,7 @@ struct CommandLineArgs
     std::vector<BruteforceConfig> brute_configs;
 
     // Do not do all 19 calculations, use predefined one
-    std::vector<LearningPair> selected_learning = {};
+    std::vector<KeeloqLearning::Pair> selected_learning = {};
 
     //  Alphabets are just set of possible byte values
     // this sets may be shared between attacks

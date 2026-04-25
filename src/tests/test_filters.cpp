@@ -85,7 +85,7 @@ bool tests::filters_generation()
 
         KeeloqKernelInput generatorInputs;
         generatorInputs.decryptors = decryptors.gpu();
-        generatorInputs.Initialize(testConfig, KeeloqLearningMatrix(KeeloqLearningMatrix::kEverything));
+        generatorInputs.Initialize(testConfig, KeeloqLearning::Matrix(KeeloqLearning::Matrix::kEverything));
 
         KernelResult result;
 

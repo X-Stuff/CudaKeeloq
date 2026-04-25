@@ -25,7 +25,7 @@ CommandLineArgs demoTestCommandlineArgs(int num_gen_input = 3)
     Decryptor first_decryptor_brtf(first, tests::keeloq::default_seed);
 
     CommandLineArgs cmd;
-    cmd.inputs = tests::keeloq::gen_inputs<KeeloqLearningType::Faac>(debugKey, num_gen_input);
+    cmd.inputs = tests::keeloq::gen_inputs<KeeloqLearning::Type::Faac>(debugKey, num_gen_input);
     cmd.alphabets.emplace_back(MultibaseDigit("abcdef"_b));
     cmd.alphabets.emplace_back(MultibaseDigit( { 0xC0, 0xFF, 0xEE, 0x00, 0xDE, 0xAD, 0x66 }));
 
@@ -91,7 +91,7 @@ void bruteforce(const CommandLineArgs& args)
     {
         printf("Bruteforcing without specific learning type (slower)"
             "(1 KKey/s == %u Kkc (keeloq calcs) per second)\n"
-            "In case of full range there also redundant checks since using _REV learning types ( X-00:11:22 == X_REV-22:11:00 )\n", KeeloqLearnings::TotalNum);
+            "In case of full range there also redundant checks since using _REV learning types ( X-00:11:22 == X_REV-22:11:00 )\n", KeeloqLearning::Registry::NumResults);
     }
 
     for (const auto& config : args.brute_configs)

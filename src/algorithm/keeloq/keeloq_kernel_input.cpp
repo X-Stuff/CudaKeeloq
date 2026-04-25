@@ -19,7 +19,7 @@ void KeeloqKernelInput::NextDecryptor()
 	config.next_decryptor();
 }
 
-void KeeloqKernelInput::Initialize(const BruteforceConfig& inConfig, const KeeloqLearningMatrix& inLearnings)
+void KeeloqKernelInput::Initialize(const BruteforceConfig& inConfig, const KeeloqLearning::Matrix& inLearnings)
 {
     config = inConfig;
     learnings = inLearnings;

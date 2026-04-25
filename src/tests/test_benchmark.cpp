@@ -39,7 +39,7 @@ void benchmark::run(const CommandLineArgs& args, const BruteforceConfig& benchma
         MaxCudaThreads, MaxCudaBlocks,
         (TargetCalculations / 1000000),
         (benchmarkConfig.start.seed() == 0 ? "false" : "true"),
-        KeeloqLearningMatrix(args.selected_learning).to_string().c_str());
+        KeeloqLearning::Matrix(args.selected_learning).to_string().c_str());
 
 
     bool in_progress = true;
@@ -151,23 +151,23 @@ void benchmark::all(const CommandLineArgs& args)
     run(copy, benchmarkConfig_wt_seed, CudaBlocks, CudaThreads);
     run(copy, benchmarkConfig_no_seed, CudaBlocks, CudaThreads);
 
-    copy.selected_learning = { { KeeloqLearningType::Simple, KeeloqLearningMod::Regular } };
+    copy.selected_learning = { { KeeloqLearning::Type::Simple, KeeloqLearning::Mod::Regular } };
     run(copy, benchmarkConfig_no_seed, CudaBlocks, CudaThreads);
 
-    copy.selected_learning = { { KeeloqLearningType::Normal, KeeloqLearningMod::Regular } };
+    copy.selected_learning = { { KeeloqLearning::Type::Normal, KeeloqLearning::Mod::Regular } };
     run(copy, benchmarkConfig_no_seed, CudaBlocks, CudaThreads);
 
-    copy.selected_learning = { { KeeloqLearningType::Secure, KeeloqLearningMod::Regular } };
+    copy.selected_learning = { { KeeloqLearning::Type::Secure, KeeloqLearning::Mod::Regular } };
     run(copy, benchmarkConfig_wt_seed, CudaBlocks, CudaThreads);
 
-    copy.selected_learning = { { KeeloqLearningType::Faac, KeeloqLearningMod::Regular } };
+    copy.selected_learning = { { KeeloqLearning::Type::Faac, KeeloqLearning::Mod::Regular } };
     run(copy, benchmarkConfig_wt_seed, CudaBlocks, CudaThreads);
 
     copy.selected_learning =
     {
-        { KeeloqLearningType::Simple, KeeloqLearningMod::Regular },
-        { KeeloqLearningType::Normal, KeeloqLearningMod::Regular },
-        { KeeloqLearningType::Xor, KeeloqLearningMod::Regular },
+        { KeeloqLearning::Type::Simple, KeeloqLearning::Mod::Regular },
+        { KeeloqLearning::Type::Normal, KeeloqLearning::Mod::Regular },
+        { KeeloqLearning::Type::Xor, KeeloqLearning::Mod::Regular },
     };
     run(copy, benchmarkConfig_no_seed, CudaBlocks, CudaThreads);
 

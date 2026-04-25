@@ -10,7 +10,7 @@
 #include <cuda_runtime_api.h>
 
 
-BruteforceRound::BruteforceRound(const std::vector<EncParcel>& enc, const BruteforceConfig& config, std::vector<LearningPair> selected_learning,
+BruteforceRound::BruteforceRound(const std::vector<EncParcel>& enc, const BruteforceConfig& config, std::vector<KeeloqLearning::Pair> selected_learning,
     uint32_t blocks, uint32_t threads, uint32_t iterations)
     : encrypted_data(enc)
 {
@@ -24,7 +24,7 @@ BruteforceRound::BruteforceRound(const std::vector<EncParcel>& enc, const Brutef
 
     num_decryptors_per_batch = iterations * threads * blocks;
 
-    kernel_inputs.Initialize(config, KeeloqLearningMatrix(selected_learning));
+    kernel_inputs.Initialize(config, KeeloqLearning::Matrix(selected_learning));
 }
 
 const std::vector<SingleResult>& BruteforceRound::read_results_gpu()
@@ -59,7 +59,7 @@ bool BruteforceRound::check_results(const KernelResult& result)
 
         for (const auto& result : all_results)
         {
-            if (result.match == KeeloqLearningMatrix::NoMatch)
+            if (result.match == KeeloqLearning::NoMatch)
             {
                 continue;
             }

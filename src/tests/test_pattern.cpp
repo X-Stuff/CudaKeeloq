@@ -60,7 +60,7 @@ bool tests::pattern_generation()
     generatorInputs.encdata = encrypted.gpu();
     generatorInputs.decryptors = decryptors.gpu();
     generatorInputs.results = results.gpu();
-    generatorInputs.Initialize(config, KeeloqLearningMatrix(KeeloqLearningMatrix::kEverything));
+    generatorInputs.Initialize(config, KeeloqLearning::Matrix(KeeloqLearning::Matrix::kEverything));
 
     GeneratorBruteforce::PrepareDecryptors(generatorInputs, NumBlocks, NumThreads);
     auto result = ::keeloq::kernels::cuda_brute(generatorInputs, NumBlocks, NumThreads);
