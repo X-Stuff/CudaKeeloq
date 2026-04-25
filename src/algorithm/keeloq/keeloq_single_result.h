@@ -16,38 +16,41 @@
  */
 struct SingleResult
 {
-	static constexpr uint8_t ResultsCount = KeeloqLearningType::LAST;
-
 	struct DecryptedArray
 	{
 		// fixed side array for every learning type
         // If is in global memory (common case) - use operator[] - though cache
         // If is thread local - use direct access
-		uint32_t data[ResultsCount];
+        KeeloqLearningMatrix::DecryptedResults data;
 
         __host__ __device__ inline uint32_t operator[](uint32_t index) const
         {
-            assert(index < ResultsCount && "Invalid index of decrypted data. Bigger than last element");
+            assert(index < KeeloqLearningMatrix::DecryptedResultsSize && "Invalid index of decrypted data. Bigger than last element");
 #if __CUDA_ARCH__
             return __ldca(&data[index]);
 #else
             return data[index];
 #endif
         }
-
-        __host__ __device__ inline uint32_t srl(KeeloqLearningType::Type learning) const
+        __host__ __device__ inline uint32_t at(KeeloqLearningType learning, KeeloqLearningMod mod) const
         {
-            return ((*this)[learning] >> 16) & 0x3ff;
+            const auto index = KeeloqLearningMatrix::getIndex(learning, mod);
+            return (*this)[index];
         }
 
-        __host__ __device__ inline uint32_t btn(KeeloqLearningType::Type learning) const
+        __host__ __device__ inline uint32_t srl(KeeloqLearningType learning, KeeloqLearningMod mod) const
         {
-            return ((*this)[learning] >> 28);
+            return (at(learning, mod) >> 16) & 0x3ff;
         }
 
-        __host__ __device__ inline uint32_t cnt(KeeloqLearningType::Type learning) const
+        __host__ __device__ inline uint32_t btn(KeeloqLearningType learning, KeeloqLearningMod mod) const
         {
-            return ((*this)[learning]) & 0x0000FFFF;
+            return (at(learning, mod) >> 28);
+        }
+
+        __host__ __device__ inline uint32_t cnt(KeeloqLearningType learning, KeeloqLearningMod mod) const
+        {
+            return (at(learning, mod) & 0x0000FFFF);
         }
 
         void print(uint8_t element, uint64_t ota, bool ismatch) const;
@@ -57,16 +60,17 @@ struct SingleResult
 
 
     // Input encrypted data
-    EncParcel encrypted;
+    EncParcel encrypted = {};
 
     // used manufacturer key and seed for this result
-    Decryptor decryptor;
+    Decryptor decryptor = {};
 
 	// Decrypted values for each known learning type
-	DecryptedArray decrypted;
+	DecryptedArray decrypted = {};
 
-	// Set by GPU after analysis if there was a match
-	KeeloqLearningType::Type match;
+	// Index in array that represents pairs of learning types and modes.
+    // Set by GPU after analysis if there was a match
+	KeeloqLearningMatrix::MatchIndex match = KeeloqLearningMatrix::NoMatch;
 
 	void print(bool onlymatch = true) const;
 };

@@ -341,7 +341,7 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv)
 
         // CUDA Setup
         (ARG_BLOCKS, "How many thread blocks to launch.",
-            cxxopts::value<uint16_t>()->default_value("32"), "<num>")
+            cxxopts::value<uint16_t>()->default_value("512"), "<num>")
         (ARG_THREADS, "How many threads will be launched in a block (if 0 - will use value from device).",
             cxxopts::value<uint16_t>()->default_value("0"), "<num>")
 
@@ -368,7 +368,7 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv)
             "\n\t4: - Secure"
             "\n\t6: - Xor"
             "\nALL",
-            cxxopts::value<std::vector<uint8_t>>()->default_value(KeeloqLearningType::ValueString(KeeloqLearningType::LAST)), "<type>")
+            cxxopts::value<std::vector<uint8_t>>()->default_value("ALL"), "<type>")
 
         // Dictionaries files
         (ARG_WORDDICT, "Word dictionary file(s) or word(s) - contains hexadecimal strings which will be used as keys. e.g: 0xaabb1122 FFbb9800121212",
@@ -528,9 +528,9 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv)
         args.selected_learning.clear();
         for (auto value : learning_type_bytes)
         {
-            if (value < KeeloqLearningType::LAST)
+            if (value < KeeloqLearningTypesNum)
             {
-                args.selected_learning.push_back(value);
+                args.selected_learning.push_back({static_cast<KeeloqLearningType>(value), KeeloqLearningMod::Regular });
             }
         }
     }

@@ -20,7 +20,7 @@ bool tests::alphabet_generation()
 
     KeeloqKernelInput generatorInputs;
     generatorInputs.decryptors = decryptors.gpu();
-    generatorInputs.Initialize(testConfig, KeeloqLearningType::full_mask());
+    generatorInputs.Initialize(testConfig, KeeloqLearningMatrix(KeeloqLearningMatrix::kEverything));
 
     for (int i = 0; i < 16; ++i)
     {

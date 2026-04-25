@@ -30,15 +30,15 @@ struct BruteforceRound
 {
     // Construct round struct without specific learning type (means use all learnings)
     BruteforceRound(const std::vector<EncParcel>& data, const BruteforceConfig& gen, uint32_t blocks, uint32_t threads, uint32_t iterations) :
-        BruteforceRound(data, gen, {}, blocks, threads, iterations) {}
+        BruteforceRound(data, gen, std::vector<LearningPair>{}, blocks, threads, iterations) {}
 
     // Construct round struct with only one selected learning type
-    BruteforceRound(const std::vector<EncParcel>& data, const BruteforceConfig& gen, KeeloqLearningType::Type single_learning,
+    BruteforceRound(const std::vector<EncParcel>& data, const BruteforceConfig& gen, LearningPair single_learning,
         uint32_t blocks, uint32_t threads, uint32_t iterations) :
-        BruteforceRound(data, gen, std::vector<KeeloqLearningType::Type> { single_learning }, blocks, threads, iterations) {}
+        BruteforceRound(data, gen, std::vector<LearningPair> { single_learning }, blocks, threads, iterations) {}
 
     // Standard constructor
-    BruteforceRound(const std::vector<EncParcel>& data, const BruteforceConfig& gen, std::vector<KeeloqLearningType::Type> selected_learning,
+    BruteforceRound(const std::vector<EncParcel>& data, const BruteforceConfig& gen, std::vector<LearningPair> selected_learning,
         uint32_t blocks, uint32_t threads, uint32_t iterations);
 
     ~BruteforceRound()

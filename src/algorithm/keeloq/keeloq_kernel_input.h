@@ -45,7 +45,7 @@ struct KeeloqKernelInput : TGenericGpuObject<KeeloqKernelInput>
 
 public:
     //
-    __device__ __inline__ const KeeloqLearningType::Mask& GetLearningMask() const { return learnings; }
+    __device__ __inline__ const KeeloqLearningMatrix& GetLearningMask() const { return learnings; }
 
     //
     __device__ __inline__ bool AllLearningsEnabled() const { return allLearnings; }
@@ -58,7 +58,7 @@ public:
 
     void NextDecryptor();
 
-    void Initialize(const BruteforceConfig& inConfig, const KeeloqLearningType::Mask& inLearnings);
+    void Initialize(const BruteforceConfig& inConfig, const KeeloqLearningMatrix& inLearnings);
 
     // A "callback" which is called by generator. Used to prepare inputs for generators
     void BeforeGenerateDecryptors();
@@ -73,7 +73,7 @@ public:
     bool InputsFixMatch() const;
 private:
     // Which type of learning use for decryption
-    KeeloqLearningType::Mask learnings;
+    KeeloqLearningMatrix learnings;
 
     // optimizations. Just a bool field that could be accessed from GPU
     bool allLearnings = false;

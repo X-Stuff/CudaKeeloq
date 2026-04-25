@@ -19,11 +19,11 @@ void KeeloqKernelInput::NextDecryptor()
 	config.next_decryptor();
 }
 
-void KeeloqKernelInput::Initialize(const BruteforceConfig& InConfig, const KeeloqLearningType::Mask& InLearnings)
+void KeeloqKernelInput::Initialize(const BruteforceConfig& inConfig, const KeeloqLearningMatrix& inLearnings)
 {
-    config = InConfig;
-    learnings = InLearnings;
-    allLearnings = learnings.is_all_enabled();
+    config = inConfig;
+    learnings = inLearnings;
+    allLearnings = learnings.isAllEnabled();
 }
 
 void KeeloqKernelInput::BeforeGenerateDecryptors()

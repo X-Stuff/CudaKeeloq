@@ -1,84 +1,80 @@
 #include "keeloq_learning_types.h"
 
-#include <cstring>
+#include <string>
+#include <array>
 
 
-const char* KeeloqLearningType::LearningNames[] = {
-	"KEELOQ_LEARNING_SIMPLE",
-	"KEELOQ_LEARNING_SIMPLE_REV",
-	"KEELOQ_LEARNING_NORMAL",
-	"KEELOQ_LEARNING_NORMAL_REV",
-	"KEELOQ_LEARNING_SECURE",
-	"KEELOQ_LEARNING_SECURE_REV",
-	"KEELOQ_LEARNING_MAGIC_XOR_TYPE_1",
-	"KEELOQ_LEARNING_MAGIC_XOR_TYPE_1_REV",
-	"KEELOQ_LEARNING_FAAC",
-	"KEELOQ_LEARNING_FAAC_REV",
-	"KEELOQ_LEARNING_MAGIC_SERIAL_TYPE_1",
-	"KEELOQ_LEARNING_MAGIC_SERIAL_TYPE_1_REV",
-	"KEELOQ_LEARNING_MAGIC_SERIAL_TYPE_2",
-	"KEELOQ_LEARNING_MAGIC_SERIAL_TYPE_2_REV",
-	"KEELOQ_LEARNING_MAGIC_SERIAL_TYPE_3",
-	"KEELOQ_LEARNING_MAGIC_SERIAL_TYPE_3_REV",
-	"ALL"
-};
-
-const size_t KeeloqLearningType::LearningNamesCount = sizeof(LearningNames) / sizeof(char*);
-
-
-std::string KeeloqLearningType::to_string(const std::vector<Type>& learning_types)
+KeeloqLearningMatrix::KeeloqLearningMatrix(std::vector<LearningPair> pairs)
 {
-	if (learning_types.size() == 0)
-	{
-		return LearningNames[KeeloqLearningType::LAST];
-	}
+    if (pairs.empty())
+    {
+        matrix = kEverything;
+        return;
+    }
 
-	return to_mask(learning_types).to_string();
+    for (const auto& learning : pairs)
+    {
+        enable(learning.type, learning.mod);
+    }
 }
 
-std::string KeeloqLearningType::Mask::to_string() const
+std::string KeeloqLearningMatrix::to_string() const
 {
-    if (is_all_enabled())
+    if (isAllEnabled())
     {
-        return LearningNames[KeeloqLearningType::LAST];
+        return "<ALL>";
     }
 
-    std::string result;
-    for (auto type = 0; type < KeeloqLearningType::LAST; ++type)
+    char buffer[8196];
+    int at = 0;
+
+    at += snprintf(&buffer[at], sizeof(buffer) - at, "Matrix:\n" "\tSimple Normal  Secure  Xor  Faac  Serial1 Serial2 Serial3\n");
+
+    static constexpr auto ModNames = std::array<const char*, KeeloqLearningModsNum>{ "Reg", "Rev", "Inv" };
+
+    for (auto i = 0; i < KeeloqLearningModsNum; ++i)
     {
-        if (values[type])
-        {
-            if (result.size() > 0)
-            {
-                result += ", ";
-            }
-            result += KeeloqLearningType::Name(type);
-        }
+        auto mod = static_cast<KeeloqLearningMod>(i);
+
+        at += snprintf(&buffer[at], sizeof(buffer) - at, "\t%s:   %6s %6s %6s %3s %5s %7s %7s %7s\n",
+            ModNames[i],
+            isEnabled(KeeloqLearningType::Simple, mod) ? "+" : " ",
+            isEnabled(KeeloqLearningType::Normal, mod) ? "+" : " ",
+            isEnabled(KeeloqLearningType::Secure, mod) ? "+" : " ",
+            isEnabled(KeeloqLearningType::Xor,   mod) ? "+" : " ",
+            isEnabled(KeeloqLearningType::Faac,  mod) ? "+" : " ",
+            isEnabled(KeeloqLearningType::Serial1, mod) ? "+" : " ",
+            isEnabled(KeeloqLearningType::Serial2, mod) ? "+" : " ",
+            isEnabled(KeeloqLearningType::Serial3, mod) ? "+" : " "
+        );
     }
 
-    return result;
+    return std::string(buffer);
 }
 
-KeeloqLearningType::Mask KeeloqLearningType::to_mask(const std::vector<Type>& in_types)
+const char* KeeloqLearning::Name(KeeloqLearningType type)
 {
-    KeeloqLearningType::Mask result;
-
-    if (in_types.size() > 0)
+    switch (type)
     {
-        for (auto type : in_types)
-        {
-            result.values[type] = true;
-        }
+        case KeeloqLearningType::Simple: return "Simple";
+        case KeeloqLearningType::Normal: return "Normal";
+        case KeeloqLearningType::Secure: return "Secure";
+        case KeeloqLearningType::Xor: return "Xor";
+        case KeeloqLearningType::Faac: return "Faac";
+        case KeeloqLearningType::Serial1: return "Serial1";
+        case KeeloqLearningType::Serial2: return "Serial2";
+        case KeeloqLearningType::Serial3: return "Serial3";
+        default: return "Unknown";
     }
-    else
-    {
-        memcpy(result.values, KeeloqLearningType::Mask::All, sizeof(KeeloqLearningType::Mask::All));
-    }
-
-    return result;
 }
 
-bool KeeloqLearningType::Mask::is_all_enabled() const
+const char* KeeloqLearning::Name(KeeloqLearningMod mod)
 {
-    return std::memcmp(values, All, sizeof(All)) == 0;
+    switch (mod)
+    {
+        case KeeloqLearningMod::Regular: return "Regular";
+        case KeeloqLearningMod::ReversedKey: return "ReversedKey";
+        case KeeloqLearningMod::InvertedDec: return "InvertedDec";
+        default: return "Unknown";
+    }
 }

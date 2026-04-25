@@ -36,7 +36,6 @@
 #endif // !NO_INNER_LOOPS
 
 
-
 template<uint8_t NSize = 255>
 struct DefaultByteArray
 {

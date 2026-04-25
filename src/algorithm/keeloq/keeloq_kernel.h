@@ -90,6 +90,6 @@ __host__ KernelResult cuda_brute(KeeloqKernelInput & mainInputs, uint16_t Thread
 }
 
 // Get enrcypted OTA data for specific configuration with key and learning ( xor simple and normal supported )
-__host__ EncParcel GetOTA(uint64_t key, uint32_t seed, uint32_t serial, uint8_t button, uint16_t count, KeeloqLearningType::Type learning);
+__host__ EncParcel GetOTA(uint64_t key, uint32_t seed, uint32_t serial, uint8_t button, uint16_t count, KeeloqLearningType learning);
 
 }

@@ -170,6 +170,7 @@
     <ClInclude Include="src\device\cuda_common.h" />
     <ClInclude Include="src\device\cuda_context.h" />
     <ClInclude Include="src\device\cuda_double_array.h" />
+    <ClInclude Include="src\device\cuda_fixed_array.h" />
     <ClInclude Include="src\device\cuda_object.h" />
     <ClInclude Include="src\device\cuda_span.h" />
     <ClInclude Include="src\device\cuda_vector.h" />

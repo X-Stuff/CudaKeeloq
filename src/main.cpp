@@ -91,7 +91,7 @@ void bruteforce(const CommandLineArgs& args)
     {
         printf("Bruteforcing without specific learning type (slower)"
             "(1 KKey/s == %u Kkc (keeloq calcs) per second)\n"
-            "In case of full range there also redundant checks since using _REV learning types ( X-00:11:22 == X_REV-22:11:00 )\n", KeeloqLearningType::LAST);
+            "In case of full range there also redundant checks since using _REV learning types ( X-00:11:22 == X_REV-22:11:00 )\n", KeeloqLearnings::TotalNum);
     }
 
     for (const auto& config : args.brute_configs)
