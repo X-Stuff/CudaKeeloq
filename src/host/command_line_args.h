@@ -19,6 +19,8 @@
 #define ARG_LOOPS "cuda-loops"
 #define ARG_MODE "mode"
 #define ARG_LTYPE "learning-type"
+#define ARG_CHECKREV "check-revkeys"
+#define ARG_CHECKINV "check-invalgs"
 #define ARG_WORDDICT "word-dict"
 #define ARG_BINDICT "bin-dict"
 #define ARG_BINDMODE "bin-dict-mode"
@@ -44,7 +46,10 @@ struct CommandLineArgs
     std::vector<BruteforceConfig> brute_configs;
 
     // Do not do all 19 calculations, use predefined one
-    std::vector<KeeloqLearning::Pair> selected_learning = {};
+    std::vector<KeeloqLearning::Type> selected_learning = {};
+
+    // Select specific modifications also
+    KeeloqLearning::Mod::Mask selected_mod_mask = KeeloqLearning::Mod::Mask::Regular;
 
     //  Alphabets are just set of possible byte values
     // this sets may be shared between attacks

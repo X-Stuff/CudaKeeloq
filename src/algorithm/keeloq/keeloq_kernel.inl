@@ -109,7 +109,7 @@ namespace
 namespace debug
 {
 // Some problems with printf - looks like silently hit instruction limit
-__device__ __noinline__ void assert_single_match_count(uint8_t match_count, bool has_match, uint8_t curr_res_indx, uint8_t new_res_index,
+__device__ __noinline__ void assert_single_match_count(uint8_t match_count, bool has_match, KeeloqLearning::ResultIndex curr_res_indx, KeeloqLearning::ResultIndex new_res_index,
     const Span<SingleResult>& results)
 {
     if (match_count > 0 && has_match)
@@ -128,19 +128,19 @@ namespace
 {
 
 template<uint8_t NumInputs>
-__device__ uint8_t is_cnt_match(const Span<SingleResult>& results, KeeloqLearning::Type learning_type, KeeloqLearning::Mod learning_mod)
+__device__ uint8_t is_cnt_match(const Span<SingleResult>& results, KeeloqLearning::ResultIndex resIndex)
 {
     static_assert(NumInputs > 1, "This function is not supposed to be called in single input mode");
 
-    uint8_t counter_maxdiff = NumInputs + 1;
+    const uint8_t counter_maxdiff = NumInputs + 1;
 
-    uint32_t expected_cnt = results[0].decrypted.cnt(learning_type, learning_mod);
+    const uint32_t expected_cnt = results[0].decrypted.cnt(resIndex);
     uint32_t lrn_matches = 1;
 
     UNROLL
     for (uint8_t item = 1; item < NumInputs; ++item)
     {
-        uint32_t cnt = results[item].decrypted.cnt(learning_type, learning_mod);
+        const uint32_t cnt = results[item].decrypted.cnt(resIndex);
         lrn_matches += __usad(expected_cnt, cnt, 0) < counter_maxdiff;
     }
 
@@ -148,61 +148,59 @@ __device__ uint8_t is_cnt_match(const Span<SingleResult>& results, KeeloqLearnin
 }
 
 template<uint8_t NumInputs>
-__device__ uint8_t is_btn_match(const Span<SingleResult>& results, KeeloqLearning::Type learning_type, KeeloqLearning::Mod learning_mod)
+__device__ uint8_t is_btn_match(const Span<SingleResult>& results, KeeloqLearning::ResultIndex resIndex)
 {
     static_assert(NumInputs > 1, "This function is not supposed to be called in single input mode");
 
-    uint32_t expected_btn = results[0].decrypted.btn(learning_type, learning_mod);
+    const uint32_t expected_btn = results[0].decrypted.btn(resIndex);
     uint32_t lrn_matches = 1;
 
     UNROLL
     for (uint8_t item = 1; item < NumInputs; ++item)
     {
-        lrn_matches += results[item].decrypted.btn(learning_type, learning_mod) == expected_btn;
+        lrn_matches += results[item].decrypted.btn(resIndex) == expected_btn;
     }
 
     return lrn_matches == NumInputs;
 }
 
 template<uint8_t NumInputs>
-__device__ uint8_t is_srl_match(const Span<SingleResult>& results, KeeloqLearning::Type learning_type, KeeloqLearning::Mod learning_mod)
+__device__ uint8_t is_srl_match(const Span<SingleResult>& results, KeeloqLearning::ResultIndex resIndex)
 {
     static_assert(NumInputs > 1, "This function is not supposed to be called in single input mode");
 
-    uint32_t expected_srl = results[0].decrypted.srl(learning_type, learning_mod);
+    const uint32_t expected_srl = results[0].decrypted.srl(resIndex);
     uint32_t lrn_matches = 1;
 
     UNROLL
     for (uint8_t item = 1; item < NumInputs; ++item)
     {
         const bool decryptor_valid = results[item].decryptor.is_valid();
-        lrn_matches += decryptor_valid && results[item].decrypted.srl(learning_type, learning_mod) == expected_srl;
+        lrn_matches += decryptor_valid && results[item].decrypted.srl(resIndex) == expected_srl;
     }
 
     return lrn_matches == NumInputs && expected_srl != 0; // 0 check at the end to save instructions in loop
 }
 
 template<uint8_t NumInputs, bool ForceAllLearningTypes>
-__device__ KeeloqLearning::MatchIndex get_match_index(const Span<SingleResult>& results, const KeeloqLearning::Matrix& learnings_matrix)
+__device__ KeeloqLearning::ResultIndex get_match_index(const Span<SingleResult>& results, const KeeloqLearning::Matrix& learnings_matrix)
 {
     uint8_t match_count = 0; // 0 or 1. if bigger - double match
-    KeeloqLearning::MatchIndex match_res_index = KeeloqLearning::NoMatch;
+    KeeloqLearning::ResultIndex match_res_index = KeeloqLearning::NoMatch;
 
     // outer loop - over all learning types
     UNROLL
-    for (uint8_t resIndex = 0; resIndex < KeeloqLearning::InvalidResultIndex; ++resIndex)
+    for (auto resIndex = 0; resIndex < KeeloqLearning::InvalidResultIndex; ++resIndex)
     {
-        const auto [lrn, mode] = KeeloqLearning::Matrix::getByIndex(resIndex);
-
         // Compiler should optimize this block and throw away `if` check in case of ForceAllLearningTypes = true
-        const bool allowed = ForceAllLearningTypes || learnings_matrix.isEnabled(lrn, mode);
+        const bool allowed = ForceAllLearningTypes || learnings_matrix.isEnabled(resIndex);
 
         if (allowed)
         {
-            const bool has_match = is_srl_match<NumInputs>(results, lrn, mode) && is_btn_match<NumInputs>(results, lrn, mode) && is_cnt_match<NumInputs>(results, lrn, mode);
+            const bool has_match = is_srl_match<NumInputs>(results, resIndex) && is_btn_match<NumInputs>(results, resIndex) && is_cnt_match<NumInputs>(results, resIndex);
 
         #if _DEBUG
-            debug::assert_single_match_count(match_count, has_match, match_res_index, lrn, results);
+            debug::assert_single_match_count(match_count, has_match, match_res_index, resIndex, results);
         #endif
 
             match_count += has_match;
@@ -219,7 +217,7 @@ __device__ KeeloqLearning::MatchIndex get_match_index(const Span<SingleResult>& 
 
 // run from result[0] to result[num] tries to detect if there is a match (man key valid)
 template<uint8_t NumInputs, LearningDecryptionMode LearningMode>
-__device__ KeeloqLearning::MatchIndex analyze_multiple_results(const CudaContext& ctx, Span<SingleResult>& results, const KeeloqLearning::Matrix& learnings_matrix)
+__device__ KeeloqLearning::ResultIndex analyze_multiple_results(const CudaContext& ctx, Span<SingleResult>& results, const KeeloqLearning::Matrix& learnings_matrix)
 {
     auto match_res_indx =  get_match_index<NumInputs, LearningMode == LearningDecryptionMode::ForceAll>(results, learnings_matrix);
 
@@ -235,22 +233,20 @@ __device__ KeeloqLearning::MatchIndex analyze_multiple_results(const CudaContext
 
 // In case of single input we checking fixed part of parcel's serial (28-bit serial | 4-bit button)
 // with decoded serial
-__device__ KeeloqLearning::MatchIndex analyze_single_result(const SingleResult& result, uint32_t exp_srl, uint8_t exp_btn, const KeeloqLearning::Matrix& learnings_matrix, uint8_t& match_count)
+__device__ KeeloqLearning::ResultIndex analyze_single_result(const SingleResult& result, uint32_t exp_srl, uint8_t exp_btn, const KeeloqLearning::Matrix& learnings_matrix, uint8_t& match_count)
 {
     match_count = 0; // 0 or 1. if bigger - double match
     auto match_res_index = KeeloqLearning::NoMatch;
 
     // outer loop - over all learning types
     UNROLL
-    for (uint8_t resIndex = 0; resIndex < KeeloqLearning::InvalidResultIndex; ++resIndex)
+    for (auto resIndex = 0; resIndex < KeeloqLearning::InvalidResultIndex; ++resIndex)
     {
-        const auto [lrn, mode] = KeeloqLearning::Matrix::getByIndex(resIndex);
-
         // No if block
-        const bool allowed = learnings_matrix.isEnabled(lrn, mode);
+        const bool allowed = learnings_matrix.isEnabled(resIndex);
 
-        const uint32_t srl = result.decrypted.srl(lrn, mode);
-        const uint32_t btn = result.decrypted.btn(lrn, mode);
+        const uint32_t srl = result.decrypted.srl(resIndex);
+        const uint32_t btn = result.decrypted.btn(resIndex);
 
         const bool has_match = allowed && srl == exp_srl && srl != 0 && btn == exp_btn;
 
@@ -277,21 +273,21 @@ __host__ __device__ constexpr LearningDecryptionMode operator|(const LearningDec
     return static_cast<LearningDecryptionMode>(static_cast<int>(a) | static_cast<int>(b));
 }
 
-template<KeeloqLearning::Type type, KeeloqLearning::Mod mod>
+template<KeeloqLearning::Type type, KeeloqLearning::Mod::Type mod>
 __device__ __host__ __forceinline__ uint32_t keeloq_decrypt_single(uint32_t data, uint32_t fix, const Decryptor& decryptor)
 {
     const uint64_t key = decryptor.man();
     const uint64_t key_rev = decryptor.nam();
     const uint32_t seed = decryptor.seed();
 
-    static_assert(mod == KeeloqLearning::Mod::Regular || mod == KeeloqLearning::Mod::ReversedKey || mod == KeeloqLearning::Mod::InvertedDec, "Unsupported KeeloqLearningMod");
+    static_assert(mod == KeeloqLearning::Mod::Type::Regular || mod == KeeloqLearning::Mod::Type::ReversedKey || mod == KeeloqLearning::Mod::Type::InvertedDec, "Unsupported KeeloqLearningMod");
     static_assert(type == KeeloqLearning::Type::Simple || type == KeeloqLearning::Type::Normal || type == KeeloqLearning::Type::Secure ||
         type == KeeloqLearning::Type::Xor || type == KeeloqLearning::Type::Faac || type == KeeloqLearning::Type::Serial1 ||
         type == KeeloqLearning::Type::Serial2 || type == KeeloqLearning::Type::Serial3, "Unsupported KeeloqLearningType");
 
-    static_assert(KeeloqLearning::Matrix::getIndex(type, mod) != KeeloqLearning::InvalidResultIndex, "Unsupported KeeloqLearningType/Mod combination");
+    static_assert(KeeloqLearning::Matrix::getIndex<type, mod>() != KeeloqLearning::InvalidResultIndex, "Unsupported KeeloqLearningType/Mod combination");
 
-    if constexpr (mod == KeeloqLearning::Mod::Regular)
+    if constexpr (mod == KeeloqLearning::Mod::Type::Regular)
     {
         if constexpr (type == KeeloqLearning::Type::Simple)
         {
@@ -335,7 +331,7 @@ __device__ __host__ __forceinline__ uint32_t keeloq_decrypt_single(uint32_t data
             return keeloq_common_decrypt(data, n_key);
         }
     }
-    else if constexpr (mod == KeeloqLearning::Mod::ReversedKey)
+    else if constexpr (mod == KeeloqLearning::Mod::Type::ReversedKey)
     {
         if constexpr (type == KeeloqLearning::Type::Simple)
         {
@@ -379,7 +375,7 @@ __device__ __host__ __forceinline__ uint32_t keeloq_decrypt_single(uint32_t data
             return keeloq_common_decrypt(data, n_key);
         }
     }
-    else if constexpr (mod == KeeloqLearning::Mod::InvertedDec)
+    else if constexpr (mod == KeeloqLearning::Mod::Type::InvertedDec)
     {
         if constexpr (type == KeeloqLearning::Type::Normal)
         {
@@ -403,10 +399,10 @@ __device__ __host__ __forceinline__ uint32_t keeloq_decrypt_single(uint32_t data
 }
 
 
-template<KeeloqLearning::Type type, KeeloqLearning::Mod mod>
+template<KeeloqLearning::Type type, KeeloqLearning::Mod::Type mod>
 __device__ __host__ __forceinline__ void keeloq_decrypt_single(uint32_t data, uint32_t fix, const Decryptor& decryptor, KeeloqLearning::DecryptedResults& results)
 {
-    const auto index = KeeloqLearning::Matrix::getIndex(type, mod);
+    constexpr auto index = KeeloqLearning::Matrix::getIndex<type, mod>();
     assert(index != KeeloqLearning::InvalidResultIndex && "Invalid learning type/mod combination");
 
     results[index] = keeloq_decrypt_single<type, mod>(data, fix, decryptor);
@@ -416,26 +412,26 @@ template<bool ForceDecrypt, bool DisableRev = false>
 __device__ __host__ __forceinline__ void keeloq_decrypt_seed_all(uint32_t data, uint32_t fix, const Decryptor& decryptor,
     const KeeloqLearning::Matrix& learnings_matrix, SingleResult::DecryptedArray& decrypted)
 {
-    if (ForceDecrypt || learnings_matrix.isEnabled(KeeloqLearning::Type::Secure, KeeloqLearning::Mod::Regular))
+    if (ForceDecrypt || learnings_matrix.isEnabled(KeeloqLearning::Type::Secure, KeeloqLearning::Mod::Type::Regular))
     {
-        keeloq_decrypt_single<KeeloqLearning::Type::Secure, KeeloqLearning::Mod::Regular>(data, fix, decryptor, decrypted.data);
+        keeloq_decrypt_single<KeeloqLearning::Type::Secure, KeeloqLearning::Mod::Type::Regular>(data, fix, decryptor, decrypted.data);
     }
 
-    if (ForceDecrypt || learnings_matrix.isEnabled(KeeloqLearning::Type::Faac, KeeloqLearning::Mod::Regular))
+    if (ForceDecrypt || learnings_matrix.isEnabled(KeeloqLearning::Type::Faac, KeeloqLearning::Mod::Type::Regular))
     {
-        keeloq_decrypt_single<KeeloqLearning::Type::Faac, KeeloqLearning::Mod::Regular>(data, fix, decryptor, decrypted.data);
+        keeloq_decrypt_single<KeeloqLearning::Type::Faac, KeeloqLearning::Mod::Type::Regular>(data, fix, decryptor, decrypted.data);
     }
 
     if constexpr (!DisableRev)
     {
-        if (ForceDecrypt || learnings_matrix.isEnabled(KeeloqLearning::Type::Secure, KeeloqLearning::Mod::ReversedKey))
+        if (ForceDecrypt || learnings_matrix.isEnabled(KeeloqLearning::Type::Secure, KeeloqLearning::Mod::Type::ReversedKey))
         {
-            keeloq_decrypt_single<KeeloqLearning::Type::Secure, KeeloqLearning::Mod::ReversedKey>(data, fix, decryptor, decrypted.data);
+            keeloq_decrypt_single<KeeloqLearning::Type::Secure, KeeloqLearning::Mod::Type::ReversedKey>(data, fix, decryptor, decrypted.data);
         }
 
-        if (ForceDecrypt || learnings_matrix.isEnabled(KeeloqLearning::Type::Faac, KeeloqLearning::Mod::ReversedKey))
+        if (ForceDecrypt || learnings_matrix.isEnabled(KeeloqLearning::Type::Faac, KeeloqLearning::Mod::Type::ReversedKey))
         {
-            keeloq_decrypt_single<KeeloqLearning::Type::Faac, KeeloqLearning::Mod::ReversedKey>(data, fix, decryptor, decrypted.data);
+            keeloq_decrypt_single<KeeloqLearning::Type::Faac, KeeloqLearning::Mod::Type::ReversedKey>(data, fix, decryptor, decrypted.data);
         }
     }
 }
@@ -446,53 +442,53 @@ __device__ __host__ __forceinline__ void keeloq_decrypt_normal_all(uint32_t data
 {
     // Simple Learning
     {
-        if (ForceDecrypt || learnings_matrix.isEnabled(KeeloqLearning::Type::Simple, KeeloqLearning::Mod::Regular))
+        if (ForceDecrypt || learnings_matrix.isEnabled(KeeloqLearning::Type::Simple, KeeloqLearning::Mod::Type::Regular))
         {
-            keeloq_decrypt_single<KeeloqLearning::Type::Simple, KeeloqLearning::Mod::Regular>(data, fix, decryptor, decrypted.data);
+            keeloq_decrypt_single<KeeloqLearning::Type::Simple, KeeloqLearning::Mod::Type::Regular>(data, fix, decryptor, decrypted.data);
         }
     }
     //###########################
     // Normal Learning
     // https://phreakerclub.com/forum/showpost.php?p=43557&postcount=37
     {
-        if (ForceDecrypt || learnings_matrix.isEnabled(KeeloqLearning::Type::Normal, KeeloqLearning::Mod::Regular))
+        if (ForceDecrypt || learnings_matrix.isEnabled(KeeloqLearning::Type::Normal, KeeloqLearning::Mod::Type::Regular))
         {
-            keeloq_decrypt_single<KeeloqLearning::Type::Normal, KeeloqLearning::Mod::Regular>(data, fix, decryptor, decrypted.data);
+            keeloq_decrypt_single<KeeloqLearning::Type::Normal, KeeloqLearning::Mod::Type::Regular>(data, fix, decryptor, decrypted.data);
         }
     }
 
     // Magic xor type1 learning
     {
-        if (ForceDecrypt || learnings_matrix.isEnabled(KeeloqLearning::Type::Xor, KeeloqLearning::Mod::Regular))
+        if (ForceDecrypt || learnings_matrix.isEnabled(KeeloqLearning::Type::Xor, KeeloqLearning::Mod::Type::Regular))
         {
-            keeloq_decrypt_single<KeeloqLearning::Type::Xor, KeeloqLearning::Mod::Regular>(data, fix, decryptor, decrypted.data);
+            keeloq_decrypt_single<KeeloqLearning::Type::Xor, KeeloqLearning::Mod::Type::Regular>(data, fix, decryptor, decrypted.data);
         }
 
     }
 
     // SERIAL_TYPE_1
     {
-        if (ForceDecrypt || learnings_matrix.isEnabled(KeeloqLearning::Type::Serial1, KeeloqLearning::Mod::Regular))
+        if (ForceDecrypt || learnings_matrix.isEnabled(KeeloqLearning::Type::Serial1, KeeloqLearning::Mod::Type::Regular))
         {
-            keeloq_decrypt_single<KeeloqLearning::Type::Serial1, KeeloqLearning::Mod::Regular>(data, fix, decryptor, decrypted.data);
+            keeloq_decrypt_single<KeeloqLearning::Type::Serial1, KeeloqLearning::Mod::Type::Regular>(data, fix, decryptor, decrypted.data);
         }
 
     }
 
     // SERIAL_TYPE_2
     {
-        if (ForceDecrypt || learnings_matrix.isEnabled(KeeloqLearning::Type::Serial2, KeeloqLearning::Mod::Regular))
+        if (ForceDecrypt || learnings_matrix.isEnabled(KeeloqLearning::Type::Serial2, KeeloqLearning::Mod::Type::Regular))
         {
-            keeloq_decrypt_single<KeeloqLearning::Type::Serial2, KeeloqLearning::Mod::Regular>(data, fix, decryptor, decrypted.data);
+            keeloq_decrypt_single<KeeloqLearning::Type::Serial2, KeeloqLearning::Mod::Type::Regular>(data, fix, decryptor, decrypted.data);
         }
 
     }
 
     // SERIAL_TYPE_3
     {
-        if (ForceDecrypt || learnings_matrix.isEnabled(KeeloqLearning::Type::Serial3, KeeloqLearning::Mod::Regular))
+        if (ForceDecrypt || learnings_matrix.isEnabled(KeeloqLearning::Type::Serial3, KeeloqLearning::Mod::Type::Regular))
         {
-            keeloq_decrypt_single<KeeloqLearning::Type::Serial3, KeeloqLearning::Mod::Regular>(data, fix, decryptor, decrypted.data);
+            keeloq_decrypt_single<KeeloqLearning::Type::Serial3, KeeloqLearning::Mod::Type::Regular>(data, fix, decryptor, decrypted.data);
         }
     }
 
@@ -500,29 +496,29 @@ __device__ __host__ __forceinline__ void keeloq_decrypt_normal_all(uint32_t data
     // Reverse key calculations
     if constexpr (!DisableRev)
     {
-        if (ForceDecrypt || learnings_matrix.isEnabled(KeeloqLearning::Type::Simple, KeeloqLearning::Mod::ReversedKey))
+        if (ForceDecrypt || learnings_matrix.isEnabled(KeeloqLearning::Type::Simple, KeeloqLearning::Mod::Type::ReversedKey))
         {
-            keeloq_decrypt_single<KeeloqLearning::Type::Simple, KeeloqLearning::Mod::ReversedKey>(data, fix, decryptor, decrypted.data);
+            keeloq_decrypt_single<KeeloqLearning::Type::Simple, KeeloqLearning::Mod::Type::ReversedKey>(data, fix, decryptor, decrypted.data);
         }
-        if (ForceDecrypt || learnings_matrix.isEnabled(KeeloqLearning::Type::Normal, KeeloqLearning::Mod::ReversedKey))
+        if (ForceDecrypt || learnings_matrix.isEnabled(KeeloqLearning::Type::Normal, KeeloqLearning::Mod::Type::ReversedKey))
         {
-            keeloq_decrypt_single<KeeloqLearning::Type::Normal, KeeloqLearning::Mod::ReversedKey>(data, fix, decryptor, decrypted.data);
+            keeloq_decrypt_single<KeeloqLearning::Type::Normal, KeeloqLearning::Mod::Type::ReversedKey>(data, fix, decryptor, decrypted.data);
         }
-        if (ForceDecrypt || learnings_matrix.isEnabled(KeeloqLearning::Type::Xor, KeeloqLearning::Mod::ReversedKey))
+        if (ForceDecrypt || learnings_matrix.isEnabled(KeeloqLearning::Type::Xor, KeeloqLearning::Mod::Type::ReversedKey))
         {
-            keeloq_decrypt_single<KeeloqLearning::Type::Xor, KeeloqLearning::Mod::ReversedKey>(data, fix, decryptor, decrypted.data);
+            keeloq_decrypt_single<KeeloqLearning::Type::Xor, KeeloqLearning::Mod::Type::ReversedKey>(data, fix, decryptor, decrypted.data);
         }
-        if (ForceDecrypt || learnings_matrix.isEnabled(KeeloqLearning::Type::Serial1, KeeloqLearning::Mod::ReversedKey))
+        if (ForceDecrypt || learnings_matrix.isEnabled(KeeloqLearning::Type::Serial1, KeeloqLearning::Mod::Type::ReversedKey))
         {
-            keeloq_decrypt_single<KeeloqLearning::Type::Serial1, KeeloqLearning::Mod::ReversedKey>(data, fix, decryptor, decrypted.data);
+            keeloq_decrypt_single<KeeloqLearning::Type::Serial1, KeeloqLearning::Mod::Type::ReversedKey>(data, fix, decryptor, decrypted.data);
         }
-        if (ForceDecrypt || learnings_matrix.isEnabled(KeeloqLearning::Type::Serial2, KeeloqLearning::Mod::ReversedKey))
+        if (ForceDecrypt || learnings_matrix.isEnabled(KeeloqLearning::Type::Serial2, KeeloqLearning::Mod::Type::ReversedKey))
         {
-            keeloq_decrypt_single<KeeloqLearning::Type::Serial2, KeeloqLearning::Mod::ReversedKey>(data, fix, decryptor, decrypted.data);
+            keeloq_decrypt_single<KeeloqLearning::Type::Serial2, KeeloqLearning::Mod::Type::ReversedKey>(data, fix, decryptor, decrypted.data);
         }
-        if (ForceDecrypt || learnings_matrix.isEnabled(KeeloqLearning::Type::Serial3, KeeloqLearning::Mod::ReversedKey))
+        if (ForceDecrypt || learnings_matrix.isEnabled(KeeloqLearning::Type::Serial3, KeeloqLearning::Mod::Type::ReversedKey))
         {
-            keeloq_decrypt_single<KeeloqLearning::Type::Serial3, KeeloqLearning::Mod::ReversedKey>(data, fix, decryptor, decrypted.data);
+            keeloq_decrypt_single<KeeloqLearning::Type::Serial3, KeeloqLearning::Mod::Type::ReversedKey>(data, fix, decryptor, decrypted.data);
         }
     }
 }
@@ -817,7 +813,7 @@ __global__ void Kernel_keeloq_test(KernelResult::TCudaPtr ret)
 }
 
 
-__global__ void Kenrel_keeloq_single_check(uint64_t ota, uint64_t man, uint32_t seed, KeeloqLearning::Type type, KeeloqLearning::Mod mod, KernelResult::TCudaPtr ret)
+__global__ void Kenrel_keeloq_single_check(uint64_t ota, uint64_t man, uint32_t seed, KeeloqLearning::Type type, KeeloqLearning::Mod::Type mod, KernelResult::TCudaPtr ret)
 {
     SingleResult::DecryptedArray decrypted = {};
 
@@ -949,25 +945,25 @@ __host__ EncParcel keeloq::GetOTA(uint64_t key, uint32_t seed, uint32_t serial, 
     SingleResult::DecryptedArray results = {};
     KeeloqLearning::Matrix matrix;
     matrix.enable(learningType);
-    matrix.enable(learningType, KeeloqLearning::Mod::ReversedKey); // rev as well
+    matrix.enable(learningType, KeeloqLearning::Mod::Type::ReversedKey); // rev as well
 
     Decryptor fwd_dec(key, seed);
     Decryptor rev_dec(fwd_dec.nam(), seed);
 
     // CPU
     keeloq_decrypt<LearningDecryptionMode::ExplicitAll>(encrypted, fwd_dec, matrix, results);
-    assert(results.data[KeeloqLearning::Matrix::getIndex(learningType, KeeloqLearning::Mod::Regular)] == unencrypted);
+    assert(results.data[KeeloqLearning::Matrix::getIndex(learningType, KeeloqLearning::Mod::Type::Regular)] == unencrypted);
 
     keeloq_decrypt<LearningDecryptionMode::ExplicitAll>(encrypted, rev_dec, matrix, results);
-    assert(results.data[KeeloqLearning::Matrix::getIndex(learningType, KeeloqLearning::Mod::ReversedKey)] == unencrypted);
+    assert(results.data[KeeloqLearning::Matrix::getIndex(learningType, KeeloqLearning::Mod::Type::ReversedKey)] == unencrypted);
 
     // GPU
     KernelResult kernel_results;
-    Kenrel_keeloq_single_check<<<1, 1 >>>(encrypted, fwd_dec.man(), fwd_dec.seed(), learningType, KeeloqLearning::Mod::Regular, kernel_results.ptr());
+    Kenrel_keeloq_single_check<<<1, 1 >>>(encrypted, fwd_dec.man(), fwd_dec.seed(), learningType, KeeloqLearning::Mod::Type::Regular, kernel_results.ptr());
     kernel_results.read();
     assert(kernel_results.value == unencrypted);
 
-    Kenrel_keeloq_single_check<<<1, 1 >>>(encrypted, rev_dec.man(), rev_dec.seed(), learningType, KeeloqLearning::Mod::ReversedKey, kernel_results.ptr());
+    Kenrel_keeloq_single_check<<<1, 1 >>>(encrypted, rev_dec.man(), rev_dec.seed(), learningType, KeeloqLearning::Mod::Type::ReversedKey, kernel_results.ptr());
     kernel_results.read();
     assert(kernel_results.value == unencrypted);
 #endif

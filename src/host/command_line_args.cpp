@@ -287,9 +287,9 @@ constexpr const char* Usage()
     return ""
         "\nExample:\n"
         "\t./" APP_NAME " --" ARG_INPUTS " xxx,yy,zzz"
-        " --" ARG_MODE "=1 --" ARG_START "=0x9876543210 --" ARG_COUNT "=1000000"
-        "\n\n\tThis will launch simple bruteforce (+1) attack with 1 million checks from 0x9876543210. "
-        "Will be checked ALL 16 (12 if no seed specified) keeloq learning types"
+        " --" ARG_MODE "=1 --" ARG_START "=0x9876543210 --" ARG_COUNT "=0xFFFFFFFF"
+        "\n\n\tThis will launch simple bruteforce (+1) attack with 2^32 checks, starting from 0x9876543210. "
+        "Will check ALL 19 (14 if no seed specified) keeloq learning types with all modifications"
 
         "\nExample:\n"
         "\t./" APP_NAME " --" ARG_INPUTS " xxx,yy,zzz"
@@ -361,14 +361,25 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv)
             "\n\t5: - Seed. Bruteforce only seed with provided manufacturer key (applied only to algorithms with seed).",
             cxxopts::value<std::vector<uint8_t>>(), "[m1,m2..]")
         (ARG_LTYPE,
-            "Specific learning type (if you know your target well). Increases approximately x16 times (since doesn't calculate other types)"
-            "\n\tV+1 means with reverse key (There are also more types. see source code):"
+            "Specific learning type (if you know your target well). Increases approximately x16 times (since doesn't calculate other types):"
             "\n\t0: - Simple"
-            "\n\t2: - Normal"
-            "\n\t4: - Secure"
-            "\n\t6: - Xor"
+            "\n\t1: - Normal"
+            "\n\t2: - Secure"
+            "\n\t3: - Xor"
+            "\n\t4: - FAAC"
+            "\n\t5: - Serial1"
+            "\n\t6: - Serial2"
+            "\n\t7: - Serial3"
             "\nALL",
             cxxopts::value<std::vector<uint8_t>>()->default_value("ALL"), "<type>")
+        (ARG_CHECKREV,
+            "Check also byte-reversed man keys during bruteforce, some manufacturers mixes up or do this intentionally. "
+            "You need this setting set to false only if you are doing, full 2^64 bruteforce.",
+            cxxopts::value<bool>()->default_value("true"), "true|false")
+        (ARG_CHECKINV,
+            "Check also inverted algorithms during bruteforce, some manufacturers mixes up or do this intentionally (multiplies time x2). "
+            "Affects only: Normal, Secure, FAAC learning types.",
+            cxxopts::value<bool>()->default_value("true"), "true|false")
 
         // Dictionaries files
         (ARG_WORDDICT, "Word dictionary file(s) or word(s) - contains hexadecimal strings which will be used as keys. e.g: 0xaabb1122 FFbb9800121212",
@@ -521,6 +532,7 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv)
             options.help().c_str());
     }
 
+    // Learning Types if any specific selected
     if (result.count(ARG_LTYPE) > 0)
     {
         auto learning_type_bytes = result[ARG_LTYPE].as<std::vector<uint8_t>>();
@@ -530,8 +542,21 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv)
         {
             if (value < KeeloqLearning::TypesNum)
             {
-                args.selected_learning.push_back({static_cast<KeeloqLearning::Type>(value), KeeloqLearning::Mod::Regular });
+                args.selected_learning.push_back(static_cast<KeeloqLearning::Type>(value));
             }
+        }
+    }
+
+    // Learning modifications
+    {
+        if (result.count(ARG_CHECKREV) && result[ARG_CHECKREV].as<bool>())
+        {
+            args.selected_mod_mask = args.selected_mod_mask | KeeloqLearning::Mod::Mask::RevKey;
+        }
+
+        if (result.count(ARG_CHECKINV) && result[ARG_CHECKINV].as<bool>())
+        {
+            args.selected_mod_mask = args.selected_mod_mask | KeeloqLearning::Mod::Mask::InvDec;
         }
     }
 

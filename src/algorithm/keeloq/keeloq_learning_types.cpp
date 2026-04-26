@@ -6,18 +6,67 @@
 namespace KeeloqLearning
 {
 
-Matrix::Matrix(std::vector<Pair> pairs)
+
+Matrix::Matrix(const std::initializer_list<Pair>& pairs) : matrix(0)
 {
-    if (pairs.empty())
+    if (pairs.size() > 0)
+    {
+        for (const auto& pair : pairs)
+        {
+            enable(pair.type, pair.mod);
+        }
+    }
+    else
     {
         matrix = kEverything;
-        return;
+    }
+}
+
+
+Matrix::Matrix(const std::vector<Type>& types, Mod::Mask mask) : matrix(0)
+{
+    if (types.empty())
+    {
+        if (!!(mask & Mod::Mask::All))
+        {
+            // Everything
+            matrix = kEverything;
+        }
+        else
+        {
+            // Everything but with mask
+            for (int lType = 0; lType < TypesNum; ++lType)
+            {
+                auto type = static_cast<Type>(lType);
+                for (int mType = 0; mType < Mod::NumTypes; ++mType)
+                {
+                    auto mod = static_cast<Mod::Type>(mType);
+
+                    if (!!(mask & Mod::ToMask(mod)))
+                    {
+                        enable(type, mod);
+                    }
+                }
+            }
+        }
+    }
+    else
+    {
+        // Specific
+        for (const auto& type : types)
+        {
+            for (int mType = 0; mType < Mod::NumTypes; ++mType)
+            {
+                auto mod = static_cast<Mod::Type>(mType);
+
+                if (!!(mask & Mod::ToMask(mod)))
+                {
+                    enable(type, mod);
+                }
+            }
+        }
     }
 
-    for (const auto& learning : pairs)
-    {
-        enable(learning.type, learning.mod);
-    }
 }
 
 std::string Matrix::to_string() const
@@ -32,11 +81,11 @@ std::string Matrix::to_string() const
 
     at += snprintf(&buffer[at], sizeof(buffer) - at, "Matrix:\n" "\tSimple Normal  Secure  Xor  Faac  Serial1 Serial2 Serial3\n");
 
-    static constexpr auto ModNames = std::array<const char*, ModsNum>{ "Reg", "Rev", "Inv" };
+    static constexpr auto ModNames = std::array<const char*, Mod::NumTypes>{ "Reg", "Rev", "Inv" };
 
-    for (auto i = 0; i < ModsNum; ++i)
+    for (auto i = 0; i < Mod::NumTypes; ++i)
     {
-        auto mod = static_cast<Mod>(i);
+        auto mod = static_cast<Mod::Type>(i);
 
         at += snprintf(&buffer[at], sizeof(buffer) - at, "\t%s:   %6s %6s %6s %3s %5s %7s %7s %7s\n",
             ModNames[i],
@@ -70,13 +119,13 @@ const char* KeeloqLearning::Name(Type type)
     }
 }
 
-const char* KeeloqLearning::Name(Mod mod)
+const char* KeeloqLearning::Name(Mod::Type mod)
 {
     switch (mod)
     {
-        case Mod::Regular: return "Regular";
-        case Mod::ReversedKey: return "ReversedKey";
-        case Mod::InvertedDec: return "InvertedDec";
+        case Mod::Type::Regular: return "Regular";
+        case Mod::Type::ReversedKey: return "ReversedKey";
+        case Mod::Type::InvertedDec: return "InvertedDec";
         default: return "Unknown";
     }
 }

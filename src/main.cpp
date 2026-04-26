@@ -96,7 +96,9 @@ void bruteforce(const CommandLineArgs& args)
 
     for (const auto& config : args.brute_configs)
     {
-        BruteforceRound attackRound(args.inputs, config, args.selected_learning, args.cuda_blocks, args.cuda_threads, args.cuda_loops);
+        auto learningMatrix = KeeloqLearning::Matrix(args.selected_learning, args.selected_mod_mask);
+
+        BruteforceRound attackRound(args.inputs, config, learningMatrix, args.cuda_blocks, args.cuda_threads, args.cuda_loops);
 
         printf("\nallocating...");
         attackRound.Init();
