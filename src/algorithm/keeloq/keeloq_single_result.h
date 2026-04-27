@@ -34,22 +34,6 @@ struct SingleResult
         }
 
     public:
-        __host__ __device__ __forceinline__ uint32_t srl(KeeloqLearning::Type learning, KeeloqLearning::Mod::Type mod) const
-        {
-            return srl(KeeloqLearning::Matrix::getIndex(learning, mod));
-        }
-
-        __host__ __device__ __forceinline__ uint32_t btn(KeeloqLearning::Type learning, KeeloqLearning::Mod::Type mod) const
-        {
-            return btn(KeeloqLearning::Matrix::getIndex(learning, mod));
-        }
-
-        __host__ __device__ __forceinline__ uint32_t cnt(KeeloqLearning::Type learning, KeeloqLearning::Mod::Type mod) const
-        {
-            return cnt(KeeloqLearning::Matrix::getIndex(learning, mod));
-        }
-
-    public:
         __host__ __device__ __forceinline__ uint32_t srl(uint8_t index) const
         {
             return ((*this)[index] >> 16) & 0x3ff;

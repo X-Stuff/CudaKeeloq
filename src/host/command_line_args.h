@@ -46,10 +46,10 @@ struct CommandLineArgs
     std::vector<BruteforceConfig> brute_configs;
 
     // Do not do all 19 calculations, use predefined one
-    std::vector<KeeloqLearning::Type> selected_learning = {};
+    std::vector<KeeloqLearning::LearningType> selected_learning = {};
 
     // Select specific modifications also
-    KeeloqLearning::Mod::Mask selected_mod_mask = KeeloqLearning::Mod::Mask::Regular;
+    KeeloqLearning::Modificators::Mask selected_mod_mask = KeeloqLearning::Modificators::Mask::Regular;
 
     //  Alphabets are just set of possible byte values
     // this sets may be shared between attacks

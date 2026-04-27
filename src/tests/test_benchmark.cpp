@@ -153,19 +153,19 @@ void benchmark::all(const CommandLineArgs& args)
     run(copy, benchmarkConfig_wt_seed, CudaBlocks, CudaThreads);
     run(copy, benchmarkConfig_no_seed, CudaBlocks, CudaThreads);
 
-    copy.selected_learning = { KeeloqLearning::Type::Simple };
+    copy.selected_learning = { KeeloqLearning::LearningType::Simple };
     run(copy, benchmarkConfig_no_seed, CudaBlocks, CudaThreads);
 
-    copy.selected_learning = { KeeloqLearning::Type::Normal };
+    copy.selected_learning = { KeeloqLearning::LearningType::Normal };
     run(copy, benchmarkConfig_no_seed, CudaBlocks, CudaThreads);
 
-    copy.selected_learning = { KeeloqLearning::Type::Secure };
+    copy.selected_learning = { KeeloqLearning::LearningType::Secure };
     run(copy, benchmarkConfig_wt_seed, CudaBlocks, CudaThreads);
 
-    copy.selected_learning = { KeeloqLearning::Type::Faac };
+    copy.selected_learning = { KeeloqLearning::LearningType::Faac };
     run(copy, benchmarkConfig_wt_seed, CudaBlocks, CudaThreads);
 
-    copy.selected_learning = { KeeloqLearning::Type::Simple, KeeloqLearning::Type::Normal, KeeloqLearning::Type::Xor };
+    copy.selected_learning = { KeeloqLearning::LearningType::Simple, KeeloqLearning::LearningType::Normal, KeeloqLearning::LearningType::Xor };
     run(copy, benchmarkConfig_no_seed, CudaBlocks, CudaThreads);
 
 #ifndef NO_INNER_LOOPS

@@ -23,11 +23,11 @@ Matrix::Matrix(const std::initializer_list<Pair>& pairs) : matrix(0)
 }
 
 
-Matrix::Matrix(const std::vector<Type>& types, Mod::Mask mask) : matrix(0)
+Matrix::Matrix(const std::vector<LearningType>& types, Modificators::Mask mask) : matrix(0)
 {
     if (types.empty())
     {
-        if (!!(mask & Mod::Mask::All))
+        if (!!(mask & Modificators::Mask::All))
         {
             // Everything
             matrix = kEverything;
@@ -35,14 +35,14 @@ Matrix::Matrix(const std::vector<Type>& types, Mod::Mask mask) : matrix(0)
         else
         {
             // Everything but with mask
-            for (int lType = 0; lType < TypesNum; ++lType)
+            for (int lType = 0; lType < LearningTypesCount; ++lType)
             {
-                auto type = static_cast<Type>(lType);
-                for (int mType = 0; mType < Mod::NumTypes; ++mType)
+                auto type = static_cast<LearningType>(lType);
+                for (int mType = 0; mType < Modificators::Count; ++mType)
                 {
-                    auto mod = static_cast<Mod::Type>(mType);
+                    auto mod = static_cast<Modificators::Type>(mType);
 
-                    if (!!(mask & Mod::ToMask(mod)))
+                    if (!!(mask & Modificators::ToMask(mod)))
                     {
                         enable(type, mod);
                     }
@@ -55,11 +55,11 @@ Matrix::Matrix(const std::vector<Type>& types, Mod::Mask mask) : matrix(0)
         // Specific
         for (const auto& type : types)
         {
-            for (int mType = 0; mType < Mod::NumTypes; ++mType)
+            for (int mType = 0; mType < Modificators::Count; ++mType)
             {
-                auto mod = static_cast<Mod::Type>(mType);
+                auto mod = static_cast<Modificators::Type>(mType);
 
-                if (!!(mask & Mod::ToMask(mod)))
+                if (!!(mask & Modificators::ToMask(mod)))
                 {
                     enable(type, mod);
                 }
@@ -81,51 +81,51 @@ std::string Matrix::to_string() const
 
     at += snprintf(&buffer[at], sizeof(buffer) - at, "Matrix:\n" "\tSimple Normal  Secure  Xor  Faac  Serial1 Serial2 Serial3\n");
 
-    static constexpr auto ModNames = std::array<const char*, Mod::NumTypes>{ "Reg", "Rev", "Inv" };
+    static constexpr auto ModNames = std::array<const char*, Modificators::Count>{ "Reg", "Rev", "Inv" };
 
-    for (auto i = 0; i < Mod::NumTypes; ++i)
+    for (auto i = 0; i < Modificators::Count; ++i)
     {
-        auto mod = static_cast<Mod::Type>(i);
+        auto mod = static_cast<Modificators::Type>(i);
 
         at += snprintf(&buffer[at], sizeof(buffer) - at, "\t%s:   %6s %6s %6s %3s %5s %7s %7s %7s\n",
             ModNames[i],
-            isEnabled(Type::Simple, mod) ? "+" : " ",
-            isEnabled(Type::Normal, mod) ? "+" : " ",
-            isEnabled(Type::Secure, mod) ? "+" : " ",
-            isEnabled(Type::Xor,   mod) ? "+" : " ",
-            isEnabled(Type::Faac,  mod) ? "+" : " ",
-            isEnabled(Type::Serial1, mod) ? "+" : " ",
-            isEnabled(Type::Serial2, mod) ? "+" : " ",
-            isEnabled(Type::Serial3, mod) ? "+" : " "
+            isEnabled(LearningType::Simple, mod) ? "+" : " ",
+            isEnabled(LearningType::Normal, mod) ? "+" : " ",
+            isEnabled(LearningType::Secure, mod) ? "+" : " ",
+            isEnabled(LearningType::Xor,   mod) ? "+" : " ",
+            isEnabled(LearningType::Faac,  mod) ? "+" : " ",
+            isEnabled(LearningType::Serial1, mod) ? "+" : " ",
+            isEnabled(LearningType::Serial2, mod) ? "+" : " ",
+            isEnabled(LearningType::Serial3, mod) ? "+" : " "
         );
     }
 
     return std::string(buffer);
 }
 
-const char* KeeloqLearning::Name(Type type)
+const char* KeeloqLearning::Name(LearningType type)
 {
     switch (type)
     {
-        case Type::Simple: return "Simple";
-        case Type::Normal: return "Normal";
-        case Type::Secure: return "Secure";
-        case Type::Xor: return "Xor";
-        case Type::Faac: return "Faac";
-        case Type::Serial1: return "Serial1";
-        case Type::Serial2: return "Serial2";
-        case Type::Serial3: return "Serial3";
+        case LearningType::Simple: return "Simple";
+        case LearningType::Normal: return "Normal";
+        case LearningType::Secure: return "Secure";
+        case LearningType::Xor: return "Xor";
+        case LearningType::Faac: return "Faac";
+        case LearningType::Serial1: return "Serial1";
+        case LearningType::Serial2: return "Serial2";
+        case LearningType::Serial3: return "Serial3";
         default: return "Unknown";
     }
 }
 
-const char* KeeloqLearning::Name(Mod::Type mod)
+const char* KeeloqLearning::Name(Modificators::Type mod)
 {
     switch (mod)
     {
-        case Mod::Type::Regular: return "Regular";
-        case Mod::Type::ReversedKey: return "ReversedKey";
-        case Mod::Type::InvertedDec: return "InvertedDec";
+        case Modificators::Type::Regular: return "Regular";
+        case Modificators::Type::ReversedKey: return "ReversedKey";
+        case Modificators::Type::InvertedDec: return "InvertedDec";
         default: return "Unknown";
     }
 }

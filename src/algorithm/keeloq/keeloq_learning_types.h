@@ -16,16 +16,34 @@ enum class LearningDecryptionMode
     // Explicit defined learning types
     Invalid  = 0,
 
+    /************************************************************************/
+
     Explicit = 1 << 0,
 
     Force = 1 << 1,
 
+    /************************************************************************/
+
+    // Type: Normal learning type (without seed)
     Normal = 1 << 2,
 
+    // Type: Learning types with seed also
     Seeded = 1 << 3,
 
-    // Disable Reverse manufacturer key calculations
-    NoRev = 1 << 4,
+    /************************************************************************/
+
+    // Modifier: Disable Regular decryption
+    NoReg = 1 << 4,
+
+    // Modifier: Disable Reverse manufacturer key calculations
+    NoRev = 1 << 5,
+
+    // Modifier: Disable Inverted algorithms calculations (for Normal, Secure, FAAC learning types)
+    NoInv = 1 << 6,
+
+    ModMask = NoReg | NoRev | NoInv,
+
+    /************************************************************************/
 
     // Run only learning types without seed
     ForceNormal = Force | Normal,
@@ -46,20 +64,40 @@ enum class LearningDecryptionMode
     ExplicitAll = ExplicitNormal | ExplicitSeeded
 };
 
+__host__ __device__ __inline__ constexpr LearningDecryptionMode operator&(const LearningDecryptionMode& a, const LearningDecryptionMode& b)
+{
+    return static_cast<LearningDecryptionMode>(static_cast<int>(a) & static_cast<int>(b));
+}
+
+__host__ __device__ __inline__ constexpr LearningDecryptionMode operator|(const LearningDecryptionMode& a, const LearningDecryptionMode& b)
+{
+    return static_cast<LearningDecryptionMode>(static_cast<int>(a) | static_cast<int>(b));
+}
+
+__host__ __device__ __inline__ constexpr bool operator!(LearningDecryptionMode m)
+{
+    return m == static_cast<LearningDecryptionMode>(0);
+}
+
 namespace KeeloqLearning
 {
 
 /**
  * reference: https://github.com/DarkFlippers/unleashed-firmware/blob/dev/lib/subghz/protocols/keeloq_common.h
  */
-enum Type : uint8_t
+enum LearningType : uint8_t
 {
+    // Simple Learning
     Simple = 0,
 
+    //###########################
+    // Normal Learning
+    // https://phreakerclub.com/forum/showpost.php?p=43557&postcount=37
     Normal,
 
     Secure,
 
+    // Magic xor type1 learning
     Xor,
 
     Faac,
@@ -71,13 +109,31 @@ enum Type : uint8_t
     Serial3,
 };
 
-/** Available number */
-static constexpr const uint8_t TypesNum = static_cast<uint8_t>(Type::Serial3) + 1;
+template<LearningType... Values> struct LearningTypesSet
+{
+    static constexpr CudaFixedArray<LearningType, sizeof...(Values)> values = { Values... };
+
+    constexpr auto begin() const { return values[0]; }
+
+    constexpr auto end() const { return values[values.size() - 1]; }
+};
+
+using SeededTypes = LearningTypesSet<LearningType::Secure, LearningType::Faac>;
+
+using NormalTypes = LearningTypesSet<LearningType::Simple, LearningType::Normal, LearningType::Xor, LearningType::Serial1, LearningType::Serial2, LearningType::Serial3>;
+
+/** Number of learning types */
+static constexpr const uint8_t LearningTypesCount = static_cast<uint8_t>(LearningType::Serial3) + 1;
+
+/**
+ * Helper alias, defines sequence of all available learning types indices (0, 1, 2, ..., LearningTypesCount-1)
+ */
+using LearningTypesSequence = std::make_index_sequence<LearningTypesCount>;
 
 /**
  *  Additional modification for learning types, in some cases might be useful
  */
-struct Mod
+struct Modificators
 {
     enum class Type : uint8_t
     {
@@ -108,26 +164,21 @@ struct Mod
     __host__ __device__ __inline__ static constexpr Mask ToMask(Type t) { return static_cast<Mask>(1 << static_cast<uint8_t>(t)); }
 
     /** Total number of all modifications */
-    static constexpr uint8_t NumTypes = static_cast<uint8_t>(Type::InvertedDec) + 1;
+    static constexpr uint8_t Count = static_cast<uint8_t>(Type::InvertedDec) + 1;
 
-    using TypeSequence = std::make_index_sequence<NumTypes>;
+    using TypeSequence = std::make_index_sequence<Count>;
 };
 
-__host__ __device__ __inline__ constexpr Mod::Mask operator|(const Mod::Mask& a, const Mod::Mask& b) { return static_cast<Mod::Mask>(static_cast<uint8_t>(a) | static_cast<uint8_t>(b)); }
-__host__ __device__ __inline__ constexpr Mod::Mask operator&(const Mod::Mask& a, const Mod::Mask& b) { return static_cast<Mod::Mask>(static_cast<uint8_t>(a) & static_cast<uint8_t>(b)); }
-__host__ __device__ __inline__ constexpr bool operator!(Mod::Mask m) { return m == static_cast<Mod::Mask>(0); }
-
-/**
- * Helper alias, defines sequence of all available learning types indices (0, 1, 2, ..., TypesNum-1)
- */
-using KeeloqLearningTypesSequence = std::make_index_sequence<TypesNum>;
+__host__ __device__ __inline__ constexpr Modificators::Mask operator|(const Modificators::Mask& a, const Modificators::Mask& b) { return static_cast<Modificators::Mask>(static_cast<uint8_t>(a) | static_cast<uint8_t>(b)); }
+__host__ __device__ __inline__ constexpr Modificators::Mask operator&(const Modificators::Mask& a, const Modificators::Mask& b) { return static_cast<Modificators::Mask>(static_cast<uint8_t>(a) & static_cast<uint8_t>(b)); }
+__host__ __device__ __inline__ constexpr bool operator!(Modificators::Mask m) { return m == static_cast<Modificators::Mask>(0); }
 
 /** Helper alias for reverse lookup */
 struct Pair
 {
-    Type type;
+    LearningType type;
 
-    Mod::Type mod;
+    Modificators::Type mod;
 };
 
 /**
@@ -138,23 +189,26 @@ struct Registry
     /**
      *  Internal information for each learning type that will be in Available tuple.
      */
-    template<Type LType, bool bIsSeeded, Mod::Type... LMods>
+    template<LearningType LType, bool bIsSeeded, Modificators::Type... LMods>
     struct Entry
     {
-        static constexpr Type Type = LType;
+        static constexpr LearningType Type = LType;
 
-        static constexpr Mod::Mask ModsMask = (static_cast<Mod::Mask>(0) | ... | Mod::ToMask<LMods>());
+        static constexpr Modificators::Mask ModsMask = (static_cast<Modificators::Mask>(0) | ... | Modificators::ToMask<LMods>());
 
         /** Cannot detect repeated */
         static constexpr uint8_t NumMods = sizeof...(LMods);
+        static_assert(NumMods <= Modificators::Count, "Too many modifications, cannot be more than known types!");
 
         static constexpr bool IsSeeded = bIsSeeded;
 
-        template<Mod::Type M>
-        __host__ __device__ __inline__ static constexpr bool HasMod() { return !!(ModsMask & Mod::ToMask<M>()) != 0; }
+        template<Modificators::Type M>
+        __host__ __device__ __inline__ static constexpr bool HasMod() { return !!(ModsMask & Modificators::ToMask<M>()) != 0; }
+
+        __host__ __device__ __inline__ static constexpr bool HasMod(Modificators::Type M) { return !!(ModsMask & Modificators::ToMask(M)) != 0; }
 
         /** Index in Mods collection */
-        template<Mod::Type M>
+        template<Modificators::Type M>
         __host__ __device__ __inline__ static constexpr std::enable_if_t<HasMod<M>(), uint8_t> ModIndex()
         {
             uint8_t index = 0;
@@ -166,20 +220,22 @@ struct Registry
 
             return index;
         }
+
+        static constexpr uint8_t Indices[Modificators::Count] = { 0 };
     };
 
     /**
      *  All available learning types with their modifications. If you want to add new learning type - just add it here with allowed modifications.
      */
     using Available = std::tuple<
-        Entry<Type::Simple, false,  Mod::Type::Regular, Mod::Type::ReversedKey>,
-        Entry<Type::Normal, false,  Mod::Type::Regular, Mod::Type::ReversedKey, Mod::Type::InvertedDec>,
-        Entry<Type::Secure, true,   Mod::Type::Regular, Mod::Type::ReversedKey, Mod::Type::InvertedDec>,
-        Entry<Type::Xor,    false,  Mod::Type::Regular, Mod::Type::ReversedKey>,
-        Entry<Type::Faac,   true,   Mod::Type::Regular, Mod::Type::ReversedKey, Mod::Type::InvertedDec>,
-        Entry<Type::Serial1, false, Mod::Type::Regular, Mod::Type::ReversedKey>,
-        Entry<Type::Serial2, false, Mod::Type::Regular, Mod::Type::ReversedKey>,
-        Entry<Type::Serial3, false, Mod::Type::Regular, Mod::Type::ReversedKey>
+        Entry<LearningType::Simple, false,  Modificators::Type::Regular, Modificators::Type::ReversedKey>,
+        Entry<LearningType::Normal, false,  Modificators::Type::Regular, Modificators::Type::ReversedKey, Modificators::Type::InvertedDec>,
+        Entry<LearningType::Secure, true,   Modificators::Type::Regular, Modificators::Type::ReversedKey, Modificators::Type::InvertedDec>,
+        Entry<LearningType::Xor,    false,  Modificators::Type::Regular, Modificators::Type::ReversedKey>,
+        Entry<LearningType::Faac,   true,   Modificators::Type::Regular, Modificators::Type::ReversedKey, Modificators::Type::InvertedDec>,
+        Entry<LearningType::Serial1, false, Modificators::Type::Regular, Modificators::Type::ReversedKey>,
+        Entry<LearningType::Serial2, false, Modificators::Type::Regular, Modificators::Type::ReversedKey>,
+        Entry<LearningType::Serial3, false, Modificators::Type::Regular, Modificators::Type::ReversedKey>
     >;
 
     /** Element accessor */
@@ -192,24 +248,24 @@ struct Registry
     }
 
     /** Total number of available learning types with allowed modifications */
-    static constexpr uint8_t NumResults = TotalResults(KeeloqLearningTypesSequence{});
+    static constexpr uint8_t NumResults = TotalResults(LearningTypesSequence{});
 
 private:
     template<std::size_t... I>
-    static constexpr bool validate_order(std::index_sequence<I...>)
+    static constexpr bool ValidateOrder(std::index_sequence<I...>)
     {
-        static_assert(sizeof...(I) == TypesNum, "Size of the sequence doesn't match learning types number");
-        static_assert(((Element<I>::Type == static_cast<Type>(I)) && ...), "Incompatible learning type/modifier combination");
+        static_assert(sizeof...(I) == LearningTypesCount, "Size of the sequence doesn't match learning types number");
+        static_assert(((Element<I>::Type == static_cast<LearningType>(I)) && ...), "Incompatible learning type/modifier combination");
 
-        return ((Element<I>::Type == static_cast<Type>(I)) && ...);
+        return ((Element<I>::Type == static_cast<LearningType>(I)) && ...);
     }
 
-    static constexpr bool validate()
+    static constexpr bool Validate()
     {
-        constexpr bool sizeValid = TypesNum == static_cast<uint8_t>(Type::Serial3) + 1;
-        static_assert(sizeValid, "TypesNum should match KeeloqLearningType count");
+        constexpr bool sizeValid = LearningTypesCount == static_cast<uint8_t>(LearningType::Serial3) + 1;
+        static_assert(sizeValid, "LearningTypesCount should match KeeloqLearningType count");
 
-        constexpr bool arrayValid = validate_order(KeeloqLearningTypesSequence{});
+        constexpr bool arrayValid = ValidateOrder(LearningTypesSequence{});
         static_assert(arrayValid, "Learning types array elements mismatch");
 
         return sizeValid && arrayValid;
@@ -217,58 +273,145 @@ private:
 public:
     Registry()
     {
-        static_assert(validate(), "Learning types validation failed");
-        static_assert(TypesNum == std::tuple_size_v<Available>, "AvailableLearnings definition missing some elements");
+        static_assert(Validate(), "Learning types validation failed");
+        static_assert(LearningTypesCount == std::tuple_size_v<Available>, "AvailableLearnings definition missing some elements");
     }
 };
 
 /** Alias for indexer type in DecryptedResults, from index you can easily restore the Learning-Mod pair */
 using ResultIndex = uint8_t;
 
-/** Decoded array type, used to have exact memory fit for all learning types with modifications, and one last element for invalid combination */
-using DecryptedResults = CudaFixedArray<uint32_t, Registry::NumResults + 1>;
-
-/** Index of the last element where points all invalid for specific learning type modifications  */
-static constexpr ResultIndex InvalidResultIndex = Registry::NumResults;
-
 /** Value if the result index that represents no match, Invalid Index points to the last (additional) element in array, however it is considered invalid */
 static constexpr ResultIndex NoMatch = 0xFF;
 
-template<Type LType>
-struct BaseIndexInResults
-{
-    template<std::size_t... I>
-    static constexpr auto count(std::index_sequence<I...>)
-    {
-        return (Registry::Element<I>::NumMods + ... + 0);
-    }
-
-    inline static constexpr uint8_t value = count(std::make_index_sequence<LType>{});
-};
-
-template<Type LType, Mod::Type LMod>
+template<LearningType LType, Modificators::Type LMod>
 struct IndexInResults
 {
-    static constexpr auto ModMask = Mod::ToMask<LMod>();
+    static constexpr auto ModMask = Modificators::ToMask<LMod>();
 
     template<std::size_t... I>
     static constexpr ResultIndex count(std::index_sequence<I...>)
     {
-        constexpr auto BaseIndex = (Registry::Element<I>::NumMods + ... + 0);
-
         using RegElement = typename Registry::Element<LType>;
 
         if constexpr (RegElement::template HasMod<LMod>())
         {
+            constexpr auto BaseIndex = (Registry::Element<I>::NumMods + ... + 0);
+
             return BaseIndex + RegElement::template ModIndex<LMod>();
         }
 
-        return InvalidResultIndex;
+        return Registry::NumResults;
     }
 
-    inline static constexpr uint8_t value = count(std::make_index_sequence<LType>{});
+    static constexpr uint8_t value = count(std::make_index_sequence<LType>{});
 };
 
+/** Indices cache, initialized from ResultIndices:values */
+__constant__ extern CudaFixedArray<uint8_t, Registry::NumResults + 1> IndicesCache;
+
+/** Decoded array type, used to have exact memory fit for all learning types with modifications, and one last element for invalid combination */
+struct DecryptedResults : public CudaFixedArray<uint32_t, Registry::NumResults + 1>
+{
+    /** Index of the last element where points all invalid for specific learning type modifications  */
+    static constexpr ResultIndex InvalidIndex = Registry::NumResults;
+
+    template<uint8_t... Is>
+    struct ResultIndices
+    {
+        static constexpr CudaFixedArray<uint8_t, sizeof...(Is)> values = { Is... };
+
+        __host__ __device__ __inline__ static constexpr uint8_t getIndex(uint8_t at)
+        {
+            return IndicesCache[at];
+            return values[at];
+        }
+
+        __host__ __device__ __inline__ static constexpr uint8_t getIndex(LearningType learning, Modificators::Type mod)
+        {
+            const auto l = static_cast<uint8_t>(learning);
+            const auto m = static_cast<uint8_t>(mod);
+            return getIndex(l * Modificators::Count + m);
+        }
+    };
+
+private:
+    /**
+     *  Magic template alias that generates array of indices for all learning types and modifications, based on Registry::Available definition.
+     */
+    template<std::size_t M, std::size_t N, std::size_t... I>
+    using TIndicesType = ResultIndices<
+        (Registry::Element<((I / N))>::HasMod(static_cast<Modificators::Type>(I% N))
+            ? IndexInResults<static_cast<LearningType>((I / N)), static_cast<Modificators::Type>(I% N)>::value
+            : InvalidIndex)...>;
+
+    /**
+     *  Another magic template struct that helps generate sequence with ALL indices with simple definition through `make_index_sequence`
+     */
+    template<std::size_t M, std::size_t N, typename Seq>
+    struct MakeTIndicesType;
+
+    /**
+     *  Partial specialization of MakeTIndicesType for index sequence,
+     * generates TIndicesType with all indices for M learning types and N modifications.
+     */
+    template<std::size_t M, std::size_t N, std::size_t... I>
+    struct MakeTIndicesType<M, N, std::index_sequence<I...>>
+    {
+        using type = TIndicesType<M, N, I...>;
+    };
+
+public:
+    /**
+     *  Magically defined type with indices in results collection for all learning types and modifications, based on Registry::Available definition.
+     *
+     * Looks like this:
+     *
+     *      Simple Normal  Secure  Xor  Faac  Serial1 Serial2 Serial3
+     * Reg:   0      2       5      8    10     13      15     17
+     * Rev:   1      3       6      9    11     14      16     18
+     * Inv:   X      4       7      X    12     XX      XX     XX
+     *
+     * Where X == 19 (last index in DecryptedResults) - means invalid combination of learning type and modification
+     *
+     */
+    using ResultIndicesCache = typename MakeTIndicesType<LearningTypesCount, Modificators::Count,
+        std::make_index_sequence<LearningTypesCount* Modificators::Count>>::type;
+
+public:
+    /** Get index in DecryptedResults for specific learning type with modification */
+    template<LearningType LType, Modificators::Type LMod>
+    __host__ __device__ __inline__ static constexpr uint8_t getIndex()
+    {
+        return IndexInResults<LType, LMod>::value;
+    }
+
+    /** Get index in DecryptedResults for specific learning type with modification, not allowed on device! */
+    __host__ __device__ __inline__ static constexpr uint8_t getIndex(LearningType type, Modificators::Type mod)
+    {
+        return ResultIndicesCache::getIndex(type, mod);
+    }
+
+    /** Does reverse lookup by index, not allowed on device! */
+    __host__ __inline__ static constexpr const auto getByIndex(ResultIndex index)
+    {
+        for (auto iLearning = 0; iLearning < LearningTypesCount; ++iLearning)
+        {
+            for (auto iMod = 0; iMod < Modificators::Count; ++iMod)
+            {
+                const auto l = static_cast<LearningType>(iLearning);
+                const auto m = static_cast<Modificators::Type>(iMod);
+
+                if (ResultIndicesCache::getIndex(l, m) == index)
+                {
+                    return Pair{ l, m };
+                }
+            }
+        }
+
+        return Pair{};
+    }
+};
 
 /**
  *  Used for:
@@ -278,93 +421,6 @@ struct IndexInResults
  */
 struct Matrix
 {
-    /** Helper alias for modification indices (prettier code) */
-    using ModIndices = uint8_t[Mod::NumTypes];
-
-    using IndicesMatrix = CudaFixedArray<ModIndices, TypesNum>;
-
-    using RevIndicesArray = CudaFixedArray<Pair, Registry::NumResults>;
-
-private:
-    template<Type LType, std::size_t... Is>
-    __host__ __device__ __inline__ static constexpr auto MakeModIndices(ModIndices result, std::index_sequence<Is...>)
-    {
-        constexpr auto base = BaseIndexInResults<LType>::value;
-
-        using RegElement = typename Registry::Element<LType>;
-
-        uint8_t index = 0;
-        ((result[Is] = (static_cast<uint8_t>(RegElement::ModsMask & Mod::ToMask<static_cast<Mod::Type>(Is)>()) != 0) ? base + (index++) : InvalidResultIndex), ...);
-    }
-
-    // Array of arrays (matrix) where is indices per learning for each modification
-    //
-    //      Simple Normal  Secure  Xor  Faac  Serial1 Serial2 Serial3
-    // Reg:   0      2       5      8    10     13      15     17
-    // Rev:   1      3       6      9    11     14      16     18
-    // Inv:   X      4       7      X    12     XX      XX     XX
-    //
-    // Where X == 19 (last index in DecryptedResults) - means invalid combination of learning type and modification
-    template<std::size_t... I>
-    __host__ __device__ __inline__ static constexpr auto MakeIndices(std::index_sequence<I...>)
-    {
-        IndicesMatrix indices{};
-
-        // Fill indices array
-        ((MakeModIndices<static_cast<Type>(I)>(indices[I], Mod::TypeSequence{})), ...);
-
-        return indices;
-    }
-
-    template<std::size_t... I>
-    __host__ __device__ __inline__ static constexpr RevIndicesArray MakeRevIndices(std::index_sequence<I...>)
-    {
-        constexpr auto indices = MakeIndices(KeeloqLearningTypesSequence{});
-        RevIndicesArray revIndices{};
-
-        auto fillIndex = [&](uint8_t type)
-        {
-            for (uint8_t mod = 0; mod < Mod::NumTypes; ++mod)
-            {
-                const auto index = indices[type][mod];
-                if (index < Registry::NumResults)
-                {
-                    revIndices[index] = { static_cast<Type>(type), static_cast<Mod::Type>(mod) };
-                }
-            }
-        };
-
-        (fillIndex(I), ...);
-
-        return revIndices;
-    }
-
-public:
-    /** Get index in DecryptedResults for specific learning type with modification */
-    template<Type LType, Mod::Type LMod>
-    __host__ __device__ __inline__ static constexpr uint8_t getIndex()
-    {
-        return IndexInResults<LType, LMod>::value;
-    }
-
-    /** Get index in DecryptedResults for specific learning type with modification */
-    __host__ __device__ __inline__ static constexpr uint8_t getIndex(Type type, Mod::Type mod)
-    {
-        constexpr auto indices = MakeIndices(KeeloqLearningTypesSequence{});
-
-        return indices[type][static_cast<uint8_t>(mod)];
-    }
-
-    /** UNSAFE! Does reverse lookup by index */
-    __host__ __device__ __inline__ static constexpr const auto& getByIndex(uint8_t index)
-    {
-        constexpr auto reverseIndices = MakeRevIndices(KeeloqLearningTypesSequence{});
-
-        return reverseIndices[index];
-    }
-
-public:
-
     static constexpr auto kEverything = static_cast<uint64_t>(-1);
 
     __host__ __device__ __inline__ constexpr Matrix(uint64_t value = 0) : matrix(value)
@@ -372,21 +428,21 @@ public:
 #if __CUDA_ARCH__
         // In CUDA we do not have static_assert with message
 #else
-        static_assert(getIndex(Type::Normal, Mod::Type::Regular) == 2, "Invalid index for Normal/Regular");
-        static_assert(getIndex(Type::Simple, Mod::Type::InvertedDec) == InvalidResultIndex, "Simple learning should not have valid index for Inverted decode");
+        static_assert(DecryptedResults::getIndex(LearningType::Normal, Modificators::Type::Regular) == 2, "Invalid index for Normal/Regular");
+        static_assert(DecryptedResults::getIndex(LearningType::Simple, Modificators::Type::InvertedDec) == DecryptedResults::InvalidIndex, "Simple learning should not have valid index for Inverted decode");
 
-        static_assert(getIndex(Type::Normal, Mod::Type::Regular) == getIndex<Type::Normal, Mod::Type::Regular>(), "getIndex() methods returned non-equal values");
-        static_assert(getIndex(Type::Simple, Mod::Type::InvertedDec) == getIndex<Type::Simple, Mod::Type::InvertedDec>(), "getIndex() methods returned non-equal values");
+        static_assert(DecryptedResults::getIndex(LearningType::Normal, Modificators::Type::Regular) == DecryptedResults::getIndex<LearningType::Normal, Modificators::Type::Regular>(), "getIndex() methods returned non-equal values");
+        static_assert(DecryptedResults::getIndex(LearningType::Simple, Modificators::Type::InvertedDec) == DecryptedResults::getIndex<LearningType::Simple, Modificators::Type::InvertedDec>(), "getIndex() methods returned non-equal values");
 
-        static_assert(Registry::NumResults == InvalidResultIndex, "TotalNum should match InvalidResultIndex it's basically the same");
-        static_assert(TypesNum == std::tuple_size_v<Registry::Available>, "AvailableLearnings definition missing some elements");
+        static_assert(Registry::NumResults == DecryptedResults::InvalidIndex, "TotalNum should match InvalidIndex it's basically the same");
+        static_assert(LearningTypesCount == std::tuple_size_v<Registry::Available>, "AvailableLearnings definition missing some elements");
 #endif
     }
 
     /** Creates a learning matrix with specific enabled pairs */
     Matrix(const std::initializer_list<Pair>& pairs);
 
-    Matrix(const std::vector<Type>& types, Mod::Mask mods);
+    Matrix(const std::vector<LearningType>& types, Modificators::Mask mods);
 
     /** Creates a learning matrix with everything enabled */
     static constexpr auto Everything() { return Matrix(kEverything); }
@@ -396,12 +452,20 @@ public:
      *  If specific bit at index is enabled,
      * If you have for loop up to InvalidIndex - is better to use this method
      */
-    __host__ __device__ __inline__ bool isEnabled(uint8_t bitIndex) const { return (matrix & (1ULL << bitIndex)) != 0; }
+    __host__ __device__ __inline__ bool isEnabled(uint8_t bitIndex) const
+    {
+        return (matrix & (1ULL << bitIndex)) != 0;
+    }
 
     /**
      *  Matrix access as double indexation [type][mod]
      */
-    __host__ __device__ __inline__ bool isEnabled(Type type, Mod::Type mod) const { return isEnabled(type + static_cast<uint8_t>(mod) * TypesNum); }
+    __host__ __device__ __inline__ bool isEnabled(LearningType type, Modificators::Type mod) const
+    {
+        const auto index = DecryptedResults::getIndex(type, mod);
+        const bool valid = index != DecryptedResults::InvalidIndex;
+        return valid && isEnabled(index);
+    }
 
     /**
      *  Special case by default in most cases. GPU expensive since check all DecryptedResults::size() elements.
@@ -414,30 +478,30 @@ public:
     /**
      *  Set specific bit to 1 according to learning type and modification
      */
-    __host__ __inline__ void enable(Type type, Mod::Type mod = Mod::Type::Regular)
+    __host__ __inline__ void enable(LearningType type, Modificators::Type mod = Modificators::Type::Regular)
     {
-        const auto bitIndex = type + static_cast<uint8_t>(mod) * TypesNum;
+        const auto bitIndex = DecryptedResults::getIndex(type, mod);
         matrix |= (1ULL << bitIndex);
     }
 
     __host__ std::string to_string() const;
 
 private:
-    // 64 bits are too much, we have only 24 possible combinations:
+    //  64 bits are too much, we have only 24 possible combinations,
+    // however we use only 19 since some combinations are invalid (e.g. Simple learning with InvertedDec modification).
     //
-    // Can look like this:
+    // Matrix can look like this:
     //
     //      Simple Normal  Secure  Xor  Faac  Serial1 Serial2 Serial3
     // Reg:   0      0       0      0     0      0       0      1
     // Rev:   1      0       0      0     0      0       0      1
     // Inv:   0      0       0      0     0      0       0      0
     //
-    // NOTE:
-    //  - Here we do not check validity of combination, Inv to Simple can be set to `1`
+    //
     uint64_t matrix;
 };
 
-const char* Name(Type type);
+const char* Name(LearningType type);
 
-const char* Name(Mod::Type mod);
+const char* Name(Modificators::Type mod);
 }

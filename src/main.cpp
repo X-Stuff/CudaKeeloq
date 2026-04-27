@@ -25,7 +25,7 @@ CommandLineArgs demoTestCommandlineArgs(int num_gen_input = 3)
     Decryptor first_decryptor_brtf(first, tests::keeloq::default_seed);
 
     CommandLineArgs cmd;
-    cmd.inputs = tests::keeloq::gen_inputs<KeeloqLearning::Type::Faac>(debugKey, num_gen_input);
+    cmd.inputs = tests::keeloq::gen_inputs<KeeloqLearning::LearningType::Faac>(debugKey, num_gen_input);
     cmd.alphabets.emplace_back(MultibaseDigit("abcdef"_b));
     cmd.alphabets.emplace_back(MultibaseDigit( { 0xC0, 0xFF, 0xEE, 0x00, 0xDE, 0xAD, 0x66 }));
 
