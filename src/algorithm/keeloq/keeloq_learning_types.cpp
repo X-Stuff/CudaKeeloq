@@ -101,7 +101,7 @@ std::string Matrix::to_string() const
     return std::string(buffer);
 }
 
-const char* KeeloqLearning::Name(LearningType type)
+const char* Name(LearningType type)
 {
     switch (type)
     {
@@ -117,7 +117,7 @@ const char* KeeloqLearning::Name(LearningType type)
     }
 }
 
-const char* KeeloqLearning::Name(Modifier::Type mod)
+const char* Name(Modifier::Type mod)
 {
     switch (mod)
     {
@@ -126,6 +126,33 @@ const char* KeeloqLearning::Name(Modifier::Type mod)
         case Modifier::Type::InvertedDec: return "InvertedDec";
         default: return "Unknown";
     }
+}
+
+bool Parse(const char* data, LearningType& out)
+{
+    std::string name(data);
+    for (auto& c : name)
+    {
+        c = std::tolower(c);
+    }
+
+    for (int i = 0; i < LearningTypesCount; ++i)
+    {
+        auto type = static_cast<LearningType>(i);
+        std::string typeName(Name(type));
+
+        for (auto& c : typeName)
+        {
+            c = std::tolower(c);
+        }
+
+        if (name == typeName || std::to_string(i) == name)
+        {
+            out = type;
+            return true;
+        }
+    }
+    return false;
 }
 
 }

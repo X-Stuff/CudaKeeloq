@@ -525,4 +525,6 @@ private:
 const char* Name(LearningType type);
 
 const char* Name(Modifier::Type mod);
+
+bool Parse(const char* name, LearningType& out);
 }

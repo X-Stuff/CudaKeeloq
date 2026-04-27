@@ -781,12 +781,12 @@ __host__ KernelResult keeloq::kernels::cuda_brute(KeeloqKernelInput& mainInputs,
     {
     case 1:
     {
-        LaunchCuda(Kernel_keeloq_main_one_input, ThreadBlocks, ThreadsInBlock, mainInputs.ptr(), kernel_results.ptr());
+        Kernel_keeloq_main_one_input<<<ThreadBlocks, ThreadsInBlock>>>(mainInputs.ptr(), kernel_results.ptr());
         break;
     }
     case 2:
     {
-        LaunchCuda(Kernel_keeloq_main_two_inputs, ThreadBlocks, ThreadsInBlock, mainInputs.ptr(), kernel_results.ptr(), mainInputs.InputsFixMatch());
+        Kernel_keeloq_main_two_inputs<<<ThreadBlocks, ThreadsInBlock>>>(mainInputs.ptr(), kernel_results.ptr(), mainInputs.InputsFixMatch());
         break;
     }
     case 3:
@@ -794,11 +794,11 @@ __host__ KernelResult keeloq::kernels::cuda_brute(KeeloqKernelInput& mainInputs,
     {
         if (mainInputs.InputsFixMatch())
         {
-            LaunchCuda(Kernel_keeloq_main_three_inputs_fast, ThreadBlocks, ThreadsInBlock, mainInputs.ptr(), kernel_results.ptr());
+            Kernel_keeloq_main_three_inputs_fast<<<ThreadBlocks, ThreadsInBlock>>>(mainInputs.ptr(), kernel_results.ptr());
         }
         else
         {
-            LaunchCuda(Kernel_keeloq_main_three_inputs_slow, ThreadBlocks, ThreadsInBlock, mainInputs.ptr(), kernel_results.ptr());
+            Kernel_keeloq_main_three_inputs_slow<<<ThreadBlocks, ThreadsInBlock>>>(mainInputs.ptr(), kernel_results.ptr());
         }
 
         break;
@@ -816,7 +816,7 @@ __host__ SingleResult keeloq::kernels::cuda_encdec(uint64_t ota, uint64_t man, u
 {
     DecryptKernelResult kernel_results;
 
-    LaunchCuda(Kernel_keeloq_single_encdec, 1, 1, ota, man, seed, isDecrypt, kernel_results.ptr());
+    Kernel_keeloq_single_encdec<<<1, 1>>>(ota, man, seed, isDecrypt, kernel_results.ptr());
 
     kernel_results.read();
     return kernel_results.result;
@@ -825,7 +825,7 @@ __host__ SingleResult keeloq::kernels::cuda_encdec(uint64_t ota, uint64_t man, u
 __host__ bool keeloq::kernels::cuda_is_working()
 {
     KernelResult kernel_results;
-    LaunchCuda(Kernel_keeloq_test, 1, 1, kernel_results.ptr());
+    Kernel_keeloq_test<<<1, 1>>>(kernel_results.ptr());
     kernel_results.read();
 
     return kernel_results.error == 0 && kernel_results.value != 0;

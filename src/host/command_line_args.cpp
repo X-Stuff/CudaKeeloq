@@ -293,13 +293,13 @@ constexpr const char* Usage()
 
         "\nExample:\n"
         "\t./" APP_NAME " --" ARG_INPUTS " xxx,yy,zzz"
-        " --" ARG_MODE "=3 --" ARG_LTYPE "=0 --" ARG_ALPHABET "=examples/alphabet.bin,10:20:30:AA:BB:CC:DD:EE:FF:02:33"
+        " --" ARG_MODE "=3 --" ARG_LTYPE "=Simple --" ARG_ALPHABET "=examples/alphabet.bin,10:20:30:AA:BB:CC:DD:EE:FF:02:33"
         "\n\n\tThis will launch 2 alphabets attacks for all possible combinations for SIMPLE learning Keeloq type. "
         "First alphabet will be taken from file, second - parsed from inputs."
 
         "\nExample:\n"
         "\t./" APP_NAME " --"  ARG_INPUTS " xxx,yy,zzz"
-        " --" ARG_MODE "=4 --" ARG_LTYPE "=2 --" ARG_ALPHABET "=examples/alphabet.bin --" ARG_PATTERN "=AL0:11:AB|BC:*:00-44:AL0:AA-FF:01"
+        " --" ARG_MODE "=4 --" ARG_LTYPE "=Normal --" ARG_ALPHABET "=examples/alphabet.bin --" ARG_PATTERN "=AL0:11:AB|BC:*:00-44:AL0:AA-FF:01"
         "\n\n\tThis will launch pattern attacks with NORMAL keeloq learning type."
         "\n\tPattern applied 'as is' - big endian. The highest byte (0xXX.......) will be taken from 1st alphabet."
         "\n\tNext byte (0x..XX....) will be exact `0x11`."
@@ -361,7 +361,7 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv)
             "\n\t5: - Seed. Bruteforce only seed with provided manufacturer key (applied only to algorithms with seed).",
             cxxopts::value<std::vector<uint8_t>>(), "[m1,m2..]")
         (ARG_LTYPE,
-            "Specific learning type (if you know your target well). Increases approximately x16 times (since doesn't calculate other types):"
+            "Comma separated specific learning type(s), if you know your target well. Increases approximately x16 times (since doesn't calculate other types):"
             "\n\t0: - Simple"
             "\n\t1: - Normal"
             "\n\t2: - Secure"
@@ -371,7 +371,7 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv)
             "\n\t6: - Serial2"
             "\n\t7: - Serial3"
             "\nALL",
-            cxxopts::value<std::vector<uint8_t>>()->default_value("ALL"), "<type>")
+            cxxopts::value<std::vector<std::string>>()->default_value("ALL"), "<type>")
         (ARG_CHECKREV,
             "Check also byte-reversed man keys during bruteforce, some manufacturers mixes up or do this intentionally. "
             "You need this setting set to false only if you are doing, full 2^64 bruteforce.",
@@ -535,12 +535,13 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv)
     // Learning Types if any specific selected
     if (result.count(ARG_LTYPE) > 0)
     {
-        auto learning_type_bytes = result[ARG_LTYPE].as<std::vector<uint8_t>>();
+        auto learning_type_names = result[ARG_LTYPE].as<std::vector<std::string>>();
 
         args.selected_learning.clear();
-        for (auto value : learning_type_bytes)
+        for (const auto& name : learning_type_names)
         {
-            if (value < KeeloqLearning::LearningTypesCount)
+            KeeloqLearning::LearningType value;
+            if (KeeloqLearning::Parse(name.c_str(), value))
             {
                 args.selected_learning.push_back(static_cast<KeeloqLearning::LearningType>(value));
             }
