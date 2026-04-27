@@ -287,12 +287,7 @@ __device__ __host__ __forceinline__ uint32_t keeloq_decrypt_single(uint32_t data
         type == KeeloqLearning::LearningType::Xor || type == KeeloqLearning::LearningType::Faac || type == KeeloqLearning::LearningType::Serial1 ||
         type == KeeloqLearning::LearningType::Serial2 || type == KeeloqLearning::LearningType::Serial3, "Unsupported KeeloqLearningType");
 
-    // static_assert(KeeloqLearning::DecryptedResults::getIndex<type, mod>() != KeeloqLearning::DecryptedResults::InvalidIndex, "Unsupported KeeloqLearningType/Mod combination");
-
-    if constexpr (KeeloqLearning::DecryptedResults::getIndex<type, mod>() == KeeloqLearning::DecryptedResults::InvalidIndex)
-    {
-        return 0; // invalid combination of learning type and modification, should not be called in this case
-    }
+    static_assert(KeeloqLearning::DecryptedResults::getIndex<type, mod>() != KeeloqLearning::DecryptedResults::InvalidIndex, "Unsupported KeeloqLearningType/Mod combination");
 
     if constexpr (mod == KeeloqLearning::Modificators::Type::Regular)
     {
@@ -419,10 +414,11 @@ template<KeeloqLearning::LearningType type, KeeloqLearning::Modificators::Type m
 __device__ __host__ __forceinline__ void keeloq_decrypt_single(uint32_t data, uint32_t fix, const Decryptor& decryptor,
     KeeloqLearning::DecryptedResults& results)
 {
-    constexpr auto index = KeeloqLearning::DecryptedResults::getIndex<type, mod>();
-    assert(index != KeeloqLearning::DecryptedResults::InvalidIndex && "Invalid learning type/mod combination");
-
-    results[index] = keeloq_decrypt_single<type, mod>(data, fix, decryptor);
+    static constexpr auto index = KeeloqLearning::DecryptedResults::getIndex<type, mod>();
+    if constexpr (index != KeeloqLearning::DecryptedResults::InvalidIndex)
+    {
+        results[index] = keeloq_decrypt_single<type, mod>(data, fix, decryptor);
+    }
 }
 
 /**
@@ -926,7 +922,6 @@ __host__ bool keeloq::kernels::cuda_is_working()
 
     return kernel_results.error == 0 && kernel_results.value != 0;
 }
-
 
 __host__ EncParcel keeloq::GetOTA(uint64_t key, uint32_t seed, uint32_t serial, uint8_t button, uint16_t count, KeeloqLearning::LearningType learningType)
 {

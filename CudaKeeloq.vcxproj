@@ -84,7 +84,7 @@
       <AdditionalCompilerOptions>
       </AdditionalCompilerOptions>
       <FastMath>true</FastMath>
-      <GenerateRelocatableDeviceCode>false</GenerateRelocatableDeviceCode>
+      <GenerateRelocatableDeviceCode>true</GenerateRelocatableDeviceCode>
       <ExtensibleWholeProgramCompilation>false</ExtensibleWholeProgramCompilation>
       <NvccCompilation>compile</NvccCompilation>
       <Keep>false</Keep>
@@ -118,6 +118,7 @@
       <GenerateLineInfo>false</GenerateLineInfo>
       <GPUDebugInfo>false</GPUDebugInfo>
       <AdditionalOptions>--std=c++17 %(AdditionalOptions)</AdditionalOptions>
+      <GenerateRelocatableDeviceCode>true</GenerateRelocatableDeviceCode>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">
@@ -147,6 +148,7 @@
       <GenerateLineInfo>true</GenerateLineInfo>
       <GPUDebugInfo>false</GPUDebugInfo>
       <AdditionalOptions>--std=c++17 %(AdditionalOptions)</AdditionalOptions>
+      <GenerateRelocatableDeviceCode>true</GenerateRelocatableDeviceCode>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>

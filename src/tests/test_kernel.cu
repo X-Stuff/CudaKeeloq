@@ -7,22 +7,22 @@
 
 namespace
 {
-    __global__ void Kernel_Test(uint64_t* input)
-    {
-        *input = 0x1234567890ABCDEF;
-        *input = misc::rev_bytes(*input);
-    }
+__global__ void Kernel_Test(uint64_t* input)
+{
+    *input = 0x1234567890ABCDEF;
+    *input = misc::rev_bytes(*input);
+}
 
-    __global__ void Kernel_RunFiltersTests(BruteforceFiltersTestInputs* tests, uint8_t num)
+__global__ void Kernel_RunFiltersTests(BruteforceFiltersTestInputs* tests, uint8_t num)
+{
+    for (int i = 0; i < num; ++i)
     {
-        for (int i = 0; i < num; ++i)
-        {
-            bool value = BruteforceFilters::check_filters(tests[i].value, tests[i].flags);
-            assert(value == tests[i].result);
+        bool value = BruteforceFilters::check_filters(tests[i].value, tests[i].flags);
+        assert(value == tests[i].result);
 
-            tests[i].value = value == tests[i].result;
-        }
+        tests[i].value = value == tests[i].result;
     }
+}
 }
 
 __host__ void tests::cuda_check_bruteforce_filters(BruteforceFiltersTestInputs * tests, uint8_t num)

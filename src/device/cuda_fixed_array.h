@@ -20,5 +20,7 @@ struct CudaFixedArray
 
     __host__ __device__ __forceinline__ constexpr uint8_t size() const { return Size; }
 
+    __host__ __device__ __forceinline__ constexpr bool operator==(const CudaFixedArray<T, N>& other) const { return memcmp(data, other.data, Size * sizeof(T)) == 0; }
+
     T data[N];
 };

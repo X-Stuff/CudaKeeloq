@@ -173,12 +173,18 @@ __host__ __device__ __inline__ constexpr Modificators::Mask operator|(const Modi
 __host__ __device__ __inline__ constexpr Modificators::Mask operator&(const Modificators::Mask& a, const Modificators::Mask& b) { return static_cast<Modificators::Mask>(static_cast<uint8_t>(a) & static_cast<uint8_t>(b)); }
 __host__ __device__ __inline__ constexpr bool operator!(Modificators::Mask m) { return m == static_cast<Modificators::Mask>(0); }
 
+
 /** Helper alias for reverse lookup */
 struct Pair
 {
     LearningType type;
 
     Modificators::Type mod;
+
+    __host__ __device__ __forceinline__ static constexpr uint8_t asIndex(LearningType type, Modificators::Type mod)
+    {
+        return static_cast<uint8_t>(type) * Modificators::Count + static_cast<uint8_t>(mod);
+    }
 };
 
 /**
@@ -307,8 +313,14 @@ struct IndexInResults
     static constexpr uint8_t value = count(std::make_index_sequence<LType>{});
 };
 
-/** Indices cache, initialized from ResultIndices:values */
-__constant__ extern CudaFixedArray<uint8_t, Registry::NumResults + 1> IndicesCache;
+/** Size of the full matrix N*M with indices that points to results array */
+static constexpr const uint8_t IndicesCacheSize = LearningTypesCount * Modificators::Count;
+
+/**
+ *  Indices cache, initialized from ResultIndices:values, static per translation unit in CUDA.
+ * DecryptedResults::cuda_init() should be called at startup.
+ */
+extern __constant__ CudaFixedArray<uint8_t, IndicesCacheSize> IndicesCache;
 
 /** Decoded array type, used to have exact memory fit for all learning types with modifications, and one last element for invalid combination */
 struct DecryptedResults : public CudaFixedArray<uint32_t, Registry::NumResults + 1>
@@ -321,17 +333,14 @@ struct DecryptedResults : public CudaFixedArray<uint32_t, Registry::NumResults +
     {
         static constexpr CudaFixedArray<uint8_t, sizeof...(Is)> values = { Is... };
 
-        __host__ __device__ __inline__ static constexpr uint8_t getIndex(uint8_t at)
+        __host__ __device__ __inline__ static constexpr uint8_t get(uint8_t at)
         {
-            return IndicesCache[at];
             return values[at];
         }
 
-        __host__ __device__ __inline__ static constexpr uint8_t getIndex(LearningType learning, Modificators::Type mod)
+        __host__ __device__ __inline__ static constexpr uint8_t get(LearningType learning, Modificators::Type mod)
         {
-            const auto l = static_cast<uint8_t>(learning);
-            const auto m = static_cast<uint8_t>(mod);
-            return getIndex(l * Modificators::Count + m);
+            return values[Pair::asIndex(learning, mod)];
         }
     };
 
@@ -375,8 +384,7 @@ public:
      * Where X == 19 (last index in DecryptedResults) - means invalid combination of learning type and modification
      *
      */
-    using ResultIndicesCache = typename MakeTIndicesType<LearningTypesCount, Modificators::Count,
-        std::make_index_sequence<LearningTypesCount* Modificators::Count>>::type;
+    using ResultIndicesCache = typename MakeTIndicesType<LearningTypesCount, Modificators::Count, std::make_index_sequence<IndicesCacheSize>>::type;
 
 public:
     /** Get index in DecryptedResults for specific learning type with modification */
@@ -389,7 +397,12 @@ public:
     /** Get index in DecryptedResults for specific learning type with modification, not allowed on device! */
     __host__ __device__ __inline__ static constexpr uint8_t getIndex(LearningType type, Modificators::Type mod)
     {
-        return ResultIndicesCache::getIndex(type, mod);
+#if __CUDA_ARCH__
+        return IndicesCache[Pair::asIndex(type, mod)];
+#else
+        return ResultIndicesCache::get(type, mod);
+#endif
+
     }
 
     /** Does reverse lookup by index, not allowed on device! */
@@ -402,7 +415,7 @@ public:
                 const auto l = static_cast<LearningType>(iLearning);
                 const auto m = static_cast<Modificators::Type>(iMod);
 
-                if (ResultIndicesCache::getIndex(l, m) == index)
+                if (ResultIndicesCache::get(l, m) == index)
                 {
                     return Pair{ l, m };
                 }
@@ -411,7 +424,15 @@ public:
 
         return Pair{};
     }
+public:
+
+    __host__ static cudaError_t cuda_init()
+    {
+        constexpr auto src = DecryptedResults::ResultIndicesCache::values;
+        return cudaMemcpyToSymbol(IndicesCache.data, src.data, sizeof(src));
+    }
 };
+
 
 /**
  *  Used for:

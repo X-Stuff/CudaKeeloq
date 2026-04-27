@@ -6,7 +6,6 @@
 namespace KeeloqLearning
 {
 
-
 Matrix::Matrix(const std::initializer_list<Pair>& pairs) : matrix(0)
 {
     if (pairs.size() > 0)
@@ -21,7 +20,6 @@ Matrix::Matrix(const std::initializer_list<Pair>& pairs) : matrix(0)
         matrix = kEverything;
     }
 }
-
 
 Matrix::Matrix(const std::vector<LearningType>& types, Modificators::Mask mask) : matrix(0)
 {
