@@ -12,6 +12,9 @@
     assert(error == 0)
 
 
+/************************************************************************/
+/*                  Bruteforce generator helper macros                  */
+/************************************************************************/
 #define GENERATOR_KERNEL_NAME(name) \
     Kernel_##name
 
@@ -25,11 +28,21 @@
     extern "C" void* GENERATOR_KERNEL_GETTER_NAME(name)() { return (void*)&Kernel_##name; }
 
 
+/************************************************************************/
+/*                  Macros for common .inl files                        */
+/************************************************************************/
 #if __CUDA_ARCH__
+    #define NOINLINE __noinline__
     #define UNROLL #pragma unroll
+    #define LaunchCuda(kernel, blocks, threads, ...) kernel<<<blocks, threads>>>(__VA_ARGS__)
 #else
+    #define NOINLINE                                    /* nothing in c++ */
     #define UNROLL
+    #define LaunchCuda(...)                             /* nothing in c++ */
+    #define atomicAdd(dest, value) (*(dest) += (value)) /* emulate atomicAdd. just for compilation */
+    #define __usad(a, b, c) (abs(int(a) - int(b)) + c)  /* emulate __usad. just for compilation */
 #endif
+
 
 #ifndef NO_INNER_LOOPS
     #define NO_INNER_LOOPS 1

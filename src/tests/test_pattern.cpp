@@ -39,12 +39,14 @@ BruteforceConfig GetSingleKeyConfig(uint64_t key, bool rev = true)
 
 bool tests::pattern_generation()
 {
+    using namespace KeeloqLearning;
+
     constexpr auto NumBlocks = 64;
     constexpr auto NumThreads = 64;
 
     const uint64_t debugKey = "hello_world"_u64;
 
-    CudaVector<EncParcel> encrypted  = tests::keeloq::gen_inputs(debugKey);
+    CudaVector<EncParcel> encrypted  = tests::keeloq::gen_inputs<LearningType::Simple>(debugKey);
 
     CudaVector<Decryptor> decryptors(NumBlocks * NumThreads);
     CudaVector<SingleResult> results(decryptors.size() * encrypted.size());

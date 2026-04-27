@@ -551,12 +551,12 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv)
     {
         if (result.count(ARG_CHECKREV) && result[ARG_CHECKREV].as<bool>())
         {
-            args.selected_mod_mask = args.selected_mod_mask | KeeloqLearning::Modificators::Mask::RevKey;
+            args.selected_mod_mask = args.selected_mod_mask | KeeloqLearning::Modifier::Mask::RevKey;
         }
 
         if (result.count(ARG_CHECKINV) && result[ARG_CHECKINV].as<bool>())
         {
-            args.selected_mod_mask = args.selected_mod_mask | KeeloqLearning::Modificators::Mask::InvDec;
+            args.selected_mod_mask = args.selected_mod_mask | KeeloqLearning::Modifier::Mask::InvDec;
         }
     }
 

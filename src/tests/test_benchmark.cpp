@@ -136,6 +136,8 @@ void benchmark::run(const CommandLineArgs& args, const BruteforceConfig& benchma
 
 void benchmark::all(const CommandLineArgs& args)
 {
+    using namespace KeeloqLearning;
+
     cudaDeviceProp prop;
     cudaGetDeviceProperties(&prop, 0);
 
@@ -147,25 +149,27 @@ void benchmark::all(const CommandLineArgs& args)
 
     console_clear();
     CommandLineArgs copy = args;
-    copy.inputs = tests::keeloq::gen_inputs(0xFF123FF3434FFFFF);
+
+    // Any inputs, we don't need to find the key
+    copy.inputs = tests::keeloq::gen_inputs<LearningType::Simple>(0xFF123FF3434FFFFF);
 
     copy.selected_learning = {};
     run(copy, benchmarkConfig_wt_seed, CudaBlocks, CudaThreads);
     run(copy, benchmarkConfig_no_seed, CudaBlocks, CudaThreads);
 
-    copy.selected_learning = { KeeloqLearning::LearningType::Simple };
+    copy.selected_learning = { LearningType::Simple };
     run(copy, benchmarkConfig_no_seed, CudaBlocks, CudaThreads);
 
-    copy.selected_learning = { KeeloqLearning::LearningType::Normal };
+    copy.selected_learning = { LearningType::Normal };
     run(copy, benchmarkConfig_no_seed, CudaBlocks, CudaThreads);
 
-    copy.selected_learning = { KeeloqLearning::LearningType::Secure };
+    copy.selected_learning = { LearningType::Secure };
     run(copy, benchmarkConfig_wt_seed, CudaBlocks, CudaThreads);
 
-    copy.selected_learning = { KeeloqLearning::LearningType::Faac };
+    copy.selected_learning = { LearningType::Faac };
     run(copy, benchmarkConfig_wt_seed, CudaBlocks, CudaThreads);
 
-    copy.selected_learning = { KeeloqLearning::LearningType::Simple, KeeloqLearning::LearningType::Normal, KeeloqLearning::LearningType::Xor };
+    copy.selected_learning = { LearningType::Simple, LearningType::Normal, LearningType::Xor };
     run(copy, benchmarkConfig_no_seed, CudaBlocks, CudaThreads);
 
 #ifndef NO_INNER_LOOPS

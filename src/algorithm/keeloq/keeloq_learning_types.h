@@ -133,7 +133,7 @@ using LearningTypesSequence = std::make_index_sequence<LearningTypesCount>;
 /**
  *  Additional modification for learning types, in some cases might be useful
  */
-struct Modificators
+struct Modifier
 {
     enum class Type : uint8_t
     {
@@ -169,9 +169,9 @@ struct Modificators
     using TypeSequence = std::make_index_sequence<Count>;
 };
 
-__host__ __device__ __inline__ constexpr Modificators::Mask operator|(const Modificators::Mask& a, const Modificators::Mask& b) { return static_cast<Modificators::Mask>(static_cast<uint8_t>(a) | static_cast<uint8_t>(b)); }
-__host__ __device__ __inline__ constexpr Modificators::Mask operator&(const Modificators::Mask& a, const Modificators::Mask& b) { return static_cast<Modificators::Mask>(static_cast<uint8_t>(a) & static_cast<uint8_t>(b)); }
-__host__ __device__ __inline__ constexpr bool operator!(Modificators::Mask m) { return m == static_cast<Modificators::Mask>(0); }
+__host__ __device__ __inline__ constexpr Modifier::Mask operator|(const Modifier::Mask& a, const Modifier::Mask& b) { return static_cast<Modifier::Mask>(static_cast<uint8_t>(a) | static_cast<uint8_t>(b)); }
+__host__ __device__ __inline__ constexpr Modifier::Mask operator&(const Modifier::Mask& a, const Modifier::Mask& b) { return static_cast<Modifier::Mask>(static_cast<uint8_t>(a) & static_cast<uint8_t>(b)); }
+__host__ __device__ __inline__ constexpr bool operator!(Modifier::Mask m) { return m == static_cast<Modifier::Mask>(0); }
 
 
 /** Helper alias for reverse lookup */
@@ -179,11 +179,11 @@ struct Pair
 {
     LearningType type;
 
-    Modificators::Type mod;
+    Modifier::Type mod;
 
-    __host__ __device__ __forceinline__ static constexpr uint8_t asIndex(LearningType type, Modificators::Type mod)
+    __host__ __device__ __forceinline__ static constexpr uint8_t asIndex(LearningType type, Modifier::Type mod)
     {
-        return static_cast<uint8_t>(type) * Modificators::Count + static_cast<uint8_t>(mod);
+        return static_cast<uint8_t>(type) * Modifier::Count + static_cast<uint8_t>(mod);
     }
 };
 
@@ -195,26 +195,26 @@ struct Registry
     /**
      *  Internal information for each learning type that will be in Available tuple.
      */
-    template<LearningType LType, bool bIsSeeded, Modificators::Type... LMods>
+    template<LearningType LType, bool bIsSeeded, Modifier::Type... LMods>
     struct Entry
     {
         static constexpr LearningType Type = LType;
 
-        static constexpr Modificators::Mask ModsMask = (static_cast<Modificators::Mask>(0) | ... | Modificators::ToMask<LMods>());
+        static constexpr Modifier::Mask ModsMask = (static_cast<Modifier::Mask>(0) | ... | Modifier::ToMask<LMods>());
 
         /** Cannot detect repeated */
         static constexpr uint8_t NumMods = sizeof...(LMods);
-        static_assert(NumMods <= Modificators::Count, "Too many modifications, cannot be more than known types!");
+        static_assert(NumMods <= Modifier::Count, "Too many modifications, cannot be more than known types!");
 
         static constexpr bool IsSeeded = bIsSeeded;
 
-        template<Modificators::Type M>
-        __host__ __device__ __inline__ static constexpr bool HasMod() { return !!(ModsMask & Modificators::ToMask<M>()) != 0; }
+        template<Modifier::Type M>
+        __host__ __device__ __inline__ static constexpr bool HasMod() { return !!(ModsMask & Modifier::ToMask<M>()) != 0; }
 
-        __host__ __device__ __inline__ static constexpr bool HasMod(Modificators::Type M) { return !!(ModsMask & Modificators::ToMask(M)) != 0; }
+        __host__ __device__ __inline__ static constexpr bool HasMod(Modifier::Type M) { return !!(ModsMask & Modifier::ToMask(M)) != 0; }
 
         /** Index in Mods collection */
-        template<Modificators::Type M>
+        template<Modifier::Type M>
         __host__ __device__ __inline__ static constexpr std::enable_if_t<HasMod<M>(), uint8_t> ModIndex()
         {
             uint8_t index = 0;
@@ -227,21 +227,21 @@ struct Registry
             return index;
         }
 
-        static constexpr uint8_t Indices[Modificators::Count] = { 0 };
+        static constexpr uint8_t Indices[Modifier::Count] = { 0 };
     };
 
     /**
      *  All available learning types with their modifications. If you want to add new learning type - just add it here with allowed modifications.
      */
     using Available = std::tuple<
-        Entry<LearningType::Simple, false,  Modificators::Type::Regular, Modificators::Type::ReversedKey>,
-        Entry<LearningType::Normal, false,  Modificators::Type::Regular, Modificators::Type::ReversedKey, Modificators::Type::InvertedDec>,
-        Entry<LearningType::Secure, true,   Modificators::Type::Regular, Modificators::Type::ReversedKey, Modificators::Type::InvertedDec>,
-        Entry<LearningType::Xor,    false,  Modificators::Type::Regular, Modificators::Type::ReversedKey>,
-        Entry<LearningType::Faac,   true,   Modificators::Type::Regular, Modificators::Type::ReversedKey, Modificators::Type::InvertedDec>,
-        Entry<LearningType::Serial1, false, Modificators::Type::Regular, Modificators::Type::ReversedKey>,
-        Entry<LearningType::Serial2, false, Modificators::Type::Regular, Modificators::Type::ReversedKey>,
-        Entry<LearningType::Serial3, false, Modificators::Type::Regular, Modificators::Type::ReversedKey>
+        Entry<LearningType::Simple, false,  Modifier::Type::Regular, Modifier::Type::ReversedKey>,
+        Entry<LearningType::Normal, false,  Modifier::Type::Regular, Modifier::Type::ReversedKey, Modifier::Type::InvertedDec>,
+        Entry<LearningType::Secure, true,   Modifier::Type::Regular, Modifier::Type::ReversedKey, Modifier::Type::InvertedDec>,
+        Entry<LearningType::Xor,    false,  Modifier::Type::Regular, Modifier::Type::ReversedKey>,
+        Entry<LearningType::Faac,   true,   Modifier::Type::Regular, Modifier::Type::ReversedKey, Modifier::Type::InvertedDec>,
+        Entry<LearningType::Serial1, false, Modifier::Type::Regular, Modifier::Type::ReversedKey>,
+        Entry<LearningType::Serial2, false, Modifier::Type::Regular, Modifier::Type::ReversedKey>,
+        Entry<LearningType::Serial3, false, Modifier::Type::Regular, Modifier::Type::ReversedKey>
     >;
 
     /** Element accessor */
@@ -290,10 +290,10 @@ using ResultIndex = uint8_t;
 /** Value if the result index that represents no match, Invalid Index points to the last (additional) element in array, however it is considered invalid */
 static constexpr ResultIndex NoMatch = 0xFF;
 
-template<LearningType LType, Modificators::Type LMod>
+template<LearningType LType, Modifier::Type LMod>
 struct IndexInResults
 {
-    static constexpr auto ModMask = Modificators::ToMask<LMod>();
+    static constexpr auto ModMask = Modifier::ToMask<LMod>();
 
     template<std::size_t... I>
     static constexpr ResultIndex count(std::index_sequence<I...>)
@@ -314,7 +314,7 @@ struct IndexInResults
 };
 
 /** Size of the full matrix N*M with indices that points to results array */
-static constexpr const uint8_t IndicesCacheSize = LearningTypesCount * Modificators::Count;
+static constexpr const uint8_t IndicesCacheSize = LearningTypesCount * Modifier::Count;
 
 /**
  *  Indices cache, initialized from ResultIndices:values, static per translation unit in CUDA.
@@ -338,7 +338,7 @@ struct DecryptedResults : public CudaFixedArray<uint32_t, Registry::NumResults +
             return values[at];
         }
 
-        __host__ __device__ __inline__ static constexpr uint8_t get(LearningType learning, Modificators::Type mod)
+        __host__ __device__ __inline__ static constexpr uint8_t get(LearningType learning, Modifier::Type mod)
         {
             return values[Pair::asIndex(learning, mod)];
         }
@@ -350,8 +350,8 @@ private:
      */
     template<std::size_t M, std::size_t N, std::size_t... I>
     using TIndicesType = ResultIndices<
-        (Registry::Element<((I / N))>::HasMod(static_cast<Modificators::Type>(I% N))
-            ? IndexInResults<static_cast<LearningType>((I / N)), static_cast<Modificators::Type>(I% N)>::value
+        (Registry::Element<((I / N))>::HasMod(static_cast<Modifier::Type>(I% N))
+            ? IndexInResults<static_cast<LearningType>((I / N)), static_cast<Modifier::Type>(I% N)>::value
             : InvalidIndex)...>;
 
     /**
@@ -384,18 +384,18 @@ public:
      * Where X == 19 (last index in DecryptedResults) - means invalid combination of learning type and modification
      *
      */
-    using ResultIndicesCache = typename MakeTIndicesType<LearningTypesCount, Modificators::Count, std::make_index_sequence<IndicesCacheSize>>::type;
+    using ResultIndicesCache = typename MakeTIndicesType<LearningTypesCount, Modifier::Count, std::make_index_sequence<IndicesCacheSize>>::type;
 
 public:
     /** Get index in DecryptedResults for specific learning type with modification */
-    template<LearningType LType, Modificators::Type LMod>
+    template<LearningType LType, Modifier::Type LMod>
     __host__ __device__ __inline__ static constexpr uint8_t getIndex()
     {
         return IndexInResults<LType, LMod>::value;
     }
 
     /** Get index in DecryptedResults for specific learning type with modification, not allowed on device! */
-    __host__ __device__ __inline__ static constexpr uint8_t getIndex(LearningType type, Modificators::Type mod)
+    __host__ __device__ __inline__ static constexpr uint8_t getIndex(LearningType type, Modifier::Type mod)
     {
 #if __CUDA_ARCH__
         return IndicesCache[Pair::asIndex(type, mod)];
@@ -410,10 +410,10 @@ public:
     {
         for (auto iLearning = 0; iLearning < LearningTypesCount; ++iLearning)
         {
-            for (auto iMod = 0; iMod < Modificators::Count; ++iMod)
+            for (auto iMod = 0; iMod < Modifier::Count; ++iMod)
             {
                 const auto l = static_cast<LearningType>(iLearning);
-                const auto m = static_cast<Modificators::Type>(iMod);
+                const auto m = static_cast<Modifier::Type>(iMod);
 
                 if (ResultIndicesCache::get(l, m) == index)
                 {
@@ -449,11 +449,11 @@ struct Matrix
 #if __CUDA_ARCH__
         // In CUDA we do not have static_assert with message
 #else
-        static_assert(DecryptedResults::getIndex(LearningType::Normal, Modificators::Type::Regular) == 2, "Invalid index for Normal/Regular");
-        static_assert(DecryptedResults::getIndex(LearningType::Simple, Modificators::Type::InvertedDec) == DecryptedResults::InvalidIndex, "Simple learning should not have valid index for Inverted decode");
+        static_assert(DecryptedResults::getIndex(LearningType::Normal, Modifier::Type::Regular) == 2, "Invalid index for Normal/Regular");
+        static_assert(DecryptedResults::getIndex(LearningType::Simple, Modifier::Type::InvertedDec) == DecryptedResults::InvalidIndex, "Simple learning should not have valid index for Inverted decode");
 
-        static_assert(DecryptedResults::getIndex(LearningType::Normal, Modificators::Type::Regular) == DecryptedResults::getIndex<LearningType::Normal, Modificators::Type::Regular>(), "getIndex() methods returned non-equal values");
-        static_assert(DecryptedResults::getIndex(LearningType::Simple, Modificators::Type::InvertedDec) == DecryptedResults::getIndex<LearningType::Simple, Modificators::Type::InvertedDec>(), "getIndex() methods returned non-equal values");
+        static_assert(DecryptedResults::getIndex(LearningType::Normal, Modifier::Type::Regular) == DecryptedResults::getIndex<LearningType::Normal, Modifier::Type::Regular>(), "getIndex() methods returned non-equal values");
+        static_assert(DecryptedResults::getIndex(LearningType::Simple, Modifier::Type::InvertedDec) == DecryptedResults::getIndex<LearningType::Simple, Modifier::Type::InvertedDec>(), "getIndex() methods returned non-equal values");
 
         static_assert(Registry::NumResults == DecryptedResults::InvalidIndex, "TotalNum should match InvalidIndex it's basically the same");
         static_assert(LearningTypesCount == std::tuple_size_v<Registry::Available>, "AvailableLearnings definition missing some elements");
@@ -463,10 +463,10 @@ struct Matrix
     /** Creates a learning matrix with specific enabled pairs */
     Matrix(const std::initializer_list<Pair>& pairs);
 
-    Matrix(const std::vector<LearningType>& types, Modificators::Mask mods);
+    Matrix(const std::vector<LearningType>& types, Modifier::Mask mods);
 
     /** Creates a learning matrix with everything enabled */
-    static constexpr auto Everything() { return Matrix(kEverything); }
+    __host__ __device__ __inline__ static constexpr auto Everything() { return Matrix(kEverything); }
 
 public:
     /**
@@ -481,7 +481,7 @@ public:
     /**
      *  Matrix access as double indexation [type][mod]
      */
-    __host__ __device__ __inline__ bool isEnabled(LearningType type, Modificators::Type mod) const
+    __host__ __device__ __inline__ bool isEnabled(LearningType type, Modifier::Type mod) const
     {
         const auto index = DecryptedResults::getIndex(type, mod);
         const bool valid = index != DecryptedResults::InvalidIndex;
@@ -499,7 +499,7 @@ public:
     /**
      *  Set specific bit to 1 according to learning type and modification
      */
-    __host__ __inline__ void enable(LearningType type, Modificators::Type mod = Modificators::Type::Regular)
+    __host__ __inline__ void enable(LearningType type, Modifier::Type mod = Modifier::Type::Regular)
     {
         const auto bitIndex = DecryptedResults::getIndex(type, mod);
         matrix |= (1ULL << bitIndex);
@@ -524,5 +524,5 @@ private:
 
 const char* Name(LearningType type);
 
-const char* Name(Modificators::Type mod);
+const char* Name(Modifier::Type mod);
 }

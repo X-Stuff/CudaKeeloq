@@ -4,6 +4,7 @@
 
 #include <stdint.h>
 
+#include "device/cuda_object.h"
 #include "algorithm/keeloq/keeloq_learning_types.h"
 #include "algorithm/keeloq/keeloq_encrypted.h"
 #include "algorithm/keeloq/keeloq_decryptor.h"
@@ -54,7 +55,6 @@ struct SingleResult
         void print() const;
     };
 
-
     // Input encrypted data
     EncParcel encrypted = {};
 
@@ -69,4 +69,17 @@ struct SingleResult
     KeeloqLearning::ResultIndex match = KeeloqLearning::NoMatch;
 
 	void print(bool onlymatch = true) const;
+};
+
+
+/**
+ *  Specific result for single decryption kernel.
+ */
+struct DecryptKernelResult final : TGenericGpuObject<DecryptKernelResult>
+{
+    SingleResult result;
+
+    DecryptKernelResult() : TGenericGpuObject<DecryptKernelResult>(this)
+    {
+    }
 };

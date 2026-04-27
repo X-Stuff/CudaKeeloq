@@ -107,6 +107,9 @@
     <ClInclude Include="src\device\cuda_fixed_array.h">
       <Filter>device</Filter>
     </ClInclude>
+    <ClInclude Include="src\algorithm\keeloq\keeloq_encryptor.h">
+      <Filter>algorithm\keeloq</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp" />
@@ -163,6 +166,9 @@
     </ClCompile>
     <ClCompile Include="src\tests\test_console.cpp">
       <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="src\algorithm\keeloq\keeloq_encryptor.cpp">
+      <Filter>algorithm\keeloq</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

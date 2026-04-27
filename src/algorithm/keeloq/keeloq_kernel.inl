@@ -7,109 +7,12 @@ constexpr uint8_t OneEncInput = 1;
 constexpr uint8_t TwoEncInputs = 2;
 constexpr uint8_t ThreeEncInputs = 3;
 
-
-/**
- *  reference: https://github.com/DarkFlippers/unleashed-firmware/blob/dev/lib/subghz/protocols/keeloq_common.c
- * Getting real encryption key
- *
- * Additional variation of learning algorithms:
- *  - Using encrypt instead of decrypt for key generation (for some learning types)
- */
-namespace
-{
-    template<bool UseDecrypt = true>
-    __device__ __host__ inline uint64_t keeloq_common_secure_learning(uint32_t data, uint32_t seed, const uint64_t key)
-    {
-        uint32_t k1, k2;
-
-        data &= 0x0FFFFFFFUL;
-
-        if constexpr (UseDecrypt)
-        {
-            k1 = keeloq_common_decrypt(data, key);
-            k2 = keeloq_common_decrypt(seed, key);
-        }
-        else
-        {
-            k1 = keeloq_common_encrypt(data, key);
-            k2 = keeloq_common_encrypt(seed, key);
-        }
-
-        return ((uint64_t)k1 << 32) | k2;
-    }
-
-    __device__ __host__ inline uint64_t keeloq_common_magic_xor_type1_learning(uint32_t data, uint64_t pxor)
-    {
-        data &= 0x0FFFFFFFUL;
-        return (((uint64_t)data << 32) | data) ^ pxor;
-    }
-
-    template<bool UseDecrypt = true>
-    __device__ __host__ inline uint64_t keeloq_common_normal_learning(uint32_t data, const uint64_t key)
-    {
-        uint32_t k1, k2;
-
-        data &= 0x0FFFFFFFUL;
-        if constexpr (UseDecrypt)
-        {
-            k1 = keeloq_common_decrypt(data | 0x20000000UL, key);
-            k2 = keeloq_common_decrypt(data | 0x60000000UL, key);
-        }
-        else
-        {
-            k1 = keeloq_common_encrypt(data | 0x20000000UL, key);
-            k2 = keeloq_common_encrypt(data | 0x60000000UL, key);
-        }
-
-        return ((uint64_t)k2 << 32) | k1; // key - shifrovanoya
-    }
-
-    template<bool UseDecrypt = false>
-    __device__ __host__ inline uint64_t keeloq_common_faac_learning(const uint32_t seed, const uint64_t key)
-    {
-        const uint16_t hs = seed >> 16;
-        const uint16_t ending = 0x544D;
-        const uint32_t lsb = (uint32_t)hs << 16 | ending;
-
-        if constexpr (UseDecrypt)
-        {
-            return (uint64_t)keeloq_common_decrypt(seed, key) << 32 | keeloq_common_decrypt(lsb, key);
-        }
-        else
-        {
-            return (uint64_t)keeloq_common_encrypt(seed, key) << 32 | keeloq_common_encrypt(lsb, key);
-        }
-    }
-
-    __device__ __host__ inline uint64_t keeloq_common_magic_serial_type1_learning(uint32_t data, uint64_t man)
-    {
-        return (man & 0xFFFFFFFF) | ((uint64_t)data << 40) |
-            ((uint64_t)(((data & 0xff) + ((data >> 8) & 0xFF)) & 0xFF) << 32);
-    }
-
-    __device__ __host__ inline uint64_t keeloq_common_magic_serial_type2_learning(uint32_t data, uint64_t man)
-    {
-        uint8_t* p = (uint8_t*)&data;
-        uint8_t* m = (uint8_t*)&man;
-        m[7] = p[0];
-        m[6] = p[1];
-        m[5] = p[2];
-        m[4] = p[3];
-        return man;
-    }
-
-    __device__ __host__ inline uint64_t keeloq_common_magic_serial_type3_learning(uint32_t data, uint64_t man)
-    {
-        return (man & 0xFFFFFFFFFF000000) | (data & 0xFFFFFF);
-    }
-}
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 namespace debug
 {
 // Some problems with printf - looks like silently hit instruction limit
-__device__ __noinline__ void assert_single_match_count(uint8_t match_count, bool has_match, KeeloqLearning::ResultIndex curr_res_indx, KeeloqLearning::ResultIndex new_res_index,
+NOINLINE __device__ void assert_single_match_count(uint8_t match_count, bool has_match, KeeloqLearning::ResultIndex curr_res_indx, KeeloqLearning::ResultIndex new_res_index,
     const Span<SingleResult>& results)
 {
     if (match_count > 0 && has_match)
@@ -141,7 +44,8 @@ __device__ uint8_t is_cnt_match(const Span<SingleResult>& results, KeeloqLearnin
     for (uint8_t item = 1; item < NumInputs; ++item)
     {
         const uint32_t cnt = results[item].decrypted.cnt(resIndex);
-        lrn_matches += __usad(expected_cnt, cnt, 0) < counter_maxdiff;
+        // No underflow in CUDA
+        lrn_matches += __usad(expected_cnt, cnt, 0u) < counter_maxdiff;
     }
 
     return lrn_matches == NumInputs;
@@ -270,132 +174,132 @@ namespace
  * So for each learning type and modifier will be generated separate function.
  *
  *  call-stack:
- *   -> keeloq_decrypt_single
- *      keeloq_decrypt_multi
+ *   -> keeloq_encdec_single
+ *      keeloq_encdec_multi
  *      keeloq_decrypt_[seed,normal]
- *      keeloq_decrypt
+ *      keeloq_encdec
  */
-template<KeeloqLearning::LearningType type, KeeloqLearning::Modificators::Type mod>
-__device__ __host__ __forceinline__ uint32_t keeloq_decrypt_single(uint32_t data, uint32_t fix, const Decryptor& decryptor)
+template<bool IsDecrypt, KeeloqLearning::LearningType type, KeeloqLearning::Modifier::Type mod>
+__device__ __host__ __forceinline__ uint32_t keeloq_encdec_single(uint32_t data, uint32_t fix, const Decryptor& decryptor)
 {
     const uint64_t key = decryptor.man();
     const uint64_t key_rev = decryptor.nam();
     const uint32_t seed = decryptor.seed();
 
-    static_assert(mod == KeeloqLearning::Modificators::Type::Regular || mod == KeeloqLearning::Modificators::Type::ReversedKey || mod == KeeloqLearning::Modificators::Type::InvertedDec, "Unsupported KeeloqLearningMod");
+    static_assert(mod == KeeloqLearning::Modifier::Type::Regular || mod == KeeloqLearning::Modifier::Type::ReversedKey || mod == KeeloqLearning::Modifier::Type::InvertedDec, "Unsupported KeeloqLearningMod");
     static_assert(type == KeeloqLearning::LearningType::Simple || type == KeeloqLearning::LearningType::Normal || type == KeeloqLearning::LearningType::Secure ||
         type == KeeloqLearning::LearningType::Xor || type == KeeloqLearning::LearningType::Faac || type == KeeloqLearning::LearningType::Serial1 ||
         type == KeeloqLearning::LearningType::Serial2 || type == KeeloqLearning::LearningType::Serial3, "Unsupported KeeloqLearningType");
 
     static_assert(KeeloqLearning::DecryptedResults::getIndex<type, mod>() != KeeloqLearning::DecryptedResults::InvalidIndex, "Unsupported KeeloqLearningType/Mod combination");
 
-    if constexpr (mod == KeeloqLearning::Modificators::Type::Regular)
+    if constexpr (mod == KeeloqLearning::Modifier::Type::Regular)
     {
         if constexpr (type == KeeloqLearning::LearningType::Simple)
         {
-            return keeloq_common_decrypt(data, key);
+            return keeloq::common::encdec<IsDecrypt>(data, key);
         }
         else if constexpr (type == KeeloqLearning::LearningType::Normal)
         {
-            uint64_t n_key = keeloq_common_normal_learning(fix, key);
-            return keeloq_common_decrypt(data, n_key);
+            uint64_t n_key = keeloq::learning::normal(fix, key);
+            return keeloq::common::encdec<IsDecrypt>(data, n_key);
         }
         else if constexpr (type == KeeloqLearning::LearningType::Secure)
         {
             assert(seed != 0);
-            uint64_t n_key = keeloq_common_secure_learning(fix, seed, key);
-            return keeloq_common_decrypt(data, n_key);
+            uint64_t n_key = keeloq::learning::secure(fix, seed, key);
+            return keeloq::common::encdec<IsDecrypt>(data, n_key);
         }
         else if constexpr (type == KeeloqLearning::LearningType::Xor)
         {
-            uint64_t n_key = keeloq_common_magic_xor_type1_learning(fix, key);
-            return keeloq_common_decrypt(data, n_key);
+            uint64_t n_key = keeloq::learning::magic_xor_type1(fix, key);
+            return keeloq::common::encdec<IsDecrypt>(data, n_key);
         }
         else if constexpr (type == KeeloqLearning::LearningType::Faac)
         {
             assert(seed != 0);
-            uint64_t n_key = keeloq_common_faac_learning(seed, key);
-            return keeloq_common_decrypt(data, n_key);
+            uint64_t n_key = keeloq::learning::faac(seed, key);
+            return keeloq::common::encdec<IsDecrypt>(data, n_key);
         }
         else if constexpr (type == KeeloqLearning::LearningType::Serial1)
         {
-            uint64_t n_key = keeloq_common_magic_serial_type1_learning(fix, key);
-            return keeloq_common_decrypt(data, n_key);
+            uint64_t n_key = keeloq::learning::serial_type1(fix, key);
+            return keeloq::common::encdec<IsDecrypt>(data, n_key);
         }
         else if constexpr (type == KeeloqLearning::LearningType::Serial2)
         {
-            uint64_t n_key = keeloq_common_magic_serial_type2_learning(fix, key);
-            return keeloq_common_decrypt(data, n_key);
+            uint64_t n_key = keeloq::learning::serial_type2(fix, key);
+            return keeloq::common::encdec<IsDecrypt>(data, n_key);
         }
         else if constexpr (type == KeeloqLearning::LearningType::Serial3)
         {
-            uint64_t n_key = keeloq_common_magic_serial_type3_learning(fix, key);
-            return keeloq_common_decrypt(data, n_key);
+            uint64_t n_key = keeloq::learning::serial_type3(fix, key);
+            return keeloq::common::encdec<IsDecrypt>(data, n_key);
         }
     }
-    else if constexpr (mod == KeeloqLearning::Modificators::Type::ReversedKey)
+    else if constexpr (mod == KeeloqLearning::Modifier::Type::ReversedKey)
     {
         if constexpr (type == KeeloqLearning::LearningType::Simple)
         {
-            return keeloq_common_decrypt(data, key_rev);
+            return keeloq::common::encdec<IsDecrypt>(data, key_rev);
         }
         else if constexpr (type == KeeloqLearning::LearningType::Normal)
         {
-            uint64_t n_key = keeloq_common_normal_learning(fix, key_rev);
-            return keeloq_common_decrypt(data, n_key);
+            uint64_t n_key = keeloq::learning::normal(fix, key_rev);
+            return keeloq::common::encdec<IsDecrypt>(data, n_key);
         }
         else if constexpr (type == KeeloqLearning::LearningType::Secure)
         {
             assert(seed != 0);
-            uint64_t n_key = keeloq_common_secure_learning(fix, seed, key_rev);
-            return keeloq_common_decrypt(data, n_key);
+            uint64_t n_key = keeloq::learning::secure(fix, seed, key_rev);
+            return keeloq::common::encdec<IsDecrypt>(data, n_key);
         }
         else if constexpr (type == KeeloqLearning::LearningType::Xor)
         {
-            uint64_t n_key = keeloq_common_magic_xor_type1_learning(fix, key_rev);
-            return keeloq_common_decrypt(data, n_key);
+            uint64_t n_key = keeloq::learning::magic_xor_type1(fix, key_rev);
+            return keeloq::common::encdec<IsDecrypt>(data, n_key);
         }
         else if constexpr (type == KeeloqLearning::LearningType::Faac)
         {
             assert(seed != 0);
-            uint64_t n_key = keeloq_common_faac_learning(seed, key_rev);
-            return keeloq_common_decrypt(data, n_key);
+            uint64_t n_key = keeloq::learning::faac(seed, key_rev);
+            return keeloq::common::encdec<IsDecrypt>(data, n_key);
         }
         else if constexpr (type == KeeloqLearning::LearningType::Serial1)
         {
-            uint64_t n_key = keeloq_common_magic_serial_type1_learning(fix, key_rev);
-            return keeloq_common_decrypt(data, n_key);
+            uint64_t n_key = keeloq::learning::serial_type1(fix, key_rev);
+            return keeloq::common::encdec<IsDecrypt>(data, n_key);
         }
         else if constexpr (type == KeeloqLearning::LearningType::Serial2)
         {
-            uint64_t n_key = keeloq_common_magic_serial_type2_learning(fix, key_rev);
-            return keeloq_common_decrypt(data, n_key);
+            uint64_t n_key = keeloq::learning::serial_type2(fix, key_rev);
+            return keeloq::common::encdec<IsDecrypt>(data, n_key);
         }
         else if constexpr (type == KeeloqLearning::LearningType::Serial3)
         {
-            uint64_t n_key = keeloq_common_magic_serial_type3_learning(fix, key_rev);
-            return keeloq_common_decrypt(data, n_key);
+            uint64_t n_key = keeloq::learning::serial_type3(fix, key_rev);
+            return keeloq::common::encdec<IsDecrypt>(data, n_key);
         }
     }
-    else if constexpr (mod == KeeloqLearning::Modificators::Type::InvertedDec)
+    else if constexpr (mod == KeeloqLearning::Modifier::Type::InvertedDec)
     {
         if constexpr (type == KeeloqLearning::LearningType::Normal)
         {
-            uint64_t n_key = keeloq_common_normal_learning<false>(fix, key_rev);
-            return keeloq_common_decrypt(data, n_key);
+            uint64_t n_key = keeloq::learning::normal<false>(fix, key);
+            return keeloq::common::encdec<IsDecrypt>(data, n_key);
         }
         else if constexpr (type == KeeloqLearning::LearningType::Secure)
         {
             assert(seed != 0);
-            uint64_t n_key = keeloq_common_secure_learning<false>(fix, seed, key_rev);
-            return keeloq_common_decrypt(data, n_key);
+            uint64_t n_key = keeloq::learning::secure<false>(fix, seed, key);
+            return keeloq::common::encdec<IsDecrypt>(data, n_key);
         }
         else if constexpr (type == KeeloqLearning::LearningType::Faac)
         {
             // Faac uses encrypt by default, Inverted logic here will be decrypt
             assert(seed != 0);
-            uint64_t n_key = keeloq_common_faac_learning<true>(seed, key_rev);
-            return keeloq_common_decrypt(data, n_key);
+            uint64_t n_key = keeloq::learning::faac<true>(seed, key);
+            return keeloq::common::encdec<IsDecrypt>(data, n_key);
         }
     }
 }
@@ -405,19 +309,18 @@ __device__ __host__ __forceinline__ uint32_t keeloq_decrypt_single(uint32_t data
  * Result will be written to results array according to index from KeeloqLearning::DecryptedResults::getIndex() method.
  *
  *  call-stack:
- *   -> keeloq_decrypt_single
- *      keeloq_decrypt_multi
+ *   -> keeloq_encdec_single
+ *      keeloq_encdec_multi
  *      keeloq_decrypt_[seed,normal]
- *      keeloq_decrypt
+ *      keeloq_encdec
  */
-template<KeeloqLearning::LearningType type, KeeloqLearning::Modificators::Type mod>
-__device__ __host__ __forceinline__ void keeloq_decrypt_single(uint32_t data, uint32_t fix, const Decryptor& decryptor,
-    KeeloqLearning::DecryptedResults& results)
+template<bool IsDecrypt, KeeloqLearning::LearningType type, KeeloqLearning::Modifier::Type mod>
+__device__ __host__ __forceinline__ void keeloq_encdec_single(uint32_t data, uint32_t fix, const Decryptor& decryptor, KeeloqLearning::DecryptedResults& results)
 {
     static constexpr auto index = KeeloqLearning::DecryptedResults::getIndex<type, mod>();
     if constexpr (index != KeeloqLearning::DecryptedResults::InvalidIndex)
     {
-        results[index] = keeloq_decrypt_single<type, mod>(data, fix, decryptor);
+        results[index] = keeloq_encdec_single<IsDecrypt, type, mod>(data, fix, decryptor);
     }
 }
 
@@ -425,16 +328,16 @@ __device__ __host__ __forceinline__ void keeloq_decrypt_single(uint32_t data, ui
  *  Unconditional param pack expansion call for single calls:
  *
  *  call-stack:
- *      keeloq_decrypt_single
- *   -> keeloq_decrypt_multi
+ *      keeloq_encdec_single
+ *   -> keeloq_encdec_multi
  *      keeloq_decrypt_[seed,normal]
- *      keeloq_decrypt
+ *      keeloq_encdec
  */
-template<KeeloqLearning::Modificators::Type mod, KeeloqLearning::LearningType... LTypes>
-__device__ __host__ __forceinline__ void keeloq_decrypt_multi(uint32_t data, uint32_t fix, const Decryptor& decryptor,
+template<bool IsDecrypt, KeeloqLearning::Modifier::Type mod, KeeloqLearning::LearningType... LTypes>
+__device__ __host__ __forceinline__ void keeloq_encdec_multi(uint32_t data, uint32_t fix, const Decryptor& decryptor,
     KeeloqLearning::DecryptedResults& results, KeeloqLearning::LearningTypesSet<LTypes...>)
 {
-    ((keeloq_decrypt_single<LTypes, mod>(data, fix, decryptor, results)), ...);
+    ((keeloq_encdec_single<IsDecrypt, LTypes, mod>(data, fix, decryptor, results)), ...);
 }
 
 /**
@@ -442,63 +345,63 @@ __device__ __host__ __forceinline__ void keeloq_decrypt_multi(uint32_t data, uin
  * Uses if block, but in case of small number of learning types and modifications should be better than loop with if block inside.
  *
  *  call-stack:
- *      keeloq_decrypt_single
- *   -> keeloq_decrypt_multi_cond
+ *      keeloq_encdec_single
+ *   -> keeloq_encdec_multi_cond
  *      keeloq_decrypt_[seed,normal]
- *      keeloq_decrypt
+ *      keeloq_encdec
  */
-template<KeeloqLearning::Modificators::Type mod, KeeloqLearning::LearningType... LTypes>
-__device__ __host__ __forceinline__ void keeloq_decrypt_multi_cond(uint32_t data, uint32_t fix, const Decryptor& decryptor,
+template<bool IsDecrypt, KeeloqLearning::Modifier::Type mod, KeeloqLearning::LearningType... LTypes>
+__device__ __host__ __forceinline__ void keeloq_encdec_multi_cond(uint32_t data, uint32_t fix, const Decryptor& decryptor,
     const KeeloqLearning::Matrix& learnings_matrix, KeeloqLearning::DecryptedResults& results, KeeloqLearning::LearningTypesSet<LTypes...>)
 {
-    ((learnings_matrix.isEnabled(LTypes, mod) ? keeloq_decrypt_single<LTypes, mod>(data, fix, decryptor, results) : void()), ...);
+    ((learnings_matrix.isEnabled(LTypes, mod) ? keeloq_encdec_single<IsDecrypt, LTypes, mod>(data, fix, decryptor, results) : void()), ...);
 }
 
 /**
  *  This function call unconditional or conditional multi call for seed learning types with specific modification.
- * In fact this is just magic wrapper for `keeloq_decrypt_single` for Secure and Faac learning types
+ * In fact this is just magic wrapper for `keeloq_encdec_single` for Secure and Faac learning types
  *
  *  call-stack:
- *      keeloq_decrypt_single
- *      keeloq_decrypt_multi_cond
+ *      keeloq_encdec_single
+ *      keeloq_encdec_multi_cond
  *   -> keeloq_decrypt_[seed,normal]
- *      keeloq_decrypt
+ *      keeloq_encdec
  */
-template<bool IgnoreMatrix, KeeloqLearning::Modificators::Type Modifier>
-__device__ __host__ __forceinline__ void keeloq_decrypt_seed_all(uint32_t data, uint32_t fix, const Decryptor& decryptor,
+template<bool IgnoreMatrix, bool IsDecrypt, KeeloqLearning::Modifier::Type Modifier>
+__device__ __host__ __forceinline__ void keeloq_encdec_seed_all(uint32_t data, uint32_t fix, const Decryptor& decryptor,
     const KeeloqLearning::Matrix& learnings_matrix, SingleResult::DecryptedArray& decrypted)
 {
     if constexpr (IgnoreMatrix)
     {
-        keeloq_decrypt_multi<Modifier>(data, fix, decryptor, decrypted.data, KeeloqLearning::SeededTypes{});
+        keeloq_encdec_multi<IsDecrypt, Modifier>(data, fix, decryptor, decrypted.data, KeeloqLearning::SeededTypes{});
     }
     else
     {
-        keeloq_decrypt_multi_cond<Modifier>(data, fix, decryptor, learnings_matrix, decrypted.data, KeeloqLearning::SeededTypes{});
+        keeloq_encdec_multi_cond<IsDecrypt, Modifier>(data, fix, decryptor, learnings_matrix, decrypted.data, KeeloqLearning::SeededTypes{});
     }
 }
 
 /**
  *  This function call unconditional or conditional multi call for non-seed (normal) learning types with specific modification.
- * In fact this is just magic wrapper for `keeloq_decrypt_single` for Simple, Normal, Xor and Serial learning types
+ * In fact this is just magic wrapper for `keeloq_encdec_single` for Simple, Normal, Xor and Serial learning types
  *
  *  call-stack:
- *      keeloq_decrypt_single
- *      keeloq_decrypt_multi_cond
+ *      keeloq_encdec_single
+ *      keeloq_encdec_multi_cond
  *   -> keeloq_decrypt_[seed,normal]
- *      keeloq_decrypt
+ *      keeloq_encdec
  */
-template<bool IgnoreMatrix, KeeloqLearning::Modificators::Type Modifier>
-__device__ __host__ __forceinline__ void keeloq_decrypt_normal_all(uint32_t data, uint32_t fix, const Decryptor& decryptor,
+template<bool IgnoreMatrix, bool IsDecrypt, KeeloqLearning::Modifier::Type Modifier>
+__device__ __host__ __forceinline__ void keeloq_encdec_normal_all(uint32_t data, uint32_t fix, const Decryptor& decryptor,
     const KeeloqLearning::Matrix& learnings_matrix, SingleResult::DecryptedArray& decrypted)
 {
     if constexpr (IgnoreMatrix)
     {
-        keeloq_decrypt_multi<Modifier>(data, fix, decryptor, decrypted.data, KeeloqLearning::NormalTypes{});
+        keeloq_encdec_multi<IsDecrypt, Modifier>(data, fix, decryptor, decrypted.data, KeeloqLearning::NormalTypes{});
     }
     else
     {
-        keeloq_decrypt_multi_cond<Modifier>(data, fix, decryptor, learnings_matrix, decrypted.data, KeeloqLearning::NormalTypes{});
+        keeloq_encdec_multi_cond<IsDecrypt, Modifier>(data, fix, decryptor, learnings_matrix, decrypted.data, KeeloqLearning::NormalTypes{});
     }
 }
 
@@ -506,13 +409,13 @@ __device__ __host__ __forceinline__ void keeloq_decrypt_normal_all(uint32_t data
  *  This function calls seeded and/or normal wrapper function for all modifications according to template parameters and learning matrix.
  *
  *  call-stack:
- *      keeloq_decrypt_single
- *      keeloq_decrypt_multi_cond
+ *      keeloq_encdec_single
+ *      keeloq_encdec_multi_cond
  *      keeloq_decrypt_[seed,normal]
- *   -> keeloq_decrypt
+ *   -> keeloq_encdec
  */
-template<LearningDecryptionMode Mode>
-__device__ __host__ inline void keeloq_decrypt(const EncParcel& enc, const Decryptor& decryptor, const KeeloqLearning::Matrix& learnings_matrix, SingleResult::DecryptedArray& results)
+template<LearningDecryptionMode Mode, bool IsDecrypt = true>
+__device__ __host__ inline void keeloq_encdec(const EncParcel& enc, const Decryptor& decryptor, const KeeloqLearning::Matrix& learnings_matrix, SingleResult::DecryptedArray& results)
 {
     constexpr bool IgnoreMatrix     = !!(Mode & LearningDecryptionMode::Force);
     constexpr bool ExplicitDecrypt  = !!(Mode & LearningDecryptionMode::Explicit);
@@ -526,17 +429,17 @@ __device__ __host__ inline void keeloq_decrypt(const EncParcel& enc, const Decry
     {
         if constexpr (!(Modifiers & LearningDecryptionMode::NoReg))
         {
-            keeloq_decrypt_normal_all<IgnoreMatrix, KeeloqLearning::Modificators::Type::Regular>(enc.hop(), enc.fix(), decryptor, learnings_matrix, results);
+            keeloq_encdec_normal_all<IgnoreMatrix, IsDecrypt, KeeloqLearning::Modifier::Type::Regular>(enc.hop(), enc.fix(), decryptor, learnings_matrix, results);
         }
 
         if constexpr (!(Modifiers & LearningDecryptionMode::NoRev))
         {
-            keeloq_decrypt_normal_all<IgnoreMatrix, KeeloqLearning::Modificators::Type::ReversedKey>(enc.hop(), enc.fix(), decryptor, learnings_matrix, results);
+            keeloq_encdec_normal_all<IgnoreMatrix, IsDecrypt, KeeloqLearning::Modifier::Type::ReversedKey>(enc.hop(), enc.fix(), decryptor, learnings_matrix, results);
         }
 
         if constexpr (!(Modifiers & LearningDecryptionMode::NoInv))
         {
-            keeloq_decrypt_normal_all<IgnoreMatrix, KeeloqLearning::Modificators::Type::InvertedDec>(enc.hop(), enc.fix(), decryptor, learnings_matrix, results);
+            keeloq_encdec_normal_all<IgnoreMatrix, IsDecrypt, KeeloqLearning::Modifier::Type::InvertedDec>(enc.hop(), enc.fix(), decryptor, learnings_matrix, results);
         }
     }
 
@@ -544,17 +447,17 @@ __device__ __host__ inline void keeloq_decrypt(const EncParcel& enc, const Decry
     {
         if constexpr (!(Modifiers & LearningDecryptionMode::NoReg))
         {
-            keeloq_decrypt_seed_all<IgnoreMatrix, KeeloqLearning::Modificators::Type::Regular>(enc.hop(), enc.fix(), decryptor, learnings_matrix, results);
+            keeloq_encdec_seed_all<IgnoreMatrix, IsDecrypt, KeeloqLearning::Modifier::Type::Regular>(enc.hop(), enc.fix(), decryptor, learnings_matrix, results);
         }
 
         if constexpr (!(Modifiers & LearningDecryptionMode::NoRev))
         {
-            keeloq_decrypt_seed_all<IgnoreMatrix, KeeloqLearning::Modificators::Type::ReversedKey>(enc.hop(), enc.fix(), decryptor, learnings_matrix, results);
+            keeloq_encdec_seed_all<IgnoreMatrix, IsDecrypt, KeeloqLearning::Modifier::Type::ReversedKey>(enc.hop(), enc.fix(), decryptor, learnings_matrix, results);
         }
 
         if constexpr (!(Modifiers & LearningDecryptionMode::NoInv))
         {
-            keeloq_decrypt_seed_all<IgnoreMatrix, KeeloqLearning::Modificators::Type::InvertedDec>(enc.hop(), enc.fix(), decryptor, learnings_matrix, results);
+            keeloq_encdec_seed_all<IgnoreMatrix, IsDecrypt, KeeloqLearning::Modifier::Type::InvertedDec>(enc.hop(), enc.fix(), decryptor, learnings_matrix, results);
         }
     }
 }
@@ -590,7 +493,7 @@ __device__ uint8_t inline keeloq_decrypt_and_analyze(const CudaContext& ctx,
         result.decryptor = decryptor;
         result.encrypted = encrypted[i];
 
-        keeloq_decrypt<LearningMode>(result.encrypted, decryptor, learning_matrix, result.decrypted);
+        keeloq_encdec<LearningMode>(result.encrypted, decryptor, learning_matrix, result.decrypted);
     }
 
     // now check all decrypted results if they match somehow
@@ -619,7 +522,7 @@ __device__ uint8_t inline keeloq_decrypt_and_quick_analyze(const CudaContext& ct
     result.decryptor = decryptor;
     result.encrypted = enc; // useless copy
 
-    keeloq_decrypt<LearningMode>(enc, decryptor, learning_matrix, result.decrypted);
+    keeloq_encdec<LearningMode>(enc, decryptor, learning_matrix, result.decrypted);
 
     result.match = analyze_single_result(result, enc.srl(), enc.btn(), learning_matrix, match_count);
 
@@ -760,7 +663,7 @@ __device__ uint8_t inline keeloq_check_matches(const CudaContext& ctx, const Cud
 
 
 template <uint8_t NumInputs, bool UseFastCheck = true>
-__device__ void __noinline__ Kernel_keeloq_main(KeeloqKernelInput::TCudaPtr KernelInputs, KernelResult::TCudaPtr ret)
+NOINLINE __device__ void Kernel_keeloq_main(KeeloqKernelInput::TCudaPtr KernelInputs, KernelResult::TCudaPtr ret)
 {
     CudaContext ctx = CudaContext::Get();
     auto& results = *KernelInputs->results;
@@ -796,16 +699,14 @@ __device__ void __noinline__ Kernel_keeloq_main(KeeloqKernelInput::TCudaPtr Kern
 
     uint8_t num_matches = keeloq_check_matches<NumInputs>(ctx, results, KernelInputs);
 
-    atomicAdd(&ret->error, num_errors);
-    atomicAdd(&ret->value, num_matches);
+     atomicAdd(&ret->error, num_errors);
+     atomicAdd(&ret->value, num_matches);
 }
 
 }
-
 
 namespace
 {
-
 __global__ void Kernel_keeloq_test(KernelResult::TCudaPtr ret)
 {
     CudaContext ctx = CudaContext::Get();
@@ -814,8 +715,8 @@ __global__ void Kernel_keeloq_test(KernelResult::TCudaPtr ret)
     {
         const uint32_t pln_test = 0x11223344;
         const uint64_t key_test = 0xDEADBEEF00226688;
-        const uint32_t enc_test = keeloq_common_encrypt(pln_test, key_test);
-        if (pln_test != keeloq_common_decrypt(enc_test, key_test))
+        const uint32_t enc_test = keeloq::common::encrypt(pln_test, key_test);
+        if (pln_test != keeloq::common::decrypt(enc_test, key_test))
         {
             ret->error = 1;
         }
@@ -826,20 +727,18 @@ __global__ void Kernel_keeloq_test(KernelResult::TCudaPtr ret)
     }
 }
 
-__global__ void Kenrel_keeloq_single_check(uint64_t ota, uint64_t man, uint32_t seed, KeeloqLearning::LearningType type, KeeloqLearning::Modificators::Type mod, KernelResult::TCudaPtr ret)
+__global__ void Kernel_keeloq_single_encdec(uint64_t ota, uint64_t man, uint32_t seed, bool isDecrypt, DecryptKernelResult::TCudaPtr res)
 {
-    SingleResult::DecryptedArray decrypted = {};
-
-    EncParcel enc(ota);
-    Decryptor decryptor(man, seed);
-    KeeloqLearning::Matrix full(KeeloqLearning::Matrix::kEverything);
-
-    // printf("OTA: 0x%llX. Man: 0x%llX, seed: %u, learning: %d\n", ota, man, seed, learning);
-
-    keeloq_decrypt<LearningDecryptionMode::ForceAll>(enc, decryptor, full, decrypted);
-
-    auto resIndex = KeeloqLearning::DecryptedResults::getIndex(type, mod);
-    ret->value = decrypted.data[resIndex];
+    if (isDecrypt)
+    {
+        keeloq_encdec<LearningDecryptionMode::ForceAll, true>(EncParcel(ota), Decryptor(man, seed), KeeloqLearning::Matrix::Everything(), res->result.decrypted);
+    }
+    else
+    {
+        // specially prepared data for encryption, fix and hop
+        EncParcel unencrypted(static_cast<uint32_t>(ota >> 32), static_cast<uint32_t>(ota));
+        keeloq_encdec<LearningDecryptionMode::ForceAll, false>(unencrypted, Decryptor(man, seed), KeeloqLearning::Matrix::Everything(), res->result.decrypted);
+    }
 }
 
 __global__ void Kernel_keeloq_main_one_input(KeeloqKernelInput::TCudaPtr KernelInputs, KernelResult::TCudaPtr ret)
@@ -870,7 +769,6 @@ __global__ void Kernel_keeloq_main_three_inputs_slow(KeeloqKernelInput::TCudaPtr
 {
     Kernel_keeloq_main<ThreeEncInputs, false>(KernelInputs, ret);
 }
-
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -883,12 +781,12 @@ __host__ KernelResult keeloq::kernels::cuda_brute(KeeloqKernelInput& mainInputs,
     {
     case 1:
     {
-        Kernel_keeloq_main_one_input<<<ThreadBlocks, ThreadsInBlock>>>(mainInputs.ptr(), kernel_results.ptr());
+        LaunchCuda(Kernel_keeloq_main_one_input, ThreadBlocks, ThreadsInBlock, mainInputs.ptr(), kernel_results.ptr());
         break;
     }
     case 2:
     {
-        Kernel_keeloq_main_two_inputs<<<ThreadBlocks, ThreadsInBlock>>>(mainInputs.ptr(), kernel_results.ptr(), mainInputs.InputsFixMatch());
+        LaunchCuda(Kernel_keeloq_main_two_inputs, ThreadBlocks, ThreadsInBlock, mainInputs.ptr(), kernel_results.ptr(), mainInputs.InputsFixMatch());
         break;
     }
     case 3:
@@ -896,11 +794,11 @@ __host__ KernelResult keeloq::kernels::cuda_brute(KeeloqKernelInput& mainInputs,
     {
         if (mainInputs.InputsFixMatch())
         {
-            Kernel_keeloq_main_three_inputs_fast<<<ThreadBlocks, ThreadsInBlock>>>(mainInputs.ptr(), kernel_results.ptr());
+            LaunchCuda(Kernel_keeloq_main_three_inputs_fast, ThreadBlocks, ThreadsInBlock, mainInputs.ptr(), kernel_results.ptr());
         }
         else
         {
-            Kernel_keeloq_main_three_inputs_slow<<<ThreadBlocks, ThreadsInBlock>>>(mainInputs.ptr(), kernel_results.ptr());
+            LaunchCuda(Kernel_keeloq_main_three_inputs_slow, ThreadBlocks, ThreadsInBlock, mainInputs.ptr(), kernel_results.ptr());
         }
 
         break;
@@ -914,69 +812,21 @@ __host__ KernelResult keeloq::kernels::cuda_brute(KeeloqKernelInput& mainInputs,
     return kernel_results;
 }
 
+__host__ SingleResult keeloq::kernels::cuda_encdec(uint64_t ota, uint64_t man, uint32_t seed, bool isDecrypt)
+{
+    DecryptKernelResult kernel_results;
+
+    LaunchCuda(Kernel_keeloq_single_encdec, 1, 1, ota, man, seed, isDecrypt, kernel_results.ptr());
+
+    kernel_results.read();
+    return kernel_results.result;
+}
+
 __host__ bool keeloq::kernels::cuda_is_working()
 {
     KernelResult kernel_results;
-    Kernel_keeloq_test<<<1, 1 >>>(kernel_results.ptr());
+    LaunchCuda(Kernel_keeloq_test, 1, 1, kernel_results.ptr());
     kernel_results.read();
 
     return kernel_results.error == 0 && kernel_results.value != 0;
-}
-
-__host__ EncParcel keeloq::GetOTA(uint64_t key, uint32_t seed, uint32_t serial, uint8_t button, uint16_t count, KeeloqLearning::LearningType learningType)
-{
-    serial &= 0x0FFFFFFF;
-
-    uint32_t unencrypted = button << 28 | ((serial & 0x3FF) << 16) | count;
-
-    uint64_t n_key = key;
-    uint32_t fix = (uint32_t)button << 28 | serial;
-
-    switch (learningType)
-    {
-    case KeeloqLearning::LearningType::Normal:
-        n_key = keeloq_common_normal_learning(fix, key);
-        break;
-    case KeeloqLearning::LearningType::Xor:
-        n_key = keeloq_common_magic_xor_type1_learning(serial, key);
-        break;
-    case KeeloqLearning::LearningType::Faac:
-        n_key = keeloq_common_faac_learning(seed, key);
-        break;
-    default:
-        assert(false && "Unsupported learning type");
-        break;
-    }
-
-    uint64_t detpyrcne = ((uint64_t)fix << 32) | keeloq_common_encrypt(unencrypted, n_key);
-    auto encrypted =  misc::rev_bits(detpyrcne, sizeof(detpyrcne) * 8);
-
-#if _DEBUG
-    SingleResult::DecryptedArray results = {};
-    KeeloqLearning::Matrix matrix;
-    matrix.enable(learningType, KeeloqLearning::Modificators::Type::Regular);
-    matrix.enable(learningType, KeeloqLearning::Modificators::Type::ReversedKey); // rev as well
-
-    Decryptor fwd_dec(key, seed);
-    Decryptor rev_dec(fwd_dec.nam(), seed);
-
-    // CPU
-    keeloq_decrypt<LearningDecryptionMode::ExplicitAll>(encrypted, fwd_dec, matrix, results);
-    assert(results.data[KeeloqLearning::DecryptedResults::getIndex(learningType, KeeloqLearning::Modificators::Type::Regular)] == unencrypted);
-
-    keeloq_decrypt<LearningDecryptionMode::ExplicitAll>(encrypted, rev_dec, matrix, results);
-    assert(results.data[KeeloqLearning::DecryptedResults::getIndex(learningType, KeeloqLearning::Modificators::Type::ReversedKey)] == unencrypted);
-
-    // GPU
-    KernelResult kernel_results;
-    Kenrel_keeloq_single_check<<<1, 1 >>>(encrypted, fwd_dec.man(), fwd_dec.seed(), learningType, KeeloqLearning::Modificators::Type::Regular, kernel_results.ptr());
-    kernel_results.read();
-    assert(kernel_results.value == unencrypted);
-
-    Kenrel_keeloq_single_check<<<1, 1 >>>(encrypted, rev_dec.man(), rev_dec.seed(), learningType, KeeloqLearning::Modificators::Type::ReversedKey, kernel_results.ptr());
-    kernel_results.read();
-    assert(kernel_results.value == unencrypted);
-#endif
-
-    return encrypted;
 }

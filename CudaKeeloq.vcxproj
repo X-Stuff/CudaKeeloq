@@ -90,6 +90,9 @@
       <Keep>false</Keep>
       <AdditionalOptions>--std=c++17 %(AdditionalOptions)</AdditionalOptions>
     </CudaCompile>
+    <CudaLink>
+      <PerformDeviceLinkTimeOptimization>true</PerformDeviceLinkTimeOptimization>
+    </CudaLink>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -120,6 +123,9 @@
       <AdditionalOptions>--std=c++17 %(AdditionalOptions)</AdditionalOptions>
       <GenerateRelocatableDeviceCode>true</GenerateRelocatableDeviceCode>
     </CudaCompile>
+    <CudaLink>
+      <PerformDeviceLinkTimeOptimization>true</PerformDeviceLinkTimeOptimization>
+    </CudaLink>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">
     <ClCompile>
@@ -150,8 +156,12 @@
       <AdditionalOptions>--std=c++17 %(AdditionalOptions)</AdditionalOptions>
       <GenerateRelocatableDeviceCode>true</GenerateRelocatableDeviceCode>
     </CudaCompile>
+    <CudaLink>
+      <PerformDeviceLinkTimeOptimization>true</PerformDeviceLinkTimeOptimization>
+    </CudaLink>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="src\algorithm\keeloq\keeloq_encryptor.h" />
     <ClInclude Include="src\algorithm\keeloq\keeloq_kernel.h" />
     <ClInclude Include="src\algorithm\keeloq\keeloq_decryptor.h" />
     <ClInclude Include="src\algorithm\keeloq\keeloq_encrypted.h" />
@@ -190,6 +200,7 @@
     <ClInclude Include="src\tests\test_filters.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\algorithm\keeloq\keeloq_encryptor.cpp" />
     <ClCompile Include="src\algorithm\keeloq\keeloq_kernel_input.cpp" />
     <ClCompile Include="src\algorithm\keeloq\keeloq_learning_types.cpp" />
     <ClCompile Include="src\algorithm\keeloq\keeloq_single_result.cpp" />

@@ -7,7 +7,7 @@
 /**
  *  Generic output from CUDA kernel
  */
-struct KernelResult : TGenericGpuObject<KernelResult>
+struct KernelResult final : TGenericGpuObject<KernelResult>
 {
     // num errors. negative are kernel errors. positive - number of threads error
     int error = 0;

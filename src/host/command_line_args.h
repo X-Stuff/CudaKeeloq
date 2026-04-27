@@ -49,7 +49,7 @@ struct CommandLineArgs
     std::vector<KeeloqLearning::LearningType> selected_learning = {};
 
     // Select specific modifications also
-    KeeloqLearning::Modificators::Mask selected_mod_mask = KeeloqLearning::Modificators::Mask::Regular;
+    KeeloqLearning::Modifier::Mask selected_mod_mask = KeeloqLearning::Modifier::Mask::Regular;
 
     //  Alphabets are just set of possible byte values
     // this sets may be shared between attacks

@@ -26,6 +26,11 @@ struct EncParcel
         hopping = (uint32_t)(key);
     }
 
+    __device__ __host__ EncParcel(uint32_t fix, uint32_t hop) : fixed(fix), hopping(hop)
+    {
+        ota = (misc::rev_bits(fixed, sizeof(fixed) * 8) << 32) | misc::rev_bits(hopping, sizeof(hopping) * 8);
+    }
+
     // Fixed code in parcel
     __device__ __host__ inline uint32_t fix() const { return fixed; }
 

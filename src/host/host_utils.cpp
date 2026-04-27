@@ -68,8 +68,6 @@ bool parse_seed(char* seed_str, uint32_t& seed)
 
 }
 
-
-
 std::vector<Decryptor> host::utils::read_word_dictionary_file(const char* file)
 {
     std::vector<Decryptor> results;
