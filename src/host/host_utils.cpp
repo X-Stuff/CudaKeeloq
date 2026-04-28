@@ -50,7 +50,7 @@ bool parse_seed(char* seed_str, uint32_t& seed)
 {
     if (!seed_str)
     {
-        return 0;
+        return false;
     }
 
     int base = 10;
@@ -94,9 +94,9 @@ std::vector<Decryptor> host::utils::read_word_dictionary_file(const char* file)
             }
 
             auto seed_str = strtok(NULL, delim);
-            parse_seed(seed_str, seed);
+            auto seed_valid = parse_seed(seed_str, seed);
 
-            results.emplace_back(man, seed);
+            results.emplace_back(Decryptor::Make(man, seed, seed_valid));
         }
 
         fclose(file_dict);
@@ -105,9 +105,12 @@ std::vector<Decryptor> host::utils::read_word_dictionary_file(const char* file)
     return results;
 }
 
-std::vector<Decryptor> host::utils::read_binary_dictionary_file(const char* file, uint8_t mode, uint32_t seed)
+std::vector<Decryptor> host::utils::read_binary_dictionary_file(const char* file, uint8_t mode, const uint32_t* seed_ptr)
 {
     std::vector<Decryptor> decryptors;
+
+    const uint32_t seed = seed_ptr ? *seed_ptr : 0;
+    const bool seed_valid = seed_ptr != nullptr;
 
     if (FILE* bin_file = fopen(file, "rb"))
     {
@@ -120,11 +123,11 @@ std::vector<Decryptor> host::utils::read_binary_dictionary_file(const char* file
 
             uint64_t key = mode == 0 ? as_is : reversed;
 
-            decryptors.push_back(Decryptor(key, seed));
+            decryptors.push_back(Decryptor::Make(key, seed, seed_valid));
             if (mode == 2)
             {
                 // reversed already added above
-                decryptors.push_back(Decryptor(as_is, seed));
+                decryptors.push_back(Decryptor::Make(as_is, seed, seed_valid));
             }
         }
 

@@ -45,7 +45,7 @@ struct BruteforceConfig
 
 public:
 
-    BruteforceConfig() : BruteforceConfig(Decryptor(0, 0), BruteforceType::LAST, 0)
+    BruteforceConfig() : BruteforceConfig(Decryptor::Invalid(), BruteforceType::LAST, 0)
     {
     }
 

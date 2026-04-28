@@ -30,6 +30,7 @@ __global__ void DEFINE_GENERATOR_KERNEL(GeneratorBruteforceFiltered, KeeloqKerne
     CudaContext ctx = CudaContext::Get();
 
     const uint32_t seed = config.start.seed();
+    const bool seed_valid = config.start.has_seed();
 
     CudaArray<Decryptor>& decryptors = *input->decryptors;
     size_t num_decryptors = decryptors.num;
@@ -100,7 +101,7 @@ __global__ void DEFINE_GENERATOR_KERNEL(GeneratorBruteforceFiltered, KeeloqKerne
                     // break while loop
                     written = true;
 
-                    decryptors[write_index] = Decryptor(key, seed);
+                    decryptors[write_index] = Decryptor::Make(key, seed, seed_valid);
                     break;
                 }
             }

@@ -13,7 +13,8 @@ namespace utils
 std::vector<Decryptor> read_word_dictionary_file(const char* file);
 
 // Read binary file as set of keys 8-bytes each
-std::vector<Decryptor> read_binary_dictionary_file(const char* file, uint8_t mode, uint32_t seed);
+// Seed specified as pointer to value, if ptr is null - no seed
+std::vector<Decryptor> read_binary_dictionary_file(const char* file, uint8_t mode, const uint32_t* seed);
 
 // Read first 256 bytes of a binary file as alphabet
 std::vector<uint8_t> read_alphabet_binary_file(const char* file);

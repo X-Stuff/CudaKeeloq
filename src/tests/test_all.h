@@ -7,7 +7,7 @@
 #include "tests/test_console.h"
 #include "tests/test_filters.h"
 #include "tests/test_keeloq.h"
-#include "tests/test_pattern.h"
+#include "tests/test_generators.h"
 
 namespace tests
 {

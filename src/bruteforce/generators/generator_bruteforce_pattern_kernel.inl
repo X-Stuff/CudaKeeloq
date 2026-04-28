@@ -26,10 +26,11 @@ __global__ void DEFINE_GENERATOR_KERNEL(GeneratorBruteforcePattern, KeeloqKernel
 	MultibaseNumber start = pattern.init(config.start.man());
 
     const uint32_t seed = config.start.seed();
+    const bool seed_valid = config.start.has_seed();
 
 	CUDA_FOR_THREAD_ID(ctx, decryptor_index, decryptors.num)
 	{
-        decryptors[decryptor_index] = Decryptor(pattern.next(start, decryptor_index).number(), seed);
+        decryptors[decryptor_index] = Decryptor::Make(pattern.next(start, decryptor_index).number(), seed, seed_valid);
 	}
 }
 

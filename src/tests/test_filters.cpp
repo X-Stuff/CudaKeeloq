@@ -73,7 +73,7 @@ bool tests::filters_generation()
 
         constexpr auto NumToGenerate = 0xFFFFF;
 
-        auto first_decryptor = Decryptor(0xAADEADBEEFA00000, 0);
+        auto first_decryptor = Decryptor::Make(0xAADEADBEEFA00000, 0, true);
 
         auto testConfig = BruteforceConfig::GetBruteforce(first_decryptor, NumToGenerate,
             BruteforceFilters{

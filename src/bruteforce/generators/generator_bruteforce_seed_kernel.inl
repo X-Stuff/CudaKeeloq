@@ -11,12 +11,13 @@ __global__ void DEFINE_GENERATOR_KERNEL(GeneratorBruteforceSeed, KeeloqKernelInp
 	assert(input->GetConfig().type == BruteforceType::Seed);
 
 	const Decryptor& start = input->GetConfig().start;
+    static constexpr bool seed_valid = true;
 
 	CudaArray<Decryptor>& decryptors = *input->decryptors;
 
 	CUDA_FOR_THREAD_ID(ctx, decryptor_index, decryptors.num)
 	{
-		decryptors[decryptor_index] = Decryptor(start.man(), start.seed() + decryptor_index);
+		decryptors[decryptor_index] = Decryptor::Make(start.man(), start.seed() + decryptor_index, seed_valid);
 	}
 }
 

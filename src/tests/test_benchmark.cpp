@@ -144,8 +144,8 @@ void benchmark::all(const CommandLineArgs& args)
     std::vector<uint16_t> CudaBlocks  = { 256, 512, 1024, 2048, 4096, 8196 };
     std::vector<uint16_t> CudaThreads = { 128, 256, 512, 1024, 2048 };
 
-    BruteforceConfig benchmarkConfig_no_seed = BruteforceConfig::GetAlphabet(Decryptor(0, 0), "0123456789abcdefgh"_b);
-    BruteforceConfig benchmarkConfig_wt_seed = BruteforceConfig::GetAlphabet(Decryptor(0, 1234567), "0123456789abcdefgh"_b);
+    BruteforceConfig benchmarkConfig_no_seed = BruteforceConfig::GetAlphabet(Decryptor::MakeNoSeed(0), "0123456789abcdefgh"_b);
+    BruteforceConfig benchmarkConfig_wt_seed = BruteforceConfig::GetAlphabet(Decryptor::Make(0, 1234567, true), "0123456789abcdefgh"_b);
 
     console_clear();
     CommandLineArgs copy = args;

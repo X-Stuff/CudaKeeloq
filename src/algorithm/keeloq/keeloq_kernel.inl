@@ -206,7 +206,6 @@ __device__ __host__ __forceinline__ uint32_t keeloq_encdec_single(uint32_t data,
         }
         else if constexpr (type == KeeloqLearning::LearningType::Secure)
         {
-            assert(seed != 0);
             uint64_t n_key = keeloq::learning::secure(fix, seed, key);
             return keeloq::common::encdec<IsDecrypt>(data, n_key);
         }
@@ -217,7 +216,6 @@ __device__ __host__ __forceinline__ uint32_t keeloq_encdec_single(uint32_t data,
         }
         else if constexpr (type == KeeloqLearning::LearningType::Faac)
         {
-            assert(seed != 0);
             uint64_t n_key = keeloq::learning::faac(seed, key);
             return keeloq::common::encdec<IsDecrypt>(data, n_key);
         }
@@ -250,7 +248,6 @@ __device__ __host__ __forceinline__ uint32_t keeloq_encdec_single(uint32_t data,
         }
         else if constexpr (type == KeeloqLearning::LearningType::Secure)
         {
-            assert(seed != 0);
             uint64_t n_key = keeloq::learning::secure(fix, seed, key_rev);
             return keeloq::common::encdec<IsDecrypt>(data, n_key);
         }
@@ -261,7 +258,6 @@ __device__ __host__ __forceinline__ uint32_t keeloq_encdec_single(uint32_t data,
         }
         else if constexpr (type == KeeloqLearning::LearningType::Faac)
         {
-            assert(seed != 0);
             uint64_t n_key = keeloq::learning::faac(seed, key_rev);
             return keeloq::common::encdec<IsDecrypt>(data, n_key);
         }
@@ -290,14 +286,12 @@ __device__ __host__ __forceinline__ uint32_t keeloq_encdec_single(uint32_t data,
         }
         else if constexpr (type == KeeloqLearning::LearningType::Secure)
         {
-            assert(seed != 0);
             uint64_t n_key = keeloq::learning::secure<false>(fix, seed, key);
             return keeloq::common::encdec<IsDecrypt>(data, n_key);
         }
         else if constexpr (type == KeeloqLearning::LearningType::Faac)
         {
             // Faac uses encrypt by default, Inverted logic here will be decrypt
-            assert(seed != 0);
             uint64_t n_key = keeloq::learning::faac<true>(seed, key);
             return keeloq::common::encdec<IsDecrypt>(data, n_key);
         }
@@ -670,15 +664,17 @@ NOINLINE __device__ void Kernel_keeloq_main(KeeloqKernelInput::TCudaPtr KernelIn
 
     const bool forceAll = KernelInputs->AllLearningsEnabled();
 
-    const bool hasSeed = KernelInputs->GetConfig().start.seed() != 0 || KernelInputs->GetConfig().type == BruteforceType::Dictionary;
+    const bool hasSeed = KernelInputs->GetConfig().start.has_seed();
     const bool seedOnly = KernelInputs->GetConfig().type == BruteforceType::Seed;
 
     uint8_t num_errors = 0;
 
     if (seedOnly)
     {
+        assert(hasSeed && "Seed must be present for seed-only mode, some problem in generator.");
+
         num_errors = forceAll ?
-            keeloq_decryption_run<NumInputs, LearningDecryptionMode::ForceSeeded | LearningDecryptionMode::NoRev, UseFastCheck>(ctx, *KernelInputs) :
+            keeloq_decryption_run<NumInputs, LearningDecryptionMode::ForceSeeded, UseFastCheck>(ctx, *KernelInputs) :
             keeloq_decryption_run<NumInputs, LearningDecryptionMode::ExplicitSeeded, UseFastCheck>(ctx, *KernelInputs);
     }
     else if (forceAll)
@@ -731,13 +727,13 @@ __global__ void Kernel_keeloq_single_encdec(uint64_t ota, uint64_t man, uint32_t
 {
     if (isDecrypt)
     {
-        keeloq_encdec<LearningDecryptionMode::ForceAll, true>(EncParcel(ota), Decryptor(man, seed), KeeloqLearning::Matrix::Everything(), res->result.decrypted);
+        keeloq_encdec<LearningDecryptionMode::ForceAll, true>(EncParcel(ota), Decryptor::Make(man, seed, true), KeeloqLearning::Matrix::Everything(), res->result.decrypted);
     }
     else
     {
         // specially prepared data for encryption, fix and hop
         EncParcel unencrypted(static_cast<uint32_t>(ota >> 32), static_cast<uint32_t>(ota));
-        keeloq_encdec<LearningDecryptionMode::ForceAll, false>(unencrypted, Decryptor(man, seed), KeeloqLearning::Matrix::Everything(), res->result.decrypted);
+        keeloq_encdec<LearningDecryptionMode::ForceAll, false>(unencrypted, Decryptor::Make(man, seed, true), KeeloqLearning::Matrix::Everything(), res->result.decrypted);
     }
 }
 

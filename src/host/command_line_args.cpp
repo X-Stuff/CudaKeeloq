@@ -80,6 +80,10 @@ inline void parse_dictionary_mode(CommandLineArgs& target, cxxopts::ParseResult&
 {
     if (result[ARG_WORDDICT].count() > 0)
     {
+        // In case of dict is passed directly as values, seed may be passed as well
+        const auto seed = result[ARG_SEED].as<uint32_t>();
+        const bool seed_valid = result[ARG_SEED].count() > 0;
+
         auto dict = result[ARG_WORDDICT].as<std::vector<std::string>>();
 
         std::vector<Decryptor> decryptors;
@@ -94,7 +98,7 @@ inline void parse_dictionary_mode(CommandLineArgs& target, cxxopts::ParseResult&
             }
             else if (auto key = strtoull(dict_arg.c_str(), nullptr, 16))
             {
-                decryptors.push_back(Decryptor(key, 0));
+                decryptors.push_back(Decryptor::Make(key, seed, seed_valid));
             }
             else
             {
@@ -111,6 +115,7 @@ inline void parse_dictionary_mode(CommandLineArgs& target, cxxopts::ParseResult&
     if (result[ARG_BINDICT].count() > 0)
     {
         auto seed = result[ARG_SEED].as<uint32_t>();
+        auto seed_valid = result[ARG_SEED].count() > 0;
 
         auto dicts = result[ARG_BINDICT].as<std::vector<std::string>>();
         auto mode = result[ARG_BINDMODE].as<uint8_t>();
@@ -119,7 +124,7 @@ inline void parse_dictionary_mode(CommandLineArgs& target, cxxopts::ParseResult&
 
         for (const auto& bin_dict_path : dicts)
         {
-            std::vector<Decryptor> decryptors = host::utils::read_binary_dictionary_file(bin_dict_path.c_str(), mode, seed);
+            std::vector<Decryptor> decryptors = host::utils::read_binary_dictionary_file(bin_dict_path.c_str(), mode, (seed_valid ? &seed : nullptr));
 
             if (decryptors.size() > 0)
             {
@@ -139,7 +144,9 @@ inline void parse_bruteforce_mode(CommandLineArgs& target, cxxopts::ParseResult&
 {
     auto start_key = result[ARG_START].as<uint64_t>();
     auto seed = result[ARG_SEED].as<uint32_t>();
-    Decryptor first_decryptor(start_key, seed);
+    auto seed_valid = result[ARG_SEED].count() > 0;
+
+    Decryptor first_decryptor = Decryptor::Make(start_key, seed, seed_valid);
 
     auto count_key = result[ARG_COUNT].as<size_t>();
 
@@ -156,7 +163,9 @@ inline void parse_seed_mode(CommandLineArgs& target, cxxopts::ParseResult& resul
 
     auto start_key = result[ARG_START].as<uint64_t>();
     auto seed = result[ARG_SEED].as<uint32_t>();
-    Decryptor first_decryptor(start_key, seed);
+    auto seed_valid = result[ARG_SEED].count() > 0;
+
+    Decryptor first_decryptor = Decryptor::Make(start_key, seed, seed_valid);
 
     target.brute_configs.push_back(BruteforceConfig::GetSeedBruteforce(first_decryptor));
 }
@@ -165,7 +174,9 @@ inline void parse_bruteforce_filtered_mode(CommandLineArgs& target, cxxopts::Par
 {
     auto start_key = result[ARG_START].as<uint64_t>();
     auto seed = result[ARG_SEED].as<uint32_t>();
-    Decryptor first_decryptor(start_key, seed);
+    auto seed_valid = result[ARG_SEED].count() > 0;
+
+    Decryptor first_decryptor = Decryptor::Make(start_key, seed, seed_valid);
 
     auto count_key = result[ARG_COUNT].as<size_t>();
 
@@ -185,7 +196,9 @@ inline void parse_alphabet_mode(CommandLineArgs& target, cxxopts::ParseResult& r
 {
     auto start_key = result[ARG_START].as<uint64_t>();
     auto seed = result[ARG_SEED].as<uint32_t>();
-    Decryptor first_decryptor(start_key, seed);
+    auto seed_valid = result[ARG_SEED].count() > 0;
+
+    Decryptor first_decryptor = Decryptor::Make(start_key, seed, seed_valid);
 
     auto count_key = result[ARG_COUNT].as<size_t>();
 
@@ -199,7 +212,9 @@ inline void parse_pattern_mode(CommandLineArgs& target, cxxopts::ParseResult& re
 {
     auto start_key = result[ARG_START].as<uint64_t>();
     auto seed = result[ARG_SEED].as<uint32_t>();
-    Decryptor first_decryptor(start_key, seed);
+    auto seed_valid = result[ARG_SEED].count() > 0;
+
+    Decryptor first_decryptor = Decryptor::Make(start_key, seed, seed_valid);
 
     auto count_key = result[ARG_COUNT].as<size_t>();
 

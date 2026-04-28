@@ -7,7 +7,7 @@
 
 BruteforceConfig BruteforceConfig::GetDictionary(std::vector<Decryptor>&& dictionary)
 {
-    BruteforceConfig result(Decryptor(0,0), BruteforceType::Dictionary, dictionary.size());
+    BruteforceConfig result(Decryptor::Invalid(), BruteforceType::Dictionary, dictionary.size());
     result.decryptors = std::move(dictionary);
     return result;
 };
@@ -40,7 +40,7 @@ BruteforceConfig BruteforceConfig::GetPattern(Decryptor first, const BruteforceP
 {
     num = std::min(pattern.size() - 1, num);
 
-    first = Decryptor(pattern.init(first.man()).number(), first.seed());
+    first = Decryptor::Make(pattern.init(first.man()).number(), first.seed(), first.has_seed());
 
     BruteforceConfig result(first, BruteforceType::Pattern, num);
     result.pattern = pattern;
@@ -75,11 +75,11 @@ void BruteforceConfig::next_decryptor()
         {
             // +1 for these attacks cause next here is the last *checked*
             auto startnum = pattern.init(start.man());
-            start = Decryptor(pattern.next(startnum, 1).number(), start.seed());
+            start = Decryptor::Make(pattern.next(startnum, 1).number(), start.seed(), start.has_seed());
         }
         else if (type == BruteforceType::Simple || type == BruteforceType::Filtered)
         {
-            start = Decryptor(start.man() + 1, start.seed());
+            start = Decryptor::Make(start.man() + 1, start.seed(), start.has_seed());
         }
     }
 }

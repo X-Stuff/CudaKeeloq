@@ -14,7 +14,7 @@ bool tests::alphabet_generation()
     constexpr auto NumBlocks = 64;
     constexpr auto NumThreads = 64;
 
-    auto testConfig = BruteforceConfig::GetAlphabet(Decryptor(0,0), "abcd"_b, 0xFFFFFFFF);
+    auto testConfig = BruteforceConfig::GetAlphabet(Decryptor::Make(0, 0, true), "abcd"_b, 0xFFFFFFFF);
 
     CudaVector<Decryptor> decryptors(NumBlocks * NumThreads);
 

@@ -21,8 +21,8 @@ CommandLineArgs demoTestCommandlineArgs(int num_gen_input = 3)
 #endif
     uint64_t count = 0xFFFFFFF;
 
-    Decryptor first_decryptor_ptrn(0, tests::keeloq::default_seed);
-    Decryptor first_decryptor_brtf(first, tests::keeloq::default_seed);
+    Decryptor first_decryptor_ptrn = Decryptor::Make(0, tests::keeloq::default_seed, true);
+    Decryptor first_decryptor_brtf = Decryptor::Make(first, tests::keeloq::default_seed, true);
 
     CommandLineArgs cmd;
     cmd.inputs = tests::keeloq::gen_inputs<KeeloqLearning::LearningType::Faac>(debugKey, num_gen_input);
@@ -31,10 +31,10 @@ CommandLineArgs demoTestCommandlineArgs(int num_gen_input = 3)
 
     // Dictionary
     cmd.brute_configs.emplace_back(BruteforceConfig::GetDictionary({
-        Decryptor(666, tests::keeloq::default_seed),
-        Decryptor(debugKey - 1, tests::keeloq::default_seed),
-        Decryptor(debugKey, tests::keeloq::default_seed),
-        Decryptor(debugKey + 1, tests::keeloq::default_seed)
+        Decryptor::Make(666, tests::keeloq::default_seed, true),
+        Decryptor::Make(debugKey - 1, tests::keeloq::default_seed, true),
+        Decryptor::Make(debugKey, tests::keeloq::default_seed, true),
+        Decryptor::Make(debugKey + 1, tests::keeloq::default_seed, true)
     }));
 
     // Alphabet
@@ -42,7 +42,7 @@ CommandLineArgs demoTestCommandlineArgs(int num_gen_input = 3)
     cmd.brute_configs.emplace_back(BruteforceConfig::GetAlphabet(first_decryptor_ptrn, cmd.alphabets[0]));
 
     // Seed
-    cmd.brute_configs.emplace_back(BruteforceConfig::GetSeedBruteforce(Decryptor(debugKey, 0)));
+    cmd.brute_configs.emplace_back(BruteforceConfig::GetSeedBruteforce(Decryptor::Make(debugKey, 0, true)));
 
     // Pattern (reversed)
     cmd.brute_configs.emplace_back(BruteforceConfig::GetPattern(first_decryptor_ptrn, BruteforcePattern(
@@ -94,6 +94,8 @@ void bruteforce(const CommandLineArgs& args)
             "In case of full range there also redundant checks since using _REV learning types ( X-00:11:22 == X_REV-22:11:00 )\n", KeeloqLearning::Registry::NumResults);
     }
 
+    printf("Total bruteforce configs to run: %zd\n", args.brute_configs.size());
+
     for (const auto& config : args.brute_configs)
     {
         auto learningMatrix = KeeloqLearning::Matrix(args.selected_learning, args.selected_mod_mask);
@@ -107,8 +109,8 @@ void bruteforce(const CommandLineArgs& args)
 
         bool match = false;
 
-        size_t batchesInRound = attackRound.num_batches();
-        size_t keysInBatch = attackRound.keys_per_batch();
+        const size_t batchesInRound = attackRound.num_batches();
+        const size_t keysInBatch = attackRound.keys_per_batch();
 
         auto roundStartTime = std::chrono::system_clock::now();
 
@@ -120,6 +122,12 @@ void bruteforce(const CommandLineArgs& args)
 
             if (attackRound.Type() != BruteforceType::Dictionary)
             {
+                if (batch != 0)
+                {
+                    // Make last decryptor from previous batch as first for this batch
+                    kernelInput.NextDecryptor();
+                }
+
                 // Generate decryptors (if available)
                 int error = GeneratorBruteforce::PrepareDecryptors(kernelInput, attackRound.CudaBlocks(), attackRound.CudaThreads());
                 if (error)
@@ -128,9 +136,6 @@ void bruteforce(const CommandLineArgs& args)
                     assert(false);
                     return;
                 }
-
-                // Make previous last generated key be an initial for current generation batch
-                kernelInput.NextDecryptor();
             }
             else
             {
@@ -215,7 +220,7 @@ int main(int argc, const char** argv)
         printf("\n...RUNNING TESTS...\n");
         tests::console::run();
 
-        tests::pattern_generation();
+        tests::generators::all();
         tests::alphabet_generation();
         tests::filters_generation();
 
