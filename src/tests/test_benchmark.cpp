@@ -151,7 +151,8 @@ void benchmark::all(const CommandLineArgs& args)
     CommandLineArgs copy = args;
 
     // Any inputs, we don't need to find the key
-    copy.inputs = tests::keeloq::gen_inputs<LearningType::Simple>(0xFF123FF3434FFFFF);
+    constexpr auto NumInputs = 3;
+    copy.inputs = tests::keeloq::gen_inputs(0xFF123FF3434FFFFF, NumInputs, LearningType::Simple);
 
     copy.selected_learning = {};
     run(copy, benchmarkConfig_wt_seed, CudaBlocks, CudaThreads);

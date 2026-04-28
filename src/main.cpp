@@ -12,7 +12,8 @@
 
 CommandLineArgs demoTestCommandlineArgs(int num_gen_input = 3)
 {
-    constexpr uint64_t debugKey =  0xC0FFEE00DEAD6666;
+    constexpr uint64_t debugKey = 0xC0FFEE00DEAD6666;
+    constexpr uint32_t debugSeed = 0x12345678;
 
 #if _DEBUG
     uint64_t first = debugKey & 0xFFFFFFFFFFC00000;
@@ -21,20 +22,20 @@ CommandLineArgs demoTestCommandlineArgs(int num_gen_input = 3)
 #endif
     uint64_t count = 0xFFFFFFF;
 
-    Decryptor first_decryptor_ptrn = Decryptor::Make(0, tests::keeloq::default_seed, true);
-    Decryptor first_decryptor_brtf = Decryptor::Make(first, tests::keeloq::default_seed, true);
+    Decryptor first_decryptor_ptrn = Decryptor::Make(0, debugSeed, true);
+    Decryptor first_decryptor_brtf = Decryptor::Make(first, debugSeed, true);
 
     CommandLineArgs cmd;
-    cmd.inputs = tests::keeloq::gen_inputs<KeeloqLearning::LearningType::Faac>(debugKey, num_gen_input);
+    cmd.inputs = tests::keeloq::gen_inputs(debugKey, num_gen_input, KeeloqLearning::LearningType::Faac);
     cmd.alphabets.emplace_back(MultibaseDigit("abcdef"_b));
     cmd.alphabets.emplace_back(MultibaseDigit( { 0xC0, 0xFF, 0xEE, 0x00, 0xDE, 0xAD, 0x66 }));
 
     // Dictionary
     cmd.brute_configs.emplace_back(BruteforceConfig::GetDictionary({
-        Decryptor::Make(666, tests::keeloq::default_seed, true),
-        Decryptor::Make(debugKey - 1, tests::keeloq::default_seed, true),
-        Decryptor::Make(debugKey, tests::keeloq::default_seed, true),
-        Decryptor::Make(debugKey + 1, tests::keeloq::default_seed, true)
+        Decryptor::Make(666, debugSeed, true),
+        Decryptor::Make(debugKey - 1, debugSeed, true),
+        Decryptor::Make(debugKey, debugSeed, true),
+        Decryptor::Make(debugKey + 1, debugSeed, true)
     }));
 
     // Alphabet
@@ -223,6 +224,7 @@ int main(int argc, const char** argv)
         tests::generators::all();
         tests::alphabet_generation();
         tests::filters_generation();
+        tests::keeloq::all();
 
         printf("\n...TESTS FINISHED...\n");
     }

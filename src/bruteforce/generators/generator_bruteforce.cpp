@@ -36,6 +36,7 @@ int GeneratorBruteforce::PrepareDecryptors(KeeloqKernelInput& inputs, uint16_t b
     }
     case BruteforceType::Dictionary:
     {
+        // TODO: generatorInputs.WriteDecryptors(config.decryptors, 0, config.decryptors.size());
         return 0;
     }
     default:

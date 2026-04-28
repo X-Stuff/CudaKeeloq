@@ -13,7 +13,7 @@ namespace
     }
 }
 
-void SingleResult::DecryptedArray::print(uint8_t resIndex, uint64_t ota, bool ismatch) const
+void SingleResult::LearningsArray::print(uint8_t resIndex, uint64_t ota, bool ismatch) const
 {
     const auto [lrn, mode] = KeeloqLearning::DecryptedResults::getByIndex(resIndex);
 
@@ -25,7 +25,7 @@ void SingleResult::DecryptedArray::print(uint8_t resIndex, uint64_t ota, bool is
         (ismatch ? "(MATCH)" : ""));
 }
 
-void SingleResult::DecryptedArray::print() const
+void SingleResult::LearningsArray::print() const
 {
     for (auto resIndex = 0; resIndex < KeeloqLearning::DecryptedResults::InvalidIndex; ++resIndex)
     {

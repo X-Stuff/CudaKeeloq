@@ -40,10 +40,11 @@ bool tests::generators::pattern()
 
     constexpr auto NumBlocks = 64;
     constexpr auto NumThreads = 64;
+    constexpr auto NumInputs = 3;
 
     const uint64_t debugKey = "hello_world"_u64;
 
-    CudaVector<EncParcel> encrypted  = tests::keeloq::gen_inputs<LearningType::Simple>(debugKey);
+    CudaVector<EncParcel> encrypted  = tests::keeloq::gen_inputs(debugKey, NumInputs, LearningType::Simple);
 
     CudaVector<Decryptor> decryptors(NumBlocks * NumThreads);
     CudaVector<SingleResult> results(decryptors.size() * encrypted.size());
@@ -80,10 +81,11 @@ bool tests::generators::seed()
     constexpr auto NumBlocks = 64;
     constexpr auto NumThreads = 64;
     constexpr auto NumTestRounds = 8;
+    constexpr auto NumInputs = 3;
 
     const uint64_t debugKey = "hello_world"_u64;
 
-    CudaVector<EncParcel> encrypted = tests::keeloq::gen_inputs<LearningType::Secure>(debugKey);
+    CudaVector<EncParcel> encrypted = tests::keeloq::gen_inputs(debugKey, NumInputs, LearningType::Secure);
     CudaVector<Decryptor> decryptors(NumBlocks * NumThreads);
     CudaVector<SingleResult> results(decryptors.size() * encrypted.size());
 

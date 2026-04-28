@@ -163,7 +163,7 @@ inline void parse_seed_mode(CommandLineArgs& target, cxxopts::ParseResult& resul
 
     auto start_key = result[ARG_START].as<uint64_t>();
     auto seed = result[ARG_SEED].as<uint32_t>();
-    auto seed_valid = result[ARG_SEED].count() > 0;
+    constexpr auto seed_valid = true;
 
     Decryptor first_decryptor = Decryptor::Make(start_key, seed, seed_valid);
 
@@ -581,12 +581,12 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv)
 
 bool CommandLineArgs::can_bruteforce()
 {
-	return inputs.size() > 0 && brute_configs.size() > 0;
+    return inputs.size() > 0 && brute_configs.size() > 0;
 }
 
 void CommandLineArgs::init_inputs(const std::vector<uint64_t>& inp)
  {
-	 inputs.reserve(inp.size());
+     inputs.reserve(inp.size());
      for (uint64_t ota : inp)
      {
         inputs.push_back(EncParcel(ota));
@@ -595,30 +595,30 @@ void CommandLineArgs::init_inputs(const std::vector<uint64_t>& inp)
 
 void CommandLineArgs::init_cuda(uint16_t b, uint16_t t, uint16_t l)
  {
-	 cuda_blocks	= b;
-	 assert(cuda_blocks < max_cuda_blocks() && "This GPU cannot use this much blocks!");
+    cuda_blocks	= b;
+    assert(cuda_blocks < max_cuda_blocks() && "This GPU cannot use this much blocks!");
 
-	 cuda_threads	= t;
-	 cuda_loops		= l;
+    cuda_threads	= t;
+    cuda_loops		= l;
 
-	 if (cuda_threads == 0)
-	 {
-		 cuda_threads = (uint16_t)max_cuda_threads();
-	 }
+    if (cuda_threads == 0)
+    {
+        cuda_threads = (uint16_t)max_cuda_threads();
+    }
  }
 
 uint32_t CommandLineArgs::max_cuda_threads()
  {
-	 cudaDeviceProp prop;
-	 cudaGetDeviceProperties(&prop, 0);
+     cudaDeviceProp prop;
+     cudaGetDeviceProperties(&prop, 0);
 
-	 return prop.maxThreadsPerBlock;
+     return prop.maxThreadsPerBlock;
  }
 
 uint32_t CommandLineArgs::max_cuda_blocks()
  {
-	 cudaDeviceProp prop;
-	 cudaGetDeviceProperties(&prop, 0);
+     cudaDeviceProp prop;
+     cudaGetDeviceProperties(&prop, 0);
 
-	 return prop.maxGridSize[0];
+     return prop.maxGridSize[0];
  }

@@ -13,21 +13,9 @@ namespace tests
 namespace keeloq
 {
 
-constexpr uint32_t default_seed = 987654321;
-
-constexpr uint8_t default_button = 0x3;
-
-constexpr uint16_t default_counter = 0x123;
-
-constexpr uint32_t default_serial = 0xDEADBEEF;
-
-
-template<KeeloqLearning::LearningType LType, KeeloqLearning::Modifier::Type LMod = KeeloqLearning::Modifier::Type::Regular>
-inline std::vector<EncParcel> gen_inputs(uint64_t key, uint8_t num = 3,
-    uint32_t serial = default_serial, uint16_t counter = default_counter, uint8_t button = default_button, uint32_t seed = default_seed)
+inline std::vector<EncParcel> gen_inputs(Encryptor& encryptor, uint8_t num = 3, KeeloqLearning::LearningType LType = KeeloqLearning::LearningType::Simple, KeeloqLearning::Modifier::Type LMod = KeeloqLearning::Modifier::Type::Regular)
 {
     std::vector<EncParcel> result;
-    Encryptor encryptor(key, seed, serial, button, counter);
 
     for (uint8_t i = 0; i < num; ++i)
     {
@@ -36,6 +24,33 @@ inline std::vector<EncParcel> gen_inputs(uint64_t key, uint8_t num = 3,
 
     return result;
 }
+
+/**
+ *  Generates `num` encrypted inputs with provided key, learning type and modifier.
+ */
+std::vector<EncParcel> gen_inputs(uint64_t key, uint8_t num = 3, KeeloqLearning::LearningType LType = KeeloqLearning::LearningType::Simple, KeeloqLearning::Modifier::Type LMod = KeeloqLearning::Modifier::Type::Regular);
+
+/**
+ *  Test EncParcel class for valid OTA/fix/hop parsing and generation
+ */
+bool encparcel();
+
+/**
+ *  Test every learning type with every modifier to check if encryption and decryption works correctly.
+ * Config describes type of bruteforce
+ */
+bool every_learning_with_mod(const BruteforceConfig& config);
+
+/**
+ *  Test every learning type with every modifier with every brute type
+ */
+bool every_brute_type();
+
+
+/**
+ *  Launch all tests in this file
+ */
+bool all();
 
 }
 }

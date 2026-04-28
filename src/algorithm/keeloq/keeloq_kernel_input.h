@@ -45,7 +45,7 @@ struct KeeloqKernelInput : TGenericGpuObject<KeeloqKernelInput>
 
 public:
     //
-    __device__ __inline__ const KeeloqLearning::Matrix& GetLearningMask() const { return learnings; }
+    __device__ __inline__ const KeeloqLearning::Matrix& GetLearningMatrix() const { return learnings; }
 
     //
     __device__ __inline__ bool AllLearningsEnabled() const { return allLearnings; }

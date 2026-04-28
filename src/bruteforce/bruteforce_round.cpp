@@ -33,12 +33,6 @@ const std::vector<SingleResult>& BruteforceRound::read_results_gpu()
     return block_results;
 }
 
-const std::vector<Decryptor>& BruteforceRound::read_decryptors_gpu()
-{
-    kernel_inputs.decryptors->copy(decryptors);
-    return decryptors;
-}
-
 bool BruteforceRound::check_results(const KernelResult& result)
 {
     if (result.error < 0)
@@ -100,7 +94,7 @@ size_t BruteforceRound::num_batches() const
 size_t BruteforceRound::keys_per_batch() const
 {
     assert(inited);
-    return decryptors.size();
+    return num_decryptors_per_batch;
 }
 
 size_t BruteforceRound::results_per_batch() const
@@ -116,8 +110,8 @@ void BruteforceRound::Init()
         // allocated once. updated every run on GPU
         decryptors = std::vector<Decryptor>(num_decryptors_per_batch);
 
-        // allocated once. updated evert run on GPU. copied to CPU only if match found.
-        block_results = std::vector<SingleResult>(encrypted_data.size() * decryptors.size());
+        // allocated once. updated every run on GPU. copied to CPU only if match found.
+        block_results = std::vector<SingleResult>(encrypted_data.size() * num_decryptors_per_batch);
 
         alloc();
 
@@ -132,12 +126,13 @@ std::string BruteforceRound::to_string() const
     return str::format<std::string>("Setup:\n"
         "\tCUDA: Blocks:%u Threads:%u Iterations:%u\n"
         "\tEncrypted data size:%zd\n"
-        "\tLearning type:%s\n"
         "\tResults per batch:%zd\n"
         "\tDecryptors per batch:%zd\n"
-        "\tConfig: %s",
+        "\tConfig: %s"
+        "\tLearning Matrix:%s\n",
         CudaBlocks(), CudaThreads(), CudaThreadIterations(),
-        encrypted_data.size(), kernel_inputs.GetLearningMask().to_string().c_str(), results_per_batch(), keys_per_batch(), Config().toString().c_str());
+        encrypted_data.size(), results_per_batch(), keys_per_batch(), Config().toString().c_str(),
+        kernel_inputs.GetLearningMatrix().to_string().c_str());
 }
 
 

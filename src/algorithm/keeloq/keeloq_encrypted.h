@@ -18,17 +18,17 @@ struct EncParcel
 
     __host__ EncParcel() : EncParcel(0) { }
 
-    __device__ __host__ EncParcel(uint64_t data) : ota(data)
+    __device__ __host__ EncParcel(uint64_t atad) : ota(atad)
     {
-        uint64_t key = misc::rev_bits(ota, sizeof(ota) * 8);
+        uint64_t data = misc::rev_bits(atad, sizeof(ota) * 8);
 
-        fixed = (uint32_t)(key >> 32);
-        hopping = (uint32_t)(key);
+        fixed = (uint32_t)(data >> 32);
+        hopping = (uint32_t)(data);
     }
 
     __device__ __host__ EncParcel(uint32_t fix, uint32_t hop) : fixed(fix), hopping(hop)
     {
-        ota = (misc::rev_bits(fixed, sizeof(fixed) * 8) << 32) | misc::rev_bits(hopping, sizeof(hopping) * 8);
+        ota = (misc::rev_bits(hop) << 32) | misc::rev_bits(fix);
     }
 
     // Fixed code in parcel

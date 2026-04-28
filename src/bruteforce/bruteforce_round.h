@@ -53,9 +53,6 @@ public:
     // Reads results data from GPU memory into internal container and returns const reference to it
     const std::vector<SingleResult>& read_results_gpu();
 
-    // Reads decryptors data from GPU memory into internal container and returns const reference to it
-    const std::vector<Decryptor>& read_decryptors_gpu();
-
     // Checks Kernel's results
     // Return true if Round should be finished
     bool check_results(const KernelResult& result);

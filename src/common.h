@@ -12,6 +12,18 @@
     assert(error == 0)
 
 
+#if _DEBUG
+    #if __CUDA_ARCH__
+        #define assertf(cond, fmt, ...) if (!(cond)) { printf(fmt, __VA_ARGS__); __trap(); }
+    #else
+        #define assertf(cond, fmt, ...) if (!(cond)) { printf("\n"); printf(fmt, __VA_ARGS__); printf("\n"); assert(cond && fmt && " *** details in console *** "); }
+    #endif
+#else
+    #define assertf
+#endif
+
+
+
 /************************************************************************/
 /*                  Bruteforce generator helper macros                  */
 /************************************************************************/
@@ -91,16 +103,15 @@ inline String format(const String& format, Args ... args)
 }
 
 
-inline uint64_t operator "" _u64(const char* ascii, size_t num)
+constexpr inline uint64_t operator "" _u64(const char* ascii, size_t num)
 {
     const uint8_t size = sizeof(uint64_t);
 
     uint64_t number = 0;
-    uint8_t* pNumber = (uint8_t*)&number;
 
     for (uint8_t i = 0; i < size; ++i)
     {
-        pNumber[size - i - 1] = num > i ? ascii[i] : 0;
+        number = (number << 8) | (num > i ? ascii[i] : 0);
     }
 
     return number;

@@ -158,7 +158,6 @@ __device__ KeeloqLearning::ResultIndex analyze_single_result(const SingleResult&
         match_res_index = (has_match * resIndex + !has_match * match_res_index);
     }
 
-    assert(match_count <= 1 && "analyze_single_result() Multiple match - should not be possible!");
     return match_res_index;
 }
 
@@ -363,7 +362,7 @@ __device__ __host__ __forceinline__ void keeloq_encdec_multi_cond(uint32_t data,
  */
 template<bool IgnoreMatrix, bool IsDecrypt, KeeloqLearning::Modifier::Type Modifier>
 __device__ __host__ __forceinline__ void keeloq_encdec_seed_all(uint32_t data, uint32_t fix, const Decryptor& decryptor,
-    const KeeloqLearning::Matrix& learnings_matrix, SingleResult::DecryptedArray& decrypted)
+    const KeeloqLearning::Matrix& learnings_matrix, SingleResult::LearningsArray& decrypted)
 {
     if constexpr (IgnoreMatrix)
     {
@@ -387,7 +386,7 @@ __device__ __host__ __forceinline__ void keeloq_encdec_seed_all(uint32_t data, u
  */
 template<bool IgnoreMatrix, bool IsDecrypt, KeeloqLearning::Modifier::Type Modifier>
 __device__ __host__ __forceinline__ void keeloq_encdec_normal_all(uint32_t data, uint32_t fix, const Decryptor& decryptor,
-    const KeeloqLearning::Matrix& learnings_matrix, SingleResult::DecryptedArray& decrypted)
+    const KeeloqLearning::Matrix& learnings_matrix, SingleResult::LearningsArray& decrypted)
 {
     if constexpr (IgnoreMatrix)
     {
@@ -409,7 +408,7 @@ __device__ __host__ __forceinline__ void keeloq_encdec_normal_all(uint32_t data,
  *   -> keeloq_encdec
  */
 template<LearningDecryptionMode Mode, bool IsDecrypt = true>
-__device__ __host__ inline void keeloq_encdec(const EncParcel& enc, const Decryptor& decryptor, const KeeloqLearning::Matrix& learnings_matrix, SingleResult::DecryptedArray& results)
+__device__ __host__ inline void keeloq_encdec(const EncParcel& enc, const Decryptor& decryptor, const KeeloqLearning::Matrix& learnings_matrix, SingleResult::LearningsArray& results)
 {
     constexpr bool IgnoreMatrix     = !!(Mode & LearningDecryptionMode::Force);
     constexpr bool ExplicitDecrypt  = !!(Mode & LearningDecryptionMode::Explicit);
@@ -535,7 +534,8 @@ __device__ uint8_t inline keeloq_decrypt_and_quick_analyze(const CudaContext& ct
 template<uint8_t NumInputs, LearningDecryptionMode LearningMode, bool UseFastCheck = true>
 __device__ uint8_t inline keeloq_decryption_run(const CudaContext& ctx, KeeloqKernelInput& input)
 {
-    constexpr bool UseFullCheck = NumInputs > 1 && !UseFastCheck;
+    static constexpr bool UseSlowCheck = NumInputs > 1 && !UseFastCheck;
+
     constexpr uint8_t First = 0;
     constexpr uint8_t Second = 1;
     constexpr uint8_t Third = 2;
@@ -560,15 +560,15 @@ __device__ uint8_t inline keeloq_decryption_run(const CudaContext& ctx, KeeloqKe
 
         Span<SingleResult> results(&all_results[decryptor_index * encrypted.num], NumInputs);
 
-        if constexpr (UseFullCheck)
+        if constexpr (UseSlowCheck)
         {
             // only multiple input - decrypt all and then check
-            keeloq_decrypt_and_analyze<NumInputs, LearningMode, First>(ctx, encrypted, decryptor, input.GetLearningMask(), results);
+            keeloq_decrypt_and_analyze<NumInputs, LearningMode, First>(ctx, encrypted, decryptor, input.GetLearningMatrix(), results);
         }
         else
         {
             // Single input
-            auto multiple_match = keeloq_decrypt_and_quick_analyze<LearningMode, First>(ctx, encrypted, decryptor, input.GetLearningMask(), results);
+            auto multiple_match = keeloq_decrypt_and_quick_analyze<LearningMode, First>(ctx, encrypted, decryptor, input.GetLearningMatrix(), results);
             if constexpr (NumInputs == 1)
             {
                 // Single mode only. in multiple - it's ok, we'll check just the rest
@@ -580,19 +580,19 @@ __device__ uint8_t inline keeloq_decryption_run(const CudaContext& ctx, KeeloqKe
             {
                 assert(encrypted[First].fix() == encrypted[Second].fix() && "Cannot `UseFastCheck` if fixed part of encrypted packets are not the same!");
 
-                // Even if this is `if` - still it's faster
+                // Even if this is `if` - still it's faster than calling decrypt for the rest of inputs
                 if (results[First].match != KeeloqLearning::NoMatch)
                 {
                     if constexpr (NumInputs > 2)
                     {
                         // Calling decrypt and fast check on next input
-                        keeloq_decrypt_and_quick_analyze<LearningMode, Second>(ctx, encrypted, decryptor, input.GetLearningMask(), results);
+                        keeloq_decrypt_and_quick_analyze<LearningMode, Second>(ctx, encrypted, decryptor, input.GetLearningMatrix(), results);
 
                         if (results[Second].match != KeeloqLearning::NoMatch)
                         {
                             // since 1-st and 2-nd was already decrypted - starting index is 2
                             // This will also reset the `result.match`
-                            keeloq_decrypt_and_analyze<NumInputs, LearningMode, Third>(ctx, encrypted, decryptor, input.GetLearningMask(), results);
+                            keeloq_decrypt_and_analyze<NumInputs, LearningMode, Third>(ctx, encrypted, decryptor, input.GetLearningMatrix(), results);
                         }
                         else
                         {
@@ -607,7 +607,7 @@ __device__ uint8_t inline keeloq_decryption_run(const CudaContext& ctx, KeeloqKe
                     {
                         // since 1-st was already decrypted - starting index is 1
                         // This will also reset the `result.match`
-                        keeloq_decrypt_and_analyze<NumInputs, LearningMode, Second>(ctx, encrypted, decryptor, input.GetLearningMask(), results);
+                        keeloq_decrypt_and_analyze<NumInputs, LearningMode, Second>(ctx, encrypted, decryptor, input.GetLearningMatrix(), results);
                     }
                 }
                 else
@@ -695,8 +695,8 @@ NOINLINE __device__ void Kernel_keeloq_main(KeeloqKernelInput::TCudaPtr KernelIn
 
     uint8_t num_matches = keeloq_check_matches<NumInputs>(ctx, results, KernelInputs);
 
-     atomicAdd(&ret->error, num_errors);
-     atomicAdd(&ret->value, num_matches);
+    atomicAdd(&ret->error, num_errors);
+    atomicAdd(&ret->value, num_matches);
 }
 
 }

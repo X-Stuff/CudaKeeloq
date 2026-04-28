@@ -11,13 +11,23 @@
 
 
 /**
- *  For each testing manufacturer key we retrieve this results
- * Depending on selected learning type you may have from 1 to 16 (now it the last)
- * decrypted results for further analysis
+ *  Result of single keeloq run (encryption or decryption).
+ *
+ * EncParcel - is input for decryption as OTA, for encryption is should be created in specific way
+ * Decryptor - is used decryptor for this result, contains manufacturer key and seed (if needed)
+ * LearningsArray - is array of decrypted or encrypted values for each learning type (now summary 18 possible combinations)
  */
 struct SingleResult
 {
-	struct DecryptedArray
+    /**
+     *  Per-Learning with modifiers type array of decrypted or encrypted values.
+     *
+     * e.g.:
+     *  at index 0 - decrypted result for Simple learning type with Normal modifier
+     *  at index 1 - decrypted result for Simple learning type with Inverted modifier
+     *  etc.
+     */
+	struct LearningsArray
 	{
 		// fixed side array for every learning type
         // If is in global memory (common case) - use operator[] - though cache
@@ -61,8 +71,8 @@ struct SingleResult
     // used manufacturer key and seed for this result
     Decryptor decryptor = {};
 
-	// Decrypted values for each known learning type
-	DecryptedArray decrypted = {};
+    // Processed values for each known learning type (decrypted or encrypted depending on the call), indexed by learning type and modifier
+	LearningsArray decrypted = {};
 
 	// Index in array that represents pairs of learning types and modes.
     // Set by GPU after analysis if there was a match
