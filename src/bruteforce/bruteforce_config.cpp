@@ -3,6 +3,7 @@
 #include "bruteforce_filters.h"
 
 #include "algorithm/keeloq/keeloq_decryptor.h"
+#include <algorithm>
 
 
 BruteforceConfig BruteforceConfig::GetDictionary(std::vector<Decryptor>&& dictionary)
@@ -24,9 +25,9 @@ BruteforceConfig BruteforceConfig::GetBruteforce(Decryptor first, size_t size, c
     return result;
 }
 
-BruteforceConfig BruteforceConfig::GetSeedBruteforce(Decryptor first)
+BruteforceConfig BruteforceConfig::GetSeedBruteforce(Decryptor first, uint32_t size)
 {
-    return BruteforceConfig(first, BruteforceType::Seed, (uint32_t)-1);
+    return BruteforceConfig(first, BruteforceType::Seed, size);
 }
 
 BruteforceConfig BruteforceConfig::GetAlphabet(Decryptor first, const MultibaseDigit& alphabet, size_t num)
@@ -81,6 +82,23 @@ void BruteforceConfig::next_decryptor()
         {
             start = Decryptor::Make(start.man() + 1, start.seed(), start.has_seed());
         }
+    }
+}
+
+bool BruteforceConfig::has_seed() const
+{
+    if (type == BruteforceType::Seed)
+    {
+        assert(start.has_seed() && "In seed bruteforce type your decryptors MUST have seeds enabled");
+        return true;
+    }
+    else if (type == BruteforceType::Dictionary)
+    {
+        return std::any_of(decryptors.begin(), decryptors.end(), [](const Decryptor& d) { return d.has_seed(); });
+    }
+    else
+    {
+        return start.has_seed();
     }
 }
 

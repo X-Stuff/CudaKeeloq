@@ -6,19 +6,20 @@
 
 __global__ void DEFINE_GENERATOR_KERNEL(GeneratorBruteforceSeed, KeeloqKernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls)
 {
-	CudaContext ctx = CudaContext::Get();
+    CudaContext ctx = CudaContext::Get();
 
-	assert(input->GetConfig().type == BruteforceType::Seed);
+    assert(input->GetConfig().type == BruteforceType::Seed);
 
-	const Decryptor& start = input->GetConfig().start;
+    const Decryptor& start = input->GetConfig().start;
     static constexpr bool seed_valid = true;
 
-	CudaArray<Decryptor>& decryptors = *input->decryptors;
+    CudaArray<Decryptor>& decryptors = *input->decryptors;
+    assert(decryptors.num % ctx.thread_max == 0 && "Number of decryptors must be equal or divisible by number of threads");
 
-	CUDA_FOR_THREAD_ID(ctx, decryptor_index, decryptors.num)
-	{
-		decryptors[decryptor_index] = Decryptor::Make(start.man(), start.seed() + decryptor_index, seed_valid);
-	}
+    CUDA_FOR_THREAD_ID(ctx, decryptor_index, decryptors.num)
+    {
+        decryptors[decryptor_index] = Decryptor::Make(start.man(), start.seed() + decryptor_index, seed_valid);
+    }
 }
 
 DEFINE_GENERATOR_GETTER(GeneratorBruteforceSeed);

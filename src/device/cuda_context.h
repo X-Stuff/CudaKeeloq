@@ -15,7 +15,7 @@ struct CudaContext
     // Maximum overall threads
     uint32_t thread_max;
 
-    // Global thread id
+    // Global thread id (within the entire grid, blockIdx.x * blockDim.x + threadIdx.x)
     uint32_t thread_id;
 
     __host__ __device__ static inline CudaContext Get()

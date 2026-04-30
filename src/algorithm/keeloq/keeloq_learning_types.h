@@ -122,6 +122,19 @@ using SeededTypes = LearningTypesSet<LearningType::Secure, LearningType::Faac>;
 
 using NormalTypes = LearningTypesSet<LearningType::Simple, LearningType::Normal, LearningType::Xor, LearningType::Serial1, LearningType::Serial2, LearningType::Serial3>;
 
+/** Helper runtime function that checks if a learning type has a seed */
+constexpr bool HasSeed(LearningType type)
+{
+    for (uint8_t i = 0; i < SeededTypes::values.size(); ++i)
+    {
+        if (SeededTypes::values[i] == type)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 /** Number of learning types */
 static constexpr const uint8_t LearningTypesCount = static_cast<uint8_t>(LearningType::Serial3) + 1;
 
@@ -402,7 +415,6 @@ public:
 #else
         return ResultIndicesCache::get(type, mod);
 #endif
-
     }
 
     /** Does reverse lookup by index, not allowed on device! */

@@ -57,7 +57,7 @@ public:
 
     static BruteforceConfig GetBruteforce(Decryptor first, size_t size, const BruteforceFilters& filters);
 
-    static BruteforceConfig GetSeedBruteforce(Decryptor first);
+    static BruteforceConfig GetSeedBruteforce(Decryptor first, uint32_t size = static_cast<uint32_t>(-1));
 
     static BruteforceConfig GetAlphabet(Decryptor first, const MultibaseDigit& alphabet, size_t num = (size_t)-1);
 
@@ -65,13 +65,22 @@ public:
 
 public:
 
+    // Number of elements in dictionary (for dictionary type) or 0 for other types
     uint64_t dict_size() const;
 
+    // Number of decryptors to generate (for non-dictionary types) or 0 for dictionary type
     uint64_t brute_size() const;
 
-    std::string toString() const;
-
+    // Update start and last decryptors to next values.
+    // New start will be current last, and new last will be calculated according to generator type and size.
     void next_decryptor();
+
+    // Returns true if config's start decryptor has seed, for regular bruteforce type
+    // Returns true if config's type is seed bruteforce
+    // Returns true if at least one of decryptors in dictionary has seed (for dictionary type)
+    bool has_seed() const;
+
+    std::string toString() const;
 
 private:
     BruteforceConfig(Decryptor start, BruteforceType::Type t, size_t num) :

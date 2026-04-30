@@ -41,7 +41,8 @@ struct CudaVector
     const size_t size() const { return cpu_vector.size(); }
 
     // Reads GPU pointer and copies data from GPU memory to CPU
-    void read();
+    // Returns reference to self
+    CudaVector<T>& read();
 
     //  Pointer to GPU array
     // Will allocate (and copy) by default
@@ -54,13 +55,15 @@ private:
     CudaArray<T>* gpu_array;
 };
 
-template<typename T> void CudaVector<T>::read()
+template<typename T> CudaVector<T>& CudaVector<T>::read()
 {
     assert(gpu_array);
     if (gpu_array)
     {
         gpu_array->copy(cpu_vector);
     }
+
+    return *this;
 }
 
 template<typename T> CudaArray<T>* CudaVector<T>::gpu(bool allocate /*= true*/)

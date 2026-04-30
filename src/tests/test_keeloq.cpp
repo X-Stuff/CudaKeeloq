@@ -67,9 +67,9 @@ bool tests::keeloq::every_learning_with_mod(const BruteforceConfig& config)
         return false;
     }
 
-    for (auto lMod = 0; lMod < LearningTypesCount; ++lMod)
+    for (auto lMod = 0; lMod < Modifier::Count; ++lMod)
     {
-        for (auto lType = 0; lType < Modifier::Count; ++lType)
+        for (auto lType = 0; lType < LearningTypesCount; ++lType)
         {
             const auto learningType = static_cast<LearningType>(lType);
             const auto learningMod = static_cast<Modifier::Type>(lMod);
@@ -81,7 +81,20 @@ bool tests::keeloq::every_learning_with_mod(const BruteforceConfig& config)
                 continue;
             }
 
-            for (auto numInputs = 1; numInputs < 3; ++numInputs)
+            if (!config.has_seed() && KeeloqLearning::HasSeed(learningType))
+            {
+                // If learning has see but config was created without seed, then we will never have correct decryptor to decrypt
+                continue;
+            }
+
+            if (config.type == BruteforceType::Seed && !KeeloqLearning::HasSeed(learningType))
+            {
+                // And the reverse situation, in Seed only mode, no other learning types will be ever calculated
+                continue;
+            }
+
+
+            for (auto numInputs = 1; numInputs <= 3; ++numInputs)
             {
                 Encryptor encryptor(debug_key, debug_seed);
 
@@ -106,6 +119,10 @@ bool tests::keeloq::every_learning_with_mod(const BruteforceConfig& config)
 
                 auto result = ::keeloq::kernels::cuda_brute(generatorInputs, NumBlocks, NumThreads);
 
+                // read from GPU first (for debug)
+                decryptors.read();
+                results.read();
+
                 // Check were not errors
                 if (result.error != 0)
                 {
@@ -123,8 +140,6 @@ bool tests::keeloq::every_learning_with_mod(const BruteforceConfig& config)
                 }
 
                 // Check that decryptor was correct
-                decryptors.read();
-
                 // Should be always first
                 const auto& matched_decryptor = decryptors.cpu()[0];
                 if (matched_decryptor.man() != debug_key)
@@ -138,8 +153,6 @@ bool tests::keeloq::every_learning_with_mod(const BruteforceConfig& config)
 
 
                 // Check result is correct as well
-                results.read();
-
                 // Checking always last
                 const auto lastInput = numInputs - 1;
                 const auto& matched_result = results.cpu()[lastInput];
@@ -173,35 +186,35 @@ bool tests::keeloq::every_learning_with_mod(const BruteforceConfig& config)
 
 bool tests::keeloq::every_brute_type()
 {
-    BruteforceConfig dict = BruteforceConfig::GetDictionary({ Decryptor::Make(debug_key, 0, true) });
+    BruteforceConfig dict = BruteforceConfig::GetDictionary({ Decryptor::Make(debug_key, debug_seed, true) });
 
     BruteforceConfig brute_n_seed = BruteforceConfig::GetBruteforce(Decryptor::MakeNoSeed(debug_key), 1);
     BruteforceConfig brute_w_seed = BruteforceConfig::GetBruteforce(Decryptor::Make(debug_key, debug_seed, true), 1);
 
-    BruteforceConfig seed = BruteforceConfig::GetSeedBruteforce(Decryptor::Make(debug_key, debug_seed, true));
+    BruteforceConfig seed = BruteforceConfig::GetSeedBruteforce(Decryptor::Make(debug_key, debug_seed, true), 1);
 
 
     std::vector<std::vector<uint8_t>> debug_key_pattern =
     {
-        { debug_key >> 56 }, { (debug_key >> 48) & 0xFF }, { (debug_key >> 40) & 0xFF }, { (debug_key >> 32) & 0xFF }, { (debug_key >> 24) & 0xFF }, { (debug_key >> 16) & 0xFF }, { (debug_key >> 8) & 0xFF }, { debug_key & 0xFF }
+        { debug_key & 0xFF }, { (debug_key >> 8) & 0xFF }, { (debug_key >> 16) & 0xFF }, { (debug_key >> 24) & 0xFF }, { (debug_key >> 32) & 0xFF }, { (debug_key >> 40) & 0xFF }, { (debug_key >> 48) & 0xFF }, { debug_key >> 56 }
     };
-    BruteforceConfig pattern = BruteforceConfig::GetPattern(Decryptor::MakeNoSeed(debug_key), BruteforcePattern(std::move(debug_key_pattern)), 1);
+    BruteforceConfig pattern = BruteforceConfig::GetPattern(Decryptor::Make(debug_key, debug_seed, true), BruteforcePattern(std::move(debug_key_pattern)), 1);
 
 
-    std::vector<uint8_t> debug_key_alphabet = { debug_key >> 56, (debug_key >> 48) & 0xFF, (debug_key >> 40) & 0xFF, (debug_key >> 32) & 0xFF, (debug_key >> 24) & 0xFF, (debug_key >> 16) & 0xFF, (debug_key >> 8) & 0xFF, debug_key & 0xFF };
+    std::vector<uint8_t> debug_key_alphabet = { debug_key & 0xFF, (debug_key >> 8) & 0xFF, (debug_key >> 16) & 0xFF, (debug_key >> 24) & 0xFF, (debug_key >> 32) & 0xFF, (debug_key >> 40) & 0xFF, (debug_key >> 48) & 0xFF, debug_key >> 56 };
     BruteforceConfig alphabet = BruteforceConfig::GetAlphabet(Decryptor::MakeNoSeed(debug_key), MultibaseDigit(debug_key_alphabet), 1);
 
     auto all_configs = { dict, brute_n_seed, brute_w_seed, seed, pattern, alphabet };
     for (const auto& config : all_configs)
     {
-        printf("--- Testing: %s ", config.toString().c_str());
+        printf("--- Testing:\n\t%s\n", config.toString().c_str());
 
         if (!every_learning_with_mod(config))
         {
             return false;
         }
 
-        printf("[OK] --- \n");
+        printf("--- [OK] --- \n");
     }
 
     return true;

@@ -664,8 +664,12 @@ NOINLINE __device__ void Kernel_keeloq_main(KeeloqKernelInput::TCudaPtr KernelIn
 
     const bool forceAll = KernelInputs->AllLearningsEnabled();
 
-    const bool hasSeed = KernelInputs->GetConfig().start.has_seed();
-    const bool seedOnly = KernelInputs->GetConfig().type == BruteforceType::Seed;
+    const auto& config = KernelInputs->GetConfig();
+    const auto& decryptors = *KernelInputs->decryptors;
+    assert(decryptors.num % ctx.thread_max == 0 && "Number of decryptors must be equal or divisible by number of threads");
+
+    const bool hasSeed = decryptors[ctx.thread_id].has_seed();
+    const bool seedOnly = config.type == BruteforceType::Seed;
 
     uint8_t num_errors = 0;
 

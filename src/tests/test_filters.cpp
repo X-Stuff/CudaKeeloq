@@ -68,8 +68,8 @@ bool tests::filters_generation()
         }
 
         // Filtered generator test itself
-        constexpr auto NumBlocks = 32;// 1; //
-        constexpr auto NumThreads = 512;// 2;// 512;
+        constexpr auto NumBlocks = 32;
+        constexpr auto NumThreads = 512;
 
         constexpr auto NumToGenerate = 0xFFFFF;
 
@@ -92,13 +92,13 @@ bool tests::filters_generation()
         auto error = GeneratorBruteforce::PrepareDecryptors(generatorInputs, NumBlocks, NumThreads);
         result_success &= error == 0;
 
-        decryptors.read();
+        const auto& dcpu = decryptors.read().cpu();
 
         bool found = false;
-        for (size_t i = 0; !found && i < decryptors.size(); ++i)
+        for (size_t i = 0; !found && i < dcpu.size(); ++i)
         {
             // looking for exact code - check nothing missed
-            found |= decryptors.cpu()[i].man() == 0xAADEADBEEFA63ED2;
+            found |= dcpu[i].man() == 0xAADEADBEEFA63ED2;
         }
 
         assert(found);

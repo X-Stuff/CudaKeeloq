@@ -94,6 +94,7 @@ private:
 
     bool inited = false;
 
+    // NumBlocks * NumThreads * [NumIterations] (num iteration is 1 if NO_INNER_LOOPS is defined, by default)
     uint32_t num_decryptors_per_batch = 0;
 
     //
