@@ -27,10 +27,17 @@ BruteforceRound::BruteforceRound(const std::vector<EncParcel>& enc, const Brutef
     kernel_inputs.Initialize(config, learning_matrix);
 }
 
-const std::vector<SingleResult>& BruteforceRound::read_results_gpu()
+bool BruteforceRound::read_results_gpu(std::vector<SingleResult>& container) const
 {
-    kernel_inputs.results->copy(block_results);
-    return block_results;
+    assert(inited);
+    if (kernel_inputs.results == nullptr)
+    {
+        printf("Results data is not allocated on GPU. Can't read results.\n");
+        return false;
+    }
+
+    size_t num_copied = kernel_inputs.results->copy(container);
+    return num_copied > 0;
 }
 
 bool BruteforceRound::check_results(const KernelResult& result)
@@ -47,9 +54,14 @@ bool BruteforceRound::check_results(const KernelResult& result)
 
     if (result.value > 0)
     {
-        auto& all_results = read_results_gpu();
-
         printf("Matches count: %d\n", result.value);
+
+        std::vector<SingleResult> all_results;
+        if (!read_results_gpu(all_results))
+        {
+            printf("Failed to read results from GPU. Round should be finished!\n");
+            return true;
+        }
 
         for (const auto& result : all_results)
         {
@@ -67,13 +79,18 @@ bool BruteforceRound::check_results(const KernelResult& result)
     return false;
 }
 
-size_t BruteforceRound::get_mem_size() const
+size_t BruteforceRound::get_mem_size(bool cpu) const
 {
     assert(inited);
-    return
-        encrypted_data.size() * sizeof(EncParcel) +
-        decryptors.size() * sizeof(Decryptor) +
-        block_results.size() * sizeof(SingleResult);
+
+    if (cpu)
+    {
+        return encrypted_data.size() * sizeof(EncParcel);
+    }
+    else
+    {
+        return kernel_inputs.BytesAllocated();
+    }
 }
 
 size_t BruteforceRound::num_batches() const
@@ -93,26 +110,18 @@ size_t BruteforceRound::num_batches() const
 
 size_t BruteforceRound::keys_per_batch() const
 {
-    assert(inited);
     return num_decryptors_per_batch;
 }
 
 size_t BruteforceRound::results_per_batch() const
 {
-    assert(inited);
-    return block_results.size();
+    return encrypted_data.size() * num_decryptors_per_batch;
 }
 
 void BruteforceRound::Init()
 {
     if (!inited)
     {
-        // allocated once. updated every run on GPU
-        decryptors = std::vector<Decryptor>(num_decryptors_per_batch);
-
-        // allocated once. updated every run on GPU. copied to CPU only if match found.
-        block_results = std::vector<SingleResult>(encrypted_data.size() * num_decryptors_per_batch);
-
         alloc();
 
         inited = true;
@@ -125,12 +134,13 @@ std::string BruteforceRound::to_string() const
 
     return str::format<std::string>("Setup:\n"
         "\tCUDA: Blocks:%u Threads:%u Iterations:%u\n"
+        "\tCUDA: Used memory:%zd\n"
         "\tEncrypted data size:%zd\n"
         "\tResults per batch:%zd\n"
         "\tDecryptors per batch:%zd\n"
         "\tConfig: %s"
         "\tLearning Matrix:%s\n",
-        CudaBlocks(), CudaThreads(), CudaThreadIterations(),
+        CudaBlocks(), CudaThreads(), CudaThreadIterations(), get_mem_size(false),
         encrypted_data.size(), results_per_batch(), keys_per_batch(), Config().toString().c_str(),
         kernel_inputs.GetLearningMatrix().to_string().c_str());
 }
@@ -151,12 +161,12 @@ void BruteforceRound::alloc()
 
     if (kernel_inputs.decryptors == nullptr)
     {
-        kernel_inputs.decryptors = CudaArray<Decryptor>::allocate(decryptors);
+        kernel_inputs.decryptors = CudaArray<Decryptor>::allocate(num_decryptors_per_batch);
     }
 
     if (kernel_inputs.results == nullptr)
     {
-        kernel_inputs.results = CudaArray<SingleResult>::allocate(block_results);
+        kernel_inputs.results = CudaArray<SingleResult>::allocate(results_per_batch());
     }
 }
 
@@ -181,6 +191,4 @@ void BruteforceRound::free()
     }
 
     encrypted_data.clear();
-    decryptors.clear();
-    block_results.clear();
 }

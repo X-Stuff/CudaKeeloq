@@ -17,7 +17,7 @@ struct Timer
         return std::chrono::duration_cast<TDuration>(TClock::now() - start_point);
     }
 
-    inline std::chrono::seconds elapsed_secods()
+    inline std::chrono::seconds elapsed_seconds()
     {
         return elapsed<std::chrono::seconds>();
     }
@@ -30,4 +30,19 @@ protected:
 private:
 
     typename TClock::time_point start_point;
+};
+
+template<typename TClock = std::chrono::high_resolution_clock, typename TDuration = std::chrono::milliseconds>
+struct ScopeTimer : public Timer<TClock>
+{
+    ScopeTimer(TDuration* container) : Timer<TClock>(TClock::now()), container(container)
+    {
+    }
+
+    ~ScopeTimer()
+    {
+        *container = this->template elapsed<TDuration>();
+    }
+private:
+    TDuration* container;
 };

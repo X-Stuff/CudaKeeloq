@@ -76,12 +76,7 @@ CommandLineArgs demoTestCommandlineArgs(int num_gen_input = 3)
     cmd.match_stop = false;
     cmd.run_bench = false;
     cmd.run_tests = false;
-
-#if _DEBUG
-    cmd.init_cuda(512, 0, 1);
-#else
-    cmd.init_cuda(4096, 0, 1);
-#endif
+    cmd.init_cuda();
 
     return cmd;
 }

@@ -57,6 +57,17 @@
 #endif // !NO_INNER_LOOPS
 
 
+#define APP_VERSION_MAJOR 0
+#define APP_VERSION_MINOR 2
+#define APP_VERSION_PATCH 0
+
+// Helper macros to turn numbers into string literals
+#define STR_HELPER(x) #x
+#define STR(x) STR_HELPER(x)
+
+#define APP_VERSION_STRING STR(APP_VERSION_MAJOR) "." STR(APP_VERSION_MINOR) "." STR(APP_VERSION_PATCH)
+static constexpr auto AppVersion = APP_VERSION_STRING;
+
 template<uint8_t NSize = 255>
 struct DefaultByteArray
 {
@@ -101,7 +112,6 @@ inline String format(const String& format, Args ... args)
 }
 
 }
-
 
 constexpr inline uint64_t operator "" _u64(const char* ascii, size_t num)
 {

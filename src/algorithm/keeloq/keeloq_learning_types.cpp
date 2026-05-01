@@ -77,7 +77,7 @@ std::string Matrix::to_string() const
     char buffer[8196];
     int at = 0;
 
-    at += snprintf(&buffer[at], sizeof(buffer) - at, "Matrix:\n" "\tSimple Normal  Secure  Xor  Faac  Serial1 Serial2 Serial3\n");
+    at += snprintf(&buffer[at], sizeof(buffer) - at, "Matrix:\n" "\tSimple Normal Secure Xor Faac Serial1 Serial2 Serial3\n");
 
     static constexpr auto ModNames = std::array<const char*, Modifier::Count>{ "Reg", "Rev", "Inv" };
 
@@ -85,7 +85,7 @@ std::string Matrix::to_string() const
     {
         auto mod = static_cast<Modifier::Type>(i);
 
-        at += snprintf(&buffer[at], sizeof(buffer) - at, "\t%s:   %6s %6s %6s %3s %5s %7s %7s %7s\n",
+        at += snprintf(&buffer[at], sizeof(buffer) - at, "\t%s:    %6s %6s %6s %3s %5s %7s %7s %7s\n",
             ModNames[i],
             isEnabled(LearningType::Simple, mod) ? "+" : " ",
             isEnabled(LearningType::Normal, mod) ? "+" : " ",

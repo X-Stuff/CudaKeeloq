@@ -4,6 +4,7 @@
 
 #include "host/host_utils.h"
 #include "host/console.h"
+#include "bruteforce/bruteforce_round.h"
 
 //#define CXXOPTS_NO_EXCEPTIONS
 #include "cxxopts/include/cxxopts.hpp"
@@ -344,20 +345,21 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv)
  / _  / __/ // / __/ -_) _/ _ \/ __/ __/ -_) __/
 /____/_/  \_,_/\__/\__/_/ \___/_/  \__/\__/_/
 
-)");
+)" " v" APP_VERSION_STRING);
     options.set_width(::console::get_width())
         .allow_unrecognised_options()
         .add_options()
         ("h," ARG_HELP, "Prints this help")
+        ("v," ARG_VERSION, "Prints version information")
 
         // What to bruteforce
         (ARG_INPUTS, "Comma separated uint64 values (it's better to have 3), hopping first: 0x<HOPPING_32><FIXED_32>",
             cxxopts::value<std::vector<uint64_t>>(), "[k1, k1, k3]")
 
         // CUDA Setup
-        (ARG_BLOCKS, "How many thread blocks to launch.",
-            cxxopts::value<uint16_t>()->default_value("512"), "<num>")
-        (ARG_THREADS, "How many threads will be launched in a block (if 0 - will use value from device).",
+        (ARG_BLOCKS, "How many thread blocks to launch, leave it 0 to calculate best value.",
+            cxxopts::value<uint16_t>()->default_value("0"), "<num>")
+        (ARG_THREADS, "How many threads will be launched in a block (if 0 - will use best value from device).",
             cxxopts::value<uint16_t>()->default_value("0"), "<num>")
 
 #ifndef NO_INNER_LOOPS
@@ -458,7 +460,7 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv)
 
     // CUDA setup
     args.init_cuda(result[ARG_BLOCKS].as<uint16_t>(), result[ARG_THREADS].as<uint16_t>(),
-        result.count(ARG_LOOPS) > 0 ? result[ARG_LOOPS].as<uint16_t>() : 0);
+        result.count(ARG_LOOPS) > 0 ? result[ARG_LOOPS].as<uint16_t>() : 1);
 
     if (result.count(ARG_HELP) || result.arguments().size() == 0 || result.count(ARG_INPUTS) == 0)
     {
@@ -593,18 +595,11 @@ void CommandLineArgs::init_inputs(const std::vector<uint64_t>& inp)
      }
  }
 
-void CommandLineArgs::init_cuda(uint16_t b, uint16_t t, uint16_t l)
- {
-    cuda_blocks	= b;
-    assert(cuda_blocks < max_cuda_blocks() && "This GPU cannot use this much blocks!");
-
-    cuda_threads	= t;
-    cuda_loops		= l;
-
-    if (cuda_threads == 0)
-    {
-        cuda_threads = (uint16_t)max_cuda_threads();
-    }
+void CommandLineArgs::init_cuda(uint16_t blocks, uint16_t threads, uint8_t numSubSteps)
+{
+    cuda_loops      = numSubSteps;
+    cuda_threads    = threads ? threads : (uint16_t)max_cuda_threads();
+    cuda_blocks     = blocks ? blocks : max_cuda_blocks(numSubSteps);
  }
 
 uint32_t CommandLineArgs::max_cuda_threads()
@@ -615,10 +610,27 @@ uint32_t CommandLineArgs::max_cuda_threads()
      return prop.maxThreadsPerBlock;
  }
 
-uint32_t CommandLineArgs::max_cuda_blocks()
+uint32_t CommandLineArgs::max_cuda_blocks(uint8_t numSubSteps /*= 1*/)
  {
      cudaDeviceProp prop;
      cudaGetDeviceProperties(&prop, 0);
 
-     return prop.maxGridSize[0];
+     const auto thread_memory = prop.maxThreadsPerBlock * BruteforceRound::GetMaxMemoryUsagePerThread(numSubSteps);
+     const auto max_memory = max_global_memory();
+
+     const auto possible_blocks = max_memory / thread_memory;
+     const auto power = static_cast<int>(std::log2(possible_blocks));
+
+     auto result = std::min(static_cast<uint32_t>(1 << power), static_cast<uint32_t>(prop.maxGridSize[0]));
+     assert(result != 0 && "Number of max CUDA blocks was calculated incorrectly");
+
+     return result;
  }
+
+size_t CommandLineArgs::max_global_memory()
+{
+    cudaDeviceProp prop;
+    cudaGetDeviceProperties(&prop, 0);
+
+    return prop.totalGlobalMem;
+}

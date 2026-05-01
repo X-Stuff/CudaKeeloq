@@ -11,6 +11,7 @@
 #define APP_NAME "CudaKeeloq"
 
 #define ARG_HELP "help"
+#define ARG_VERSION "version"
 #define ARG_TEST "test"
 #define ARG_BENCHMARK "benchmark"
 #define ARG_INPUTS "inputs"
@@ -59,7 +60,7 @@ struct CommandLineArgs
     bool match_stop;
 
     // Cuda setup
-    uint16_t cuda_blocks;
+    uint32_t cuda_blocks;
     uint16_t cuda_threads;
     uint16_t cuda_loops;
 
@@ -81,11 +82,15 @@ public:
     // Init enc parcel collection with raw OTA values
     void init_inputs(const std::vector<uint64_t>& inp);
 
-    void init_cuda(uint16_t b, uint16_t t, uint16_t l);
+    // Initialize CUDA setup with parameters, leave default values for the best setup
+    void init_cuda(uint16_t blocks = 0, uint16_t threads = 0, uint8_t loops = 1);
 
     // Check device capabilities and returns maximum thread allowed for single block
     static uint32_t max_cuda_threads();
 
     // Check device capabilities and returns maximum allowed number of blocks
-    static uint32_t max_cuda_blocks();
+    static uint32_t max_cuda_blocks(uint8_t numSubSteps = 1);
+
+    // Check device capabilities and returns maximum allowed number of blocks
+    static size_t max_global_memory();
 };

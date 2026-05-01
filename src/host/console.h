@@ -10,7 +10,7 @@
 constexpr char WAIT_SPIN[] = "|/-\\";
 #define WAIT_CHAR(i) (WAIT_SPIN[i % (sizeof(WAIT_SPIN) - 1)])
 
-#define CONSOLE_WIDTH 160
+#define CONSOLE_WIDTH 180
 
 #define console_clear() printf("\033[H\033[J")
 

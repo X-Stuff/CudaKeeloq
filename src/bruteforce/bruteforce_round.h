@@ -16,15 +16,15 @@
 
 /**
  *  Round is a set of bruteforce batches
- * Each batch runs N thread
+ * Each batch runs `T` CUDA threads in `B` blocks
  * Each thread checks 1 or more decryptor
  * Each check is 1 or more (configured in args) keeloq learnings
  *
  * Typical is:
  *  Via command line some rounds were created - e.g. Dictionary and Simple attacks
- *  Each attack has N decryptors to check, though num blocks B, num threads T, and I iteration
+ *  Each attack has N decryptors to check, through num blocks B, num threads T, and I iteration
  *  This means `(1 BATCH size) = B * T * I` decryptors check
- *  This means num of batches = `N / (1 BATCH size)`
+ *  This means num of batches = `Total Num to Check / (1 BATCH size)`
  */
 struct BruteforceRound
 {
@@ -51,14 +51,14 @@ public:
     void Init();
 
     // Reads results data from GPU memory into internal container and returns const reference to it
-    const std::vector<SingleResult>& read_results_gpu();
+    bool read_results_gpu(std::vector<SingleResult>& container) const;
 
     // Checks Kernel's results
     // Return true if Round should be finished
     bool check_results(const KernelResult& result);
 
     // Get allocated memory amount for data
-    size_t get_mem_size() const;
+    size_t get_mem_size(bool cpu = false) const;
 
     // How many batches in this round (basically total keys to check divides by number of keys in a batch)
     size_t num_batches() const;
@@ -72,6 +72,12 @@ public:
     std::string to_string() const;
 
 public:
+    // Return max memory usage per thread in bytes.
+    // Number of sub steps - configuration how many decryptors each thread should check.
+    //  by default is 1 and most likely should never be more.
+    // Usually each thread has 1 decryptor and 3 results (usually need 3 inputs)
+    static constexpr inline size_t GetMaxMemoryUsagePerThread(uint8_t numSubSteps = 1) { return numSubSteps * (sizeof(Decryptor) + sizeof(SingleResult) * 3); }
+
     inline uint32_t CudaBlocks() const { return CUDASetup[0]; }
 
     inline uint32_t CudaThreads() const { return CUDASetup[1]; }
@@ -102,12 +108,6 @@ private:
 
     // Constant per run
     std::vector<EncParcel> encrypted_data;
-
-    // could be pretty much data here
-    std::vector<Decryptor> decryptors;
-
-    // could be pretty much data here
-    std::vector<SingleResult> block_results;
 
     uint32_t CUDASetup[3] = { 0 };
 };

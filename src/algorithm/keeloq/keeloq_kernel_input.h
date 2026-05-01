@@ -53,6 +53,9 @@ public:
     //
     __device__ __inline__ const BruteforceConfig& GetConfig() const { return config; }
 
+    // Number of bytes allocated for decryptors and results arrays. Used for performance metrics
+    size_t BytesAllocated() const;
+
 public:
     void WriteDecryptors(const std::vector<Decryptor>& source, size_t from, size_t num);
 

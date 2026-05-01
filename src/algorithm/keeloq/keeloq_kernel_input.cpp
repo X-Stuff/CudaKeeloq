@@ -1,6 +1,12 @@
 #include "keeloq_kernel_input.h"
 #include "common.h"
 
+
+size_t KeeloqKernelInput::BytesAllocated() const
+{
+    return (encdata ? encdata->allocated() : 0) + (decryptors ? decryptors->allocated() : 0) + (results ? results->allocated() : 0);
+}
+
 void KeeloqKernelInput::WriteDecryptors(const std::vector<Decryptor>& source, size_t from, size_t num)
 {
 	if (decryptors != nullptr)

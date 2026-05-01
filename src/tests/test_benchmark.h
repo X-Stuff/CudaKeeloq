@@ -10,7 +10,9 @@ struct BruteforceConfig;
 
 namespace benchmark
 {
-    void run(const CommandLineArgs& args, const BruteforceConfig& benchmarkConfig, const std::vector<uint16_t>& CudaBlocks, const std::vector<uint16_t>& CudaThreads);
+    bool run(const CommandLineArgs& args, const BruteforceConfig& benchmarkConfig, uint16_t CudaBlocks, uint16_t CudaThreads);
+
+    void run(const CommandLineArgs& args, const BruteforceConfig& benchmarkConfig);
 
     void all(const CommandLineArgs& args);
 }
