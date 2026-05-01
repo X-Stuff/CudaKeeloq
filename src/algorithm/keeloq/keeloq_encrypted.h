@@ -14,13 +14,13 @@
 struct EncParcel
 {
     // Raw data transmitted over the air
-    uint64_t ota;
+    uint64_t ota = 0;
 
-    __host__ EncParcel() : EncParcel(0) { }
+    __device__ __host__ constexpr EncParcel() : ota(0), fixed(0), hopping(0) { }
 
     __device__ __host__ EncParcel(uint64_t atad) : ota(atad)
     {
-        uint64_t data = misc::rev_bits(atad, sizeof(ota) * 8);
+        uint64_t data = misc::rev_bits(atad);
 
         fixed = (uint32_t)(data >> 32);
         hopping = (uint32_t)(data);
@@ -28,7 +28,10 @@ struct EncParcel
 
     __device__ __host__ EncParcel(uint32_t fix, uint32_t hop) : fixed(fix), hopping(hop)
     {
-        ota = (misc::rev_bits(hop) << 32) | misc::rev_bits(fix);
+        auto rev_hop = misc::rev_bits(hop);
+        auto rev_fix = misc::rev_bits(fix);
+
+        ota = rev_hop | (rev_fix >> 32);
     }
 
     // Fixed code in parcel
@@ -46,8 +49,8 @@ struct EncParcel
 private:
 
     // Fixed part of the parcel ( 28-bit serial | 4-bit button )
-    uint32_t fixed;
+    uint32_t fixed = 0;
 
     // Encrypted hopping code ( keeloq encrypted serial, button, counter )
-    uint32_t hopping;
+    uint32_t hopping = 0;
 };

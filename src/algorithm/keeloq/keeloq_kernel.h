@@ -2,6 +2,7 @@
 
 #include "common.h"
 
+#include "device/cuda_config.h"
 #include "device/cuda_context.h"
 #include "kernels/kernel_result.h"
 
@@ -191,7 +192,7 @@ namespace kernels
 __host__ bool cuda_is_working();
 
 // Main kernel launcher wrapper
-__host__ KernelResult cuda_brute(KeeloqKernelInput& mainInputs, uint16_t ThreadBlocks, uint16_t ThreadsInBlock);
+__host__ KernelResult cuda_brute(KeeloqKernelInput& mainInputs, const CudaConfig& config);
 
 // Single decrypt round with all learning types and modifications, used for testing and debugging
 __host__ SingleResult cuda_encdec(uint64_t ota, uint64_t man, uint32_t seed, bool isDecrypt);

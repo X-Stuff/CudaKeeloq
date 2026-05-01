@@ -110,6 +110,12 @@
     <ClInclude Include="src\tests\test_generators.h">
       <Filter>tests</Filter>
     </ClInclude>
+    <ClInclude Include="src\bruteforce\bruteforcer.h">
+      <Filter>bruteforce</Filter>
+    </ClInclude>
+    <ClInclude Include="src\device\cuda_config.h">
+      <Filter>device</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp" />
@@ -169,6 +175,9 @@
     </ClCompile>
     <ClCompile Include="src\tests\test_generators.cpp">
       <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="src\bruteforce\bruteforcer.cpp">
+      <Filter>bruteforce</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

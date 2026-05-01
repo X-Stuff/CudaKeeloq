@@ -38,16 +38,16 @@ bool tests::generators::pattern()
 {
     using namespace KeeloqLearning;
 
-    constexpr auto NumBlocks = 64;
-    constexpr auto NumThreads = 64;
+    static constexpr CudaConfig cudaConfig{ 64, 64, 1 };
+
     constexpr auto NumInputs = 3;
 
     const uint64_t debugKey = "hello_world"_u64;
 
-    CudaVector<EncParcel> encrypted  = tests::keeloq::gen_inputs(debugKey, NumInputs, LearningType::Simple);
+    auto inputs = tests::keeloq::gen_inputs(debugKey, NumInputs, LearningType::Simple);
 
-    CudaVector<Decryptor> decryptors(NumBlocks * NumThreads);
-    CudaVector<SingleResult> results(decryptors.size() * encrypted.size());
+    CudaVector<Decryptor> decryptors(cudaConfig.total());
+    CudaVector<SingleResult> results(decryptors.size() * inputs.size());
 
     BruteforceConfig config = GetSingleKeyConfig(debugKey);
     assert(config.type == BruteforceType::Pattern && "Invalid BruteforceConfig type, must be Pattern");
@@ -59,13 +59,12 @@ bool tests::generators::pattern()
     }
 
     KeeloqKernelInput generatorInputs;
-    generatorInputs.encdata = encrypted.gpu();
     generatorInputs.decryptors = decryptors.gpu();
     generatorInputs.results = results.gpu();
-    generatorInputs.Initialize(config, KeeloqLearning::Matrix::Everything());
+    generatorInputs.Initialize(config, inputs, KeeloqLearning::Matrix::Everything());
 
-    GeneratorBruteforce::PrepareDecryptors(generatorInputs, NumBlocks, NumThreads);
-    auto result = ::keeloq::kernels::cuda_brute(generatorInputs, NumBlocks, NumThreads);
+    GeneratorBruteforce::PrepareDecryptors(generatorInputs, cudaConfig);
+    auto result = ::keeloq::kernels::cuda_brute(generatorInputs, cudaConfig);
 
     decryptors.read();
     results.read();
@@ -74,30 +73,29 @@ bool tests::generators::pattern()
     return decryptors.cpu()[0].man() == debugKey;
 }
 
+
 bool tests::generators::seed()
 {
     using namespace KeeloqLearning;
 
-    constexpr auto NumBlocks = 64;
-    constexpr auto NumThreads = 64;
     constexpr auto NumTestRounds = 8;
     constexpr auto NumInputs = 3;
 
+    const CudaConfig cudaConfig{ 64, 64, 1 };
     const uint64_t debugKey = "hello_world"_u64;
 
-    CudaVector<EncParcel> encrypted = tests::keeloq::gen_inputs(debugKey, NumInputs, LearningType::Secure);
-    CudaVector<Decryptor> decryptors(NumBlocks * NumThreads);
-    CudaVector<SingleResult> results(decryptors.size() * encrypted.size());
+    const auto inputs = tests::keeloq::gen_inputs(debugKey, NumInputs, LearningType::Secure);
+    CudaVector<Decryptor> decryptors(cudaConfig.total());
+    CudaVector<SingleResult> results(decryptors.size() * inputs.size());
 
     BruteforceConfig config = BruteforceConfig::GetSeedBruteforce(Decryptor::Make(debugKey, 0, true));
     assert(config.type == BruteforceType::Seed && "Invalid BruteforceConfig type, must be Seed");
 
     // Initialize brute inputs manually
     KeeloqKernelInput generatorInputs;
-    generatorInputs.encdata = encrypted.gpu();
     generatorInputs.decryptors = decryptors.gpu();
     generatorInputs.results = results.gpu();
-    generatorInputs.Initialize(config, KeeloqLearning::Matrix::Everything());
+    generatorInputs.Initialize(config, inputs, KeeloqLearning::Matrix::Everything());
 
     uint64_t gen_seed_global = 0;
     for (int round = 0; round < NumTestRounds; ++round)
@@ -112,7 +110,7 @@ bool tests::generators::seed()
         }
 
         // This will generate decryptors in GPU memory
-        auto error = GeneratorBruteforce::PrepareDecryptors(generatorInputs, NumBlocks, NumThreads);
+        auto error = GeneratorBruteforce::PrepareDecryptors(generatorInputs, cudaConfig);
         assert(error == 0 && "Error during decryptors generation");
 
         decryptors.read();

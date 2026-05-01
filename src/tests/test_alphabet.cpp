@@ -1,4 +1,5 @@
 #include "tests/test_alphabet.h"
+#include "tests/test_keeloq.h"
 
 #include "device/cuda_vector.h"
 #include "kernels/kernel_result.h"
@@ -11,20 +12,20 @@
 bool tests::alphabet_generation()
 {
     // Filtered generator test itself
-    constexpr auto NumBlocks = 64;
-    constexpr auto NumThreads = 64;
+    constexpr CudaConfig Cuda { 64, 64, 1};
 
     auto testConfig = BruteforceConfig::GetAlphabet(Decryptor::Make(0, 0, true), "abcd"_b, 0xFFFFFFFF);
+    auto inputs = keeloq::gen_inputs(0x6161616161616161);
 
-    CudaVector<Decryptor> decryptors(NumBlocks * NumThreads);
+    CudaVector<Decryptor> decryptors(Cuda.blocks * Cuda.threads);
 
     KeeloqKernelInput generatorInputs;
     generatorInputs.decryptors = decryptors.gpu();
-    generatorInputs.Initialize(testConfig, KeeloqLearning::Matrix(KeeloqLearning::Matrix::kEverything));
+    generatorInputs.Initialize(testConfig, inputs, KeeloqLearning::Matrix(KeeloqLearning::Matrix::kEverything));
 
     for (int i = 0; i < 16; ++i)
     {
-        GeneratorBruteforce::PrepareDecryptors(generatorInputs, NumBlocks, NumThreads);
+        GeneratorBruteforce::PrepareDecryptors(generatorInputs, Cuda);
 
         decryptors.read();
 

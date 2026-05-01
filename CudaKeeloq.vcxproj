@@ -174,6 +174,7 @@
     <ClInclude Include="src\algorithm\multibase_digit.h" />
     <ClInclude Include="src\algorithm\multibase_number.h" />
     <ClInclude Include="src\algorithm\multibase_system.h" />
+    <ClInclude Include="src\bruteforce\bruteforcer.h" />
     <ClInclude Include="src\bruteforce\bruteforce_config.h" />
     <ClInclude Include="src\bruteforce\bruteforce_filters.h" />
     <ClInclude Include="src\bruteforce\bruteforce_pattern.h" />
@@ -183,6 +184,7 @@
     <ClInclude Include="src\common.h" />
     <ClInclude Include="src\device\cuda_array.h" />
     <ClInclude Include="src\device\cuda_common.h" />
+    <ClInclude Include="src\device\cuda_config.h" />
     <ClInclude Include="src\device\cuda_context.h" />
     <ClInclude Include="src\device\cuda_double_array.h" />
     <ClInclude Include="src\device\cuda_fixed_array.h" />
@@ -207,6 +209,7 @@
     <ClCompile Include="src\algorithm\keeloq\keeloq_kernel_input.cpp" />
     <ClCompile Include="src\algorithm\keeloq\keeloq_learning_types.cpp" />
     <ClCompile Include="src\algorithm\keeloq\keeloq_single_result.cpp" />
+    <ClCompile Include="src\bruteforce\bruteforcer.cpp" />
     <ClCompile Include="src\bruteforce\bruteforce_config.cpp" />
     <ClCompile Include="src\bruteforce\bruteforce_filters.cpp" />
     <ClCompile Include="src\bruteforce\bruteforce_pattern.cpp" />

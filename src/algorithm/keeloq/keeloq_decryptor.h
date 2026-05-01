@@ -43,25 +43,27 @@ public:
 
 public:
     // If this decryptor has seed (for special learning types)
-    __host__ __device__ inline bool has_seed() const { return seed_valid; }
+    __host__ __device__ __forceinline__ bool has_seed() const { return seed_valid; }
 
     // Get manufacturer key
-    __host__ __device__ inline uint64_t man() const { return key; }
+    __host__ __device__ __forceinline__ uint64_t man() const { return key; }
 
     // Get seed
-    __host__ __device__ inline uint32_t seed() const { return key_seed; }
+    __host__ __device__ __forceinline__ uint32_t seed() const { return key_seed; }
 
     // Get byte-reversed manufacturer key
-    __host__ __device__ inline uint64_t nam() const { return key_rev; }
+    __host__ __device__ __forceinline__ uint64_t nam() const { return misc::rev_bytes(key); }
+
+    // Get bit-reversed manufacturer key
+    __host__ __device__ __forceinline__ uint64_t nambits() const { return misc::rev_bits(key); }
 
     // If decryptor was initialized properly
-    __host__ __device__ inline bool is_valid() const { return key != 0; }
+    __host__ __device__ __forceinline__ bool is_valid() const { return key != 0; }
 
 private:
-
     __host__ __device__ Decryptor(uint64_t k) : Decryptor(k, 0, false) {}
 
-    __host__ __device__ Decryptor(uint64_t k, uint32_t s, bool seed_valid) : key(k), key_seed(s), key_rev(misc::rev_bytes(key)), seed_valid(seed_valid) {}
+    __host__ __device__ Decryptor(uint64_t k, uint32_t s, bool seed_valid) : key(k), key_seed(s), seed_valid(seed_valid) {}
 
 protected:
 
@@ -70,9 +72,6 @@ protected:
 
     // seed (for special learning types only)
     uint32_t key_seed = 0;
-
-    // reversed manufacturer key
-    uint64_t key_rev = 0;
 
     // flag that shows that this decryptor's seed is valid
     // Since we cannot use 0 or -1, since they potentially can be valid seeds

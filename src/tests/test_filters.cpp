@@ -1,4 +1,5 @@
 #include "tests/test_filters.h"
+#include "tests/test_keeloq.h"
 
 #include <cuda_runtime_api.h>
 
@@ -68,10 +69,10 @@ bool tests::filters_generation()
         }
 
         // Filtered generator test itself
-        constexpr auto NumBlocks = 32;
-        constexpr auto NumThreads = 512;
+        constexpr CudaConfig config = { 32, 1024, 1 };
 
         constexpr auto NumToGenerate = 0xFFFFF;
+        constexpr auto FilteredKey = 0xAADEADBEEFA63ED2;
 
         auto first_decryptor = Decryptor::Make(0xAADEADBEEFA00000, 0, true);
 
@@ -82,14 +83,15 @@ bool tests::filters_generation()
             });
 
         CudaVector<Decryptor> decryptors(NumToGenerate);
+        auto inputs = tests::keeloq::gen_inputs(FilteredKey);
 
         KeeloqKernelInput generatorInputs;
         generatorInputs.decryptors = decryptors.gpu();
-        generatorInputs.Initialize(testConfig, KeeloqLearning::Matrix(KeeloqLearning::Matrix::kEverything));
+        generatorInputs.Initialize(testConfig, inputs, KeeloqLearning::Matrix(KeeloqLearning::Matrix::kEverything));
 
         KernelResult result;
 
-        auto error = GeneratorBruteforce::PrepareDecryptors(generatorInputs, NumBlocks, NumThreads);
+        auto error = GeneratorBruteforce::PrepareDecryptors(generatorInputs, config);
         result_success &= error == 0;
 
         const auto& dcpu = decryptors.read().cpu();

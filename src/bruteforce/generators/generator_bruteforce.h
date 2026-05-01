@@ -6,6 +6,7 @@
 
 #include "algorithm/keeloq/keeloq_kernel_input.h"
 #include "kernels/kernel_result.h"
+#include "device/cuda_config.h"
 
 
 /**
@@ -26,13 +27,13 @@ struct IGenerator
 {
     typedef void(*KernelFunc)(KeeloqKernelInput::TCudaPtr input, KernelResult::TCudaPtr results);
 
-    static inline void LaunchKernel(uint16_t blocks, uint16_t threads, KeeloqKernelInput::TCudaPtr input, KernelResult::TCudaPtr results)
+    static inline void LaunchKernel(const CudaConfig& cuda, KeeloqKernelInput::TCudaPtr input, KernelResult::TCudaPtr results)
     {
         void* args[] = { &input, &results };
 
         auto* func = TSelf::GetKernelFunctionPtr();
 
-        auto error = cudaLaunchKernel((const void*)func, dim3(blocks), dim3(threads), args, 0, nullptr);
+        auto error = cudaLaunchKernel((const void*)func, dim3(cuda.blocks), dim3(cuda.threads), args, 0, nullptr);
         CUDA_CHECK(error);
     }
 };
@@ -43,7 +44,7 @@ struct GeneratorBruteforce
     // Decryptors are generated on GPU and stored in GPU memory
     //
     // Decryptors size MUST be `N * blocks * threads` where N > 0
-    static int PrepareDecryptors(KeeloqKernelInput& inputs, uint16_t blocks, uint16_t threads);
+    static int PrepareDecryptors(KeeloqKernelInput& inputs, const CudaConfig& cuda);
 };
 
 

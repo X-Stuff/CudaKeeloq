@@ -14,5 +14,7 @@ namespace benchmark
 
     void run(const CommandLineArgs& args, const BruteforceConfig& benchmarkConfig);
 
+    void real();
+
     void all(const CommandLineArgs& args);
 }

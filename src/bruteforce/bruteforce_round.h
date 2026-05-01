@@ -10,6 +10,7 @@
 #include "algorithm/keeloq/keeloq_encrypted.h"
 #include "algorithm/keeloq/keeloq_kernel_input.h"
 
+#include "device/cuda_config.h"
 #include "bruteforce/bruteforce_config.h"
 #include "kernels/kernel_result.h"
 
@@ -29,17 +30,15 @@
 struct BruteforceRound
 {
     // Construct round struct without specific learning type (means use all learnings)
-    BruteforceRound(const std::vector<EncParcel>& data, const BruteforceConfig& gen, uint32_t blocks, uint32_t threads, uint32_t iterations) :
-        BruteforceRound(data, gen, KeeloqLearning::Matrix::Everything(), blocks, threads, iterations) {}
+    BruteforceRound(const std::vector<EncParcel>& data, const BruteforceConfig& gen, const CudaConfig& config) :
+        BruteforceRound(data, gen, KeeloqLearning::Matrix::Everything(), config) {}
 
     // Construct round struct with only one selected learning type
-    BruteforceRound(const std::vector<EncParcel>& data, const BruteforceConfig& gen, KeeloqLearning::Pair single,
-        uint32_t blocks, uint32_t threads, uint32_t iterations) :
-        BruteforceRound(data, gen, KeeloqLearning::Matrix({ single }), blocks, threads, iterations) {}
+    BruteforceRound(const std::vector<EncParcel>& data, const BruteforceConfig& gen, KeeloqLearning::Pair single, const CudaConfig& config) :
+        BruteforceRound(data, gen, KeeloqLearning::Matrix({ single }), config) {}
 
     // Standard constructor
-    BruteforceRound(const std::vector<EncParcel>& data, const BruteforceConfig& gen, const KeeloqLearning::Matrix& learning_matrix,
-        uint32_t blocks, uint32_t threads, uint32_t iterations);
+    BruteforceRound(const std::vector<EncParcel>& data, const BruteforceConfig& gen, const KeeloqLearning::Matrix& learning_matrix, const CudaConfig& config);
 
     ~BruteforceRound()
     {
@@ -55,7 +54,7 @@ public:
 
     // Checks Kernel's results
     // Return true if Round should be finished
-    bool check_results(const KernelResult& result);
+    bool check_results(const KernelResult& result, const std::vector<EncParcel>& inputs);
 
     // Get allocated memory amount for data
     size_t get_mem_size(bool cpu = false) const;
@@ -72,23 +71,13 @@ public:
     std::string to_string() const;
 
 public:
-    // Return max memory usage per thread in bytes.
-    // Number of sub steps - configuration how many decryptors each thread should check.
-    //  by default is 1 and most likely should never be more.
-    // Usually each thread has 1 decryptor and 3 results (usually need 3 inputs)
-    static constexpr inline size_t GetMaxMemoryUsagePerThread(uint8_t numSubSteps = 1) { return numSubSteps * (sizeof(Decryptor) + sizeof(SingleResult) * 3); }
-
-    inline uint32_t CudaBlocks() const { return CUDASetup[0]; }
-
-    inline uint32_t CudaThreads() const { return CUDASetup[1]; }
-
-    inline uint32_t CudaThreadIterations() const { return CUDASetup[2]; }
-
     inline const BruteforceConfig& Config() const { assert(inited); return kernel_inputs.GetConfig(); }
 
     inline BruteforceType::Type Type() const { assert(inited); return Config().type; }
 
     inline KeeloqKernelInput& Inputs() { assert(inited); return kernel_inputs; }
+
+    inline const KeeloqKernelInput& Inputs() const { assert(inited); return kernel_inputs; }
 
 private:
 
@@ -106,8 +95,7 @@ private:
     //
     KeeloqKernelInput kernel_inputs;
 
-    // Constant per run
-    std::vector<EncParcel> encrypted_data;
+    uint8_t encrypted_data_num = 0;
 
-    uint32_t CUDASetup[3] = { 0 };
+    CudaConfig cudaConfig;
 };

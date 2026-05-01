@@ -4,51 +4,43 @@
 
 #include <cuda_runtime_api.h>
 
+#ifdef _MSC_VER
+    #include <intrin.h>
+#endif
+
 namespace misc
 {
 
-// device-faster version of byte reversing function
-__host__ __device__ __forceinline__ uint64_t rev_bytes(uint64_t input)
-{
-#if __CUDA_ARCH__
-    uint32_t key_lo = input;
-    uint32_t key_hi = input >> 32;
-
-    constexpr uint32_t selector_0 = 0x4567;
-    constexpr uint32_t selector_1 = 0x0123;
-
-    uint32_t key_rev_lo = __byte_perm(key_lo, key_hi, selector_0);
-    uint32_t key_rev_hi = __byte_perm(key_lo, key_hi, selector_1);
-
-    return ((uint64_t)key_rev_hi << 32) | key_rev_lo;
+__host__ __device__ __forceinline__ uint64_t rev_bits(uint64_t x) {
+#if defined(__CUDA_ARCH__)
+    // GPU: Hardware instruction
+    return __brevll(x);
 #else
-    uint64_t input_rev = 0;
-    uint64_t input_rev_byte = 0;
-    for (uint8_t i = 0; i < 64; i += 8)
-    {
-        input_rev_byte = (uint8_t)(input >> i);
-        input_rev = input_rev | input_rev_byte << (56 - i);
-    }
+    // CPU: MSVC, GCC, and Clang compatible
+    x = ((x & 0x5555555555555555ULL) << 1) | ((x & 0xAAAAAAAAAAAAAAAAULL) >> 1);
+    x = ((x & 0x3333333333333333ULL) << 2) | ((x & 0xCCCCCCCCCCCCCCCCULL) >> 2);
+    x = ((x & 0x0F0F0F0F0F0F0F0FULL) << 4) | ((x & 0xF0F0F0F0F0F0F0F0ULL) >> 4);
 
-    return input_rev;
+    #ifdef _MSC_VER
+        return _byteswap_uint64(x);
+    #else
+        return __builtin_bswap64(x);
+    #endif
 #endif
 }
 
-// Reverses amount of bits in @input
-__device__ __host__ __forceinline__ constexpr uint64_t rev_bits(uint64_t input, uint8_t rev_bit_count)
-{
-    uint64_t reverse_key = 0;
-    for (uint8_t i = 0; i < rev_bit_count; i++)
-    {
-        reverse_key = reverse_key << 1 | ((input >> i) & 1);
-    }
-    return reverse_key;
+__host__ __device__ __forceinline__ uint64_t rev_bytes(uint64_t x) {
+#if defined(__CUDA_ARCH__)
+    // GPU: Specific byte-swap intrinsic
+    return __nv_bswap64(x);
+#else
+    // CPU: Standard GCC/Clang/MSVC intrinsic
+    #ifdef _MSC_VER
+        return _byteswap_uint64(x);
+    #else
+        return __builtin_bswap64(x);
+    #endif
+#endif
 }
 
-// Reverses amount of bits in @input
-template<typename T>
-__device__ __host__ __forceinline__ constexpr uint64_t rev_bits(T input)
-{
-    return rev_bits((uint64_t)input, sizeof(T) * 8);
-}
 }

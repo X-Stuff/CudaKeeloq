@@ -2,12 +2,11 @@
 
 #include "stdio.h"
 
-#include "host/console.h"
-
 #include "algorithm/keeloq/keeloq_kernel.h"
 #include "bruteforce/generators/generator_bruteforce.h"
-#include "bruteforce/bruteforce_round.h"
+#include "bruteforce/bruteforcer.h"
 
+#include "host/console.h"
 #include "tests/test_all.h"
 
 CommandLineArgs demoTestCommandlineArgs(int num_gen_input = 3)
@@ -92,97 +91,21 @@ void bruteforce(const CommandLineArgs& args)
 
     printf("Total bruteforce configs to run: %zd\n", args.brute_configs.size());
 
+    Bruteforcer bruteforcer(args.inputs);
+
     for (const auto& config : args.brute_configs)
     {
         auto learningMatrix = KeeloqLearning::Matrix(args.selected_learning, args.selected_mod_mask);
 
-        BruteforceRound attackRound(args.inputs, config, learningMatrix, args.cuda_blocks, args.cuda_threads, args.cuda_loops);
-
-        printf("\nallocating...");
-        attackRound.Init();
-
-        printf("\rRunning...    \n%s\n", attackRound.to_string().c_str());
-
-        bool match = false;
-
-        const size_t batchesInRound = attackRound.num_batches();
-        const size_t keysInBatch = attackRound.keys_per_batch();
-
-        auto roundStartTime = std::chrono::system_clock::now();
-
-        for (size_t batch = 0; !match && batch < batchesInRound; ++batch)
+        SingleResult result = bruteforcer.run(config, args.cudaConfig(), learningMatrix);
+        if (result.hasMatch())
         {
-            auto batchStartTime = std::chrono::high_resolution_clock::now();
+            result.print(args.inputs);
 
-            KeeloqKernelInput& kernelInput = attackRound.Inputs();
-
-            if (attackRound.Type() != BruteforceType::Dictionary)
+            if (args.match_stop)
             {
-                if (batch != 0)
-                {
-                    // Make last decryptor from previous batch as first for this batch
-                    kernelInput.NextDecryptor();
-                }
-
-                // Generate decryptors (if available)
-                int error = GeneratorBruteforce::PrepareDecryptors(kernelInput, attackRound.CudaBlocks(), attackRound.CudaThreads());
-                if (error)
-                {
-                    printf("Error: Key generation resulted with error: %d", error);
-                    assert(false);
-                    return;
-                }
+                break;
             }
-            else
-            {
-                // Write next batch of keys from dictionary
-                kernelInput.WriteDecryptors(config.decryptors, batch * keysInBatch, keysInBatch);
-            }
-
-            // do the bruteforce
-            auto kernelResults = keeloq::kernels::cuda_brute(kernelInput, attackRound.CudaBlocks(), attackRound.CudaThreads());
-            match = attackRound.check_results(kernelResults);
-
-            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
-                std::chrono::high_resolution_clock::now() - batchStartTime);
-
-            if (batch == 0 || match)
-            {
-                console::set_cursor_state(false);
-                printf("\n\n\n");
-            }
-
-            if (!match)
-            {
-                auto kilo_result_per_second = duration.count() == 0 ? 0 : keysInBatch / duration.count();
-                auto progress_percent = (double)(batch + 1) / batchesInRound;
-
-                console_cursor_ret_up(2);
-
-                const Decryptor& last_used_decryptor = kernelInput.GetConfig().last;
-
-                printf("[%c][%zd/%zd]    %" PRIu64 "(ms)/batch Speed: %" PRIu64 " KKeys/s   Last key:0x%" PRIX64 " (%u)         \n",
-                    WAIT_CHAR(batch),
-                    batch, batchesInRound,
-                    duration.count(),
-                    kilo_result_per_second,
-                    last_used_decryptor.man(), last_used_decryptor.seed());
-
-                auto overall = std::chrono::duration_cast<std::chrono::seconds>(
-                    std::chrono::system_clock::now() - roundStartTime);
-
-                console::progress_bar(progress_percent, overall);
-            }
-        }
-
-        if (!match)
-        {
-            printf("\n\nAfter: %zd batches no results was found. Keys checked:%zd\n\n",
-                batchesInRound, batchesInRound * keysInBatch);
-        }
-        else if (args.match_stop)
-        {
-            break;
         }
     }
 }
@@ -208,6 +131,11 @@ int main(int argc, const char** argv)
     // Be default if no arguments specified - launch demo mode
     bool demo_mode = argc <= 1;
     auto args = demo_mode ? demoTestCommandlineArgs() : CommandLineArgs::parse(argc, argv);
+    if (args.print_version)
+    {
+        printf("Version: " APP_VERSION_STRING "\n");
+        return 0;
+    }
 
     bool had_tests = args.run_bench || args.run_tests;
 
@@ -215,6 +143,8 @@ int main(int argc, const char** argv)
     {
         printf("\n...RUNNING TESTS...\n");
         tests::console::run();
+
+        tests::check_utils();
 
         tests::generators::all();
         tests::alphabet_generation();

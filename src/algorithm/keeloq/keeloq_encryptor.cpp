@@ -11,7 +11,7 @@ EncParcel Encryptor::click(KeeloqLearning::LearningType ltype, KeeloqLearning::M
     assert(gpu_encrypted == cpu_encrypted && "GPU and CPU encryption results do not match");
 
     const uint64_t detpyrcne = ((uint64_t)fixed() << 32) | cpu_encrypted;
-    const auto ota = misc::rev_bits(detpyrcne, sizeof(detpyrcne) * 8);
+    const auto ota = misc::rev_bits(detpyrcne);
 
     const auto cpu_decrypted = cpu_decrypt(ota, ltype, lmod);
     const auto gpu_decrypted = gpu_decrypt(ota, ltype, lmod);
@@ -79,7 +79,7 @@ uint32_t Encryptor::cpu_encrypt(KeeloqLearning::LearningType ltype, KeeloqLearni
 
 uint32_t Encryptor::cpu_decrypt(uint64_t enc, KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Type lmod) const
 {
-    auto reversed_enc = misc::rev_bits(enc, sizeof(enc) * 8);
+    auto reversed_enc = misc::rev_bits(enc);
     auto hopping = (uint32_t)reversed_enc;
 
     const auto cpu_decrypted = keeloq::common::decrypt(hopping, man(ltype, lmod));

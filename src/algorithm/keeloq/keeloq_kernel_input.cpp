@@ -2,9 +2,38 @@
 #include "common.h"
 
 
+void KeeloqKernelInput::InitInputsCache(const std::vector<EncParcel>& inputs)
+{
+    // COPY TO CONSTANT CACHE ON GPU
+    inputsCount = static_cast<uint8_t>(inputs.size());
+    assert(inputsCount >= 1 && inputsCount <= 3 && "Invalid number of inputs. Must be between 1 and 3");
+
+    if (inputsCount > 2)
+    {
+        inputsFixMatch = inputs[0].fix() == inputs[1].fix() && inputs[1].fix() == inputs[2].fix();
+    }
+    else if (inputsCount > 1)
+    {
+        inputsFixMatch = inputs[0].fix() == inputs[1].fix();
+    }
+    else
+    {
+        inputsFixMatch = true;
+    }
+
+    // Constant per run
+    CudaFixedArray<EncParcel, 3> encrypted_array;
+    for (uint8_t i = 0; i < encrypted_array.size(); i++)
+    {
+        encrypted_array[i] = i < inputs.size() ? inputs[i] : EncParcel{};
+    }
+
+    CudaFixedArray<EncParcel, 3>::constant_copy(InputsCache, encrypted_array);
+}
+
 size_t KeeloqKernelInput::BytesAllocated() const
 {
-    return (encdata ? encdata->allocated() : 0) + (decryptors ? decryptors->allocated() : 0) + (results ? results->allocated() : 0);
+    return (decryptors ? decryptors->allocated() : 0) + (results ? results->allocated() : 0);
 }
 
 void KeeloqKernelInput::WriteDecryptors(const std::vector<Decryptor>& source, size_t from, size_t num)
@@ -25,11 +54,13 @@ void KeeloqKernelInput::NextDecryptor()
 	config.next_decryptor();
 }
 
-void KeeloqKernelInput::Initialize(const BruteforceConfig& inConfig, const KeeloqLearning::Matrix& inLearnings)
+void KeeloqKernelInput::Initialize(const BruteforceConfig& inConfig, const std::vector<EncParcel>& inInputs, const KeeloqLearning::Matrix& inLearnings)
 {
     config = inConfig;
     learnings = inLearnings;
     allLearnings = learnings.isAllEnabled();
+
+    InitInputsCache(inInputs);
 }
 
 void KeeloqKernelInput::BeforeGenerateDecryptors()
@@ -55,35 +86,5 @@ void KeeloqKernelInput::AfterGeneratedDecryptors()
 
 size_t KeeloqKernelInput::NumInputs() const
 {
-    assert(encdata != nullptr && "Encdata unknown yet!");
-
-    auto num = encdata ? encdata->host().num : 0;
-
-    assert(num >= 1 && num <= 3 && "NumInputs(): Most probably something was wrong with memory copying!");
-
-    return num;
-}
-
-bool KeeloqKernelInput::InputsFixMatch() const
-{
-    assert(encdata != nullptr && "Encdata unknown yet!");
-
-    if (encdata)
-    {
-        std::vector<EncParcel> enc_data;
-        encdata->copy(enc_data);
-
-        assert(enc_data.size() >= 1 && enc_data.size() <= 3 && "InputsFixMatch(): Most probably something was wrong with memory copying!");
-
-        if (enc_data.size() > 2)
-        {
-            return enc_data[0].fix() == enc_data[1].fix() && enc_data[1].fix() == enc_data[2].fix();
-        }
-        else if (enc_data.size() > 1)
-        {
-            return enc_data[0].fix() == enc_data[1].fix();
-        }
-    }
-
-    return false;
+    return inputsCount;
 }

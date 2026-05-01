@@ -23,4 +23,14 @@ struct CudaFixedArray
     __host__ __device__ __forceinline__ constexpr bool operator==(const CudaFixedArray<T, N>& other) const { return memcmp(data, other.data, Size * sizeof(T)) == 0; }
 
     T data[N];
+
+public:
+    // Number of allocated bytes in GPU memory for this array
+    inline static bool constant_copy(CudaFixedArray& target, const CudaFixedArray& src)
+    {
+        auto error = cudaMemcpyToSymbol(target.data, src.data, sizeof(CudaFixedArray));
+        CUDA_CHECK(error);
+
+        return error == cudaSuccess;
+    }
 };

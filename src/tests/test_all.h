@@ -11,5 +11,7 @@
 
 namespace tests
 {
-	__host__ bool cuda_check_working();
+    __host__ bool check_utils();
+
+    __host__ bool cuda_check_working();
 }

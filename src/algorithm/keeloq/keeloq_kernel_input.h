@@ -5,6 +5,7 @@
 #include <cstring> // memcpy
 
 #include "device/cuda_array.h"
+#include "device/cuda_fixed_array.h"
 #include "device/cuda_object.h"
 
 #include "algorithm/keeloq/keeloq_encrypted.h"
@@ -15,11 +16,13 @@
 #include "bruteforce/bruteforce_config.h"
 
 
+// Constant per-run input data (captured encoded)
+extern __constant__ CudaFixedArray<EncParcel, 3> InputsCache;
+
 // Input data for main keeloq calculation kernel
 struct KeeloqKernelInput : TGenericGpuObject<KeeloqKernelInput>
 {
-    // Constant per-run input data (captured encoded)
-    CudaArray<EncParcel>* encdata = nullptr;
+    uint8_t inputsCount = 0;
 
     // Single-run set of decryptors
     CudaArray<Decryptor>* decryptors = nullptr;
@@ -33,7 +36,7 @@ struct KeeloqKernelInput : TGenericGpuObject<KeeloqKernelInput>
 
     KeeloqKernelInput(KeeloqKernelInput&& other) noexcept : TGenericGpuObject<KeeloqKernelInput>(this)
     {
-        encdata = other.encdata;
+        inputsCount = other.inputsCount;
         decryptors = other.decryptors;
         results = other.results;
         config = other.config;
@@ -53,6 +56,8 @@ public:
     //
     __device__ __inline__ const BruteforceConfig& GetConfig() const { return config; }
 
+    __device__ void InitInputsCache(const std::vector<EncParcel>& inputs);
+
     // Number of bytes allocated for decryptors and results arrays. Used for performance metrics
     size_t BytesAllocated() const;
 
@@ -61,7 +66,7 @@ public:
 
     void NextDecryptor();
 
-    void Initialize(const BruteforceConfig& inConfig, const KeeloqLearning::Matrix& inLearnings);
+    void Initialize(const BruteforceConfig& inConfig, const std::vector<EncParcel>& inInputs, const KeeloqLearning::Matrix& inLearnings);
 
     // A "callback" which is called by generator. Used to prepare inputs for generators
     void BeforeGenerateDecryptors();
@@ -72,14 +77,17 @@ public:
     // Get Number of OTA inputs. Will do a GPU->CPU copy
     size_t NumInputs() const;
 
-    // Does the fixed parts of inputs match? Will do a GPU->CPU copy
-    bool InputsFixMatch() const;
+    bool InputsFixMatch() const { return inputsFixMatch; }
+
 private:
     // Which type of learning use for decryption
     KeeloqLearning::Matrix learnings;
 
     // optimizations. Just a bool field that could be accessed from GPU
     bool allLearnings = false;
+
+    // optimizations. Flag that shows that all fixed parts of inputs match.
+    bool inputsFixMatch = false;
 
     // from this decryptor generation will start
     BruteforceConfig config;

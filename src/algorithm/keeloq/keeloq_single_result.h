@@ -66,7 +66,7 @@ struct SingleResult
     };
 
     // Input encrypted data
-    EncParcel encrypted = {};
+    uint8_t inputIndex = 0xFF;
 
     // used manufacturer key and seed for this result
     Decryptor decryptor = {};
@@ -78,7 +78,14 @@ struct SingleResult
     // Set by GPU after analysis if there was a match
     KeeloqLearning::ResultIndex match = KeeloqLearning::NoMatch;
 
-	void print(bool onlymatch = true) const;
+public:
+    static SingleResult Invalid() { return SingleResult(); }
+
+    /** True if this result has match to inputs with the internal decryptor */
+    bool hasMatch() const { return match != KeeloqLearning::NoMatch; }
+
+    /** Prints decrypted results, all learnings or only one that matched */
+	void print(const std::vector<EncParcel>& inputs, bool onlymatch = true) const;
 };
 
 

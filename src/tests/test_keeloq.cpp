@@ -31,8 +31,8 @@ bool tests::keeloq::encparcel()
 {
     constexpr uint64_t OTA = 0x1122334455667788;
 
-    constexpr uint32_t FIX = misc::rev_bits(OTA) >> 32;
-    constexpr uint32_t HOP = static_cast<uint32_t>(misc::rev_bits(OTA));
+    const uint32_t FIX = misc::rev_bits(OTA) >> 32;
+    const uint32_t HOP = static_cast<uint32_t>(misc::rev_bits(OTA));
 
     EncParcel parcelOTA(OTA);
     assert(parcelOTA.ota == OTA);
@@ -50,13 +50,11 @@ bool tests::keeloq::encparcel()
     return memcmp(&parcelOTA, &parcelHopFix, sizeof(EncParcel)) == 0;
 }
 
-
 bool tests::keeloq::every_learning_with_mod(const BruteforceConfig& config)
 {
     using namespace KeeloqLearning;
 
-    static constexpr auto NumBlocks = 4;
-    static constexpr auto NumThreads = 4;
+    static const CudaConfig cudaConfig{ 4, 4, 1 };
 
     const bool config_valid = config.brute_size() <= 1 && config.dict_size() <= 1;
     if (!config_valid)
@@ -98,26 +96,25 @@ bool tests::keeloq::every_learning_with_mod(const BruteforceConfig& config)
             {
                 Encryptor encryptor(debug_key, debug_seed);
 
-                CudaVector<EncParcel> encrypted = gen_inputs(encryptor, numInputs, learningType, learningMod);
-                CudaVector<Decryptor> decryptors(NumBlocks * NumThreads);
-                CudaVector<SingleResult> results(decryptors.size() * encrypted.size());
+                const auto inputs = gen_inputs(encryptor, numInputs, learningType, learningMod);
+                CudaVector<Decryptor> decryptors(cudaConfig.total());
+                CudaVector<SingleResult> results(decryptors.size() * inputs.size());
 
                 KeeloqKernelInput generatorInputs;
-                generatorInputs.encdata = encrypted.gpu();
                 generatorInputs.decryptors = decryptors.gpu();
                 generatorInputs.results = results.gpu();
-                generatorInputs.Initialize(config, KeeloqLearning::Matrix::Everything());
+                generatorInputs.Initialize(config, inputs, KeeloqLearning::Matrix::Everything());
 
                 if (config.type != BruteforceType::Dictionary)
                 {
-                    GeneratorBruteforce::PrepareDecryptors(generatorInputs, NumBlocks, NumThreads);
+                    GeneratorBruteforce::PrepareDecryptors(generatorInputs, cudaConfig);
                 }
                 else
                 {
                     generatorInputs.WriteDecryptors(config.decryptors, 0, config.decryptors.size());
                 }
 
-                auto result = ::keeloq::kernels::cuda_brute(generatorInputs, NumBlocks, NumThreads);
+                auto result = ::keeloq::kernels::cuda_brute(generatorInputs, cudaConfig);
 
                 // read from GPU first (for debug)
                 decryptors.read();
@@ -182,7 +179,6 @@ bool tests::keeloq::every_learning_with_mod(const BruteforceConfig& config)
 
     return true;
 }
-
 
 bool tests::keeloq::every_brute_type()
 {

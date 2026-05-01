@@ -14,7 +14,6 @@ bool pattern();
  */
 bool seed();
 
-
 /**
  *  Run all test for generators
  */

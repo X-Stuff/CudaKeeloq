@@ -7,6 +7,7 @@
 #include "host/console.h"
 #include "host/timer.h"
 
+#include "bruteforce/bruteforcer.h"
 #include "bruteforce/generators/generator_bruteforce.h"
 #include "bruteforce/bruteforce_config.h"
 #include "bruteforce/bruteforce_round.h"
@@ -42,11 +43,12 @@ uint64_t getAvg(const std::vector<uint64_t>& batchesNumKeysPerMs)
 bool benchmark::run(const CommandLineArgs& args, const BruteforceConfig& benchmarkConfig, uint16_t numCudaBlocks, uint16_t numCudaThreads)
 {
     auto learningMatrix = KeeloqLearning::Matrix(args.selected_learning, args.selected_mod_mask);
+    CudaConfig cudaConfig{ numCudaBlocks, numCudaThreads, 1 };
 
-    // Allocations doesn't count
-    BruteforceRound benchmarkRound(args.inputs, benchmarkConfig, learningMatrix, numCudaBlocks, numCudaThreads, args.cuda_loops);
+    BruteforceRound benchmarkRound(args.inputs, benchmarkConfig, learningMatrix, cudaConfig);
     benchmarkRound.Init();
 
+    // Allocations time above doesn't count
     auto roundTimer = Timer<std::chrono::system_clock>::start();
 
     const size_t keysInBatch = benchmarkRound.keys_per_batch();
@@ -66,12 +68,11 @@ bool benchmark::run(const CommandLineArgs& args, const BruteforceConfig& benchma
             KeeloqKernelInput& kernelInput = benchmarkRound.Inputs();
             kernelInput.NextDecryptor();
 
-            GeneratorBruteforce::PrepareDecryptors(kernelInput, numCudaBlocks, numCudaThreads);
-            auto result = keeloq::kernels::cuda_brute(kernelInput, numCudaBlocks, numCudaThreads);
+            GeneratorBruteforce::PrepareDecryptors(kernelInput, cudaConfig);
+            auto result = keeloq::kernels::cuda_brute(kernelInput, cudaConfig);
             if (result.error)
             {
-                printf("Benchmark skipped. CUDA calculation error: %" PRIu16 "x %" PRIu16 "\n",
-                    numCudaBlocks, numCudaThreads);
+                printf("Benchmark skipped. CUDA calculation error: %" PRIu16 "x %" PRIu16 "\n", cudaConfig.blocks, cudaConfig.threads);
                 return false;
             }
         }
@@ -102,7 +103,7 @@ bool benchmark::run(const CommandLineArgs& args, const BruteforceConfig& benchma
     auto roundAvgSpeed = keysTotal / roundElapsedMs;
 
     // Creating results
-    printf("| CUDA: %5" PRIu16 " x %-5" PRIu16 " | MKeys: %3" PRIu64 " | GPU Memory (MB):%-6" PRIu64 " | Round: Time (ms):%-6" PRIu64 " | Avg. speed (K/s):%-7" PRIu64 " | Batch Avg. Speed (K/s):%-7" PRIu64 " | \n",
+    printf("| CUDA: %5" PRIu16 " x %-5" PRIu16 " | MKeys: %3" PRIu64 " | GPU Memory (MB):%-6" PRIu64 " | Round: Time (ms):%-6" PRIu64 " | Avg. speed (K/s):%-8" PRIu64 " | Batch Avg. Speed (K/s):%-8" PRIu64 " | \n",
         numCudaBlocks, numCudaThreads, keysTotal / 1000000,
         benchmarkRound.get_mem_size() / (1024 * 1024),
         roundElapsedMs, roundAvgSpeed,
@@ -111,11 +112,46 @@ bool benchmark::run(const CommandLineArgs& args, const BruteforceConfig& benchma
     return true;
 }
 
+
+void benchmark::real()
+{
+    constexpr uint64_t manDH = 0x8455F43584941223;
+    constexpr auto learningDH = KeeloqLearning::LearningType::Simple;
+
+    constexpr uint64_t manSommer = 0x7BCBEED4376EDCBF;
+    constexpr auto learningSommer = KeeloqLearning::LearningType::Normal;
+
+    //const std::vector<EncParcel> dhInputs       = { misc::rev_bits(0xFBE31D94BB33DD55), misc::rev_bits(0xD7577925BB33DD55), misc::rev_bits(0xAA17DD6CBB33DD55) }; //CNT: 2254
+    const std::vector<EncParcel> dhInputs       = tests::keeloq::gen_inputs(manDH);
+    const std::vector<EncParcel> sommerInputs   = { 0x54E9888FBB33DD55, 0x10439539BB33DD55, 0x3210C297BB33DD55 }; //CNT: 0019
+
+    auto dhBruteTime = std::chrono::seconds();
+    {
+        ScopeTimer timer(&dhBruteTime);
+
+        Bruteforcer bruteforcer(dhInputs);
+        BruteforceConfig simple = BruteforceConfig::GetBruteforce(Decryptor::MakeNoSeed(manDH & 0xFFFFFFFFFFFF0000), 0xFFFFFFFF);
+
+        auto result = bruteforcer.run(simple, CudaConfig::Optimal(), KeeloqLearning::Matrix::Everything());
+
+        assert(result.hasMatch() && "Benchmark real test failed, no match found for DH inputs");
+
+        assertf(result.match == KeeloqLearning::DecryptedResults::getIndex(learningDH, KeeloqLearning::Modifier::Type::Regular),
+            "Invalid match for real benchmark test, expected: %s (%s), got: %s (%s)",
+            KeeloqLearning::Name(learningDH), KeeloqLearning::Name(KeeloqLearning::Modifier::Type::Regular),
+            KeeloqLearning::Name(KeeloqLearning::DecryptedResults::getByIndex(result.match).type),
+            KeeloqLearning::Name(KeeloqLearning::DecryptedResults::getByIndex(result.match).mod));
+
+        result.print(dhInputs, false);
+    }
+    printf("\n\nReal benchmark for DH: Time (s): %" PRIu64 "\n\n", dhBruteTime.count());
+}
+
 void benchmark::run(const CommandLineArgs& args, const BruteforceConfig& benchmarkConfig)
 {
-    static const uint32_t MaxCudaThreads = CommandLineArgs::max_cuda_threads();
-    static const uint32_t MaxCudaBlocks = CommandLineArgs::max_cuda_blocks();
-    static const float MaxCudaMemory = (CommandLineArgs::max_global_memory() / static_cast<float>(1024 * 1024 * 1024));
+    static const uint32_t MaxCudaThreads = CudaConfig::MaxCudaThreads();
+    static const uint32_t MaxCudaBlocks = CudaConfig::MaxCudaBlocks();
+    static const float MaxCudaMemory = CudaConfig::MaxGlobalMemoryGB();
 
     printf("BENCHMARK BEGIN (Esc to skip)\n\nConfig is: %s\n", BruteforceType::Name(benchmarkConfig.type));
 #ifndef NO_INNER_LOOPS
@@ -149,8 +185,8 @@ void benchmark::all(const CommandLineArgs& args)
 {
     using namespace KeeloqLearning;
 
-    cudaDeviceProp prop;
-    cudaGetDeviceProperties(&prop, 0);
+    // Real test first
+    real();
 
     BruteforceConfig benchmarkConfig_no_seed = BruteforceConfig::GetAlphabet(Decryptor::MakeNoSeed(0), "0123456789abcdefgh"_b);
     BruteforceConfig benchmarkConfig_wt_seed = BruteforceConfig::GetAlphabet(Decryptor::Make(0, 1234567, true), "0123456789abcdefgh"_b);
@@ -170,6 +206,7 @@ void benchmark::all(const CommandLineArgs& args)
 
     copy.selected_learning = { LearningType::Simple };
     run(copy, benchmarkConfig_no_seed);
+    run(copy, benchmarkConfig_simple);
 
     copy.selected_learning = { LearningType::Normal };
     run(copy, benchmarkConfig_no_seed);

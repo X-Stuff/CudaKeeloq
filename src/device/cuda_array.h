@@ -43,28 +43,34 @@ struct CudaArray
     }
 
     // Copies data from GPU to @target array
-    inline size_t copy(std::vector<T>& target)
+    inline size_t copy(std::vector<T>& target) const
     {
         return TCudaArray::copy(this, target);
     }
 
+    // Copies data from GPU to @target array
+    inline std::vector<T> read(size_t index, size_t num) const
+    {
+        return TCudaArray::read(host(), index, num);
+    }
+
     // Copies self GPU object (without all underlying data in array)
     // into CPU memory
-    inline TCudaArray host()
+    inline TCudaArray host() const
     {
         // thiscall should work even with invalid pointer
         return TCudaArray::host(this);
     }
 
     // Number of allocated bytes in GPU memory for this array
-    inline size_t allocated()
+    inline size_t allocated() const
     {
         // thiscall should work even with invalid pointer
         return TCudaArray::host(this).num * sizeof(T);
     }
 
     // Copies this pointer (which assumes to be GPU) to host and return copy of the last element
-    inline T host_last()
+    inline T host_last() const
     {
         // thiscall should work even with invalid pointer
         TCudaArray HOST_array = TCudaArray::host(this);
@@ -84,6 +90,11 @@ public:
 
     static T read(const TCudaArray& HOST_Array, size_t index);
 
+    /**
+     *  Read data from GPU array at specified index, and return it.
+     */
+    static std::vector<T> read(const TCudaArray& HOST_Array, size_t index, size_t num);
+
     static size_t copy(const TCudaArray* array, std::vector<T>& target);
 
     static void write(TCudaArray* dest, const T* source, size_t num);
@@ -96,6 +107,20 @@ T CudaArray<T>::read(const TCudaArray& HOST_Array, size_t index)
 
     T result;
     auto error = cudaMemcpy(&result, &HOST_Array.CUDA_data[index], sizeof(T), cudaMemcpyDeviceToHost);
+    CUDA_CHECK(error);
+
+    return result;
+}
+
+template<typename T>
+std::vector<T> CudaArray<T>::read(const TCudaArray& HOST_Array, size_t index, size_t num)
+{
+    assert(index < HOST_Array.num);
+
+    auto elements = std::min(num, HOST_Array.num - index);
+
+    std::vector<T> result(elements);
+    auto error = cudaMemcpy(result.data(), &HOST_Array.CUDA_data[index], elements * sizeof(T), cudaMemcpyDeviceToHost);
     CUDA_CHECK(error);
 
     return result;

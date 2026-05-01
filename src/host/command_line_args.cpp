@@ -334,7 +334,6 @@ constexpr const char* Usage()
 CommandLineArgs CommandLineArgs::parse(int argc, const char** argv)
 {
     cxxopts::Options options(APP_NAME, R"(
-
   _______  _____  ___     __ __        __
  / ___/ / / / _ \/ _ |   / //_/__ ___ / /  ___  ___ _
 / /__/ /_/ / // / __ |  / ,< / -_) -_) /__/ _ \/ _ `/
@@ -345,7 +344,7 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv)
  / _  / __/ // / __/ -_) _/ _ \/ __/ __/ -_) __/
 /____/_/  \_,_/\__/\__/_/ \___/_/  \__/\__/_/
 
-)" " v" APP_VERSION_STRING);
+)" "                                               version:" APP_VERSION_STRING);
     options.set_width(::console::get_width())
         .allow_unrecognised_options()
         .add_options()
@@ -455,6 +454,8 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv)
     // tests
     args.run_tests = result[ARG_TEST].as<bool>();
 
+    args.print_version = result.count(ARG_VERSION) > 0;
+
     // benchmarks
     args.run_bench = result[ARG_BENCHMARK].as<bool>();
 
@@ -462,9 +463,9 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv)
     args.init_cuda(result[ARG_BLOCKS].as<uint16_t>(), result[ARG_THREADS].as<uint16_t>(),
         result.count(ARG_LOOPS) > 0 ? result[ARG_LOOPS].as<uint16_t>() : 1);
 
-    if (result.count(ARG_HELP) || result.arguments().size() == 0 || result.count(ARG_INPUTS) == 0)
+    if (result.count(ARG_HELP) || result.arguments().size() == 0 || result.count(ARG_INPUTS) == 0 || args.print_version)
     {
-        if (!args.run_tests && !args.run_bench)
+        if (!args.run_tests && !args.run_bench && !args.print_version)
         {
             printf("\n%s\n", options.help().c_str());
             printf("%s\n", Usage());
@@ -597,40 +598,9 @@ void CommandLineArgs::init_inputs(const std::vector<uint64_t>& inp)
 
 void CommandLineArgs::init_cuda(uint16_t blocks, uint16_t threads, uint8_t numSubSteps)
 {
+    auto optimal = CudaConfig::Optimal();
+
     cuda_loops      = numSubSteps;
-    cuda_threads    = threads ? threads : (uint16_t)max_cuda_threads();
-    cuda_blocks     = blocks ? blocks : max_cuda_blocks(numSubSteps);
+    cuda_threads    = threads ? threads : optimal.threads;
+    cuda_blocks     = blocks ? blocks : optimal.blocks;
  }
-
-uint32_t CommandLineArgs::max_cuda_threads()
- {
-     cudaDeviceProp prop;
-     cudaGetDeviceProperties(&prop, 0);
-
-     return prop.maxThreadsPerBlock;
- }
-
-uint32_t CommandLineArgs::max_cuda_blocks(uint8_t numSubSteps /*= 1*/)
- {
-     cudaDeviceProp prop;
-     cudaGetDeviceProperties(&prop, 0);
-
-     const auto thread_memory = prop.maxThreadsPerBlock * BruteforceRound::GetMaxMemoryUsagePerThread(numSubSteps);
-     const auto max_memory = max_global_memory();
-
-     const auto possible_blocks = max_memory / thread_memory;
-     const auto power = static_cast<int>(std::log2(possible_blocks));
-
-     auto result = std::min(static_cast<uint32_t>(1 << power), static_cast<uint32_t>(prop.maxGridSize[0]));
-     assert(result != 0 && "Number of max CUDA blocks was calculated incorrectly");
-
-     return result;
- }
-
-size_t CommandLineArgs::max_global_memory()
-{
-    cudaDeviceProp prop;
-    cudaGetDeviceProperties(&prop, 0);
-
-    return prop.totalGlobalMem;
-}

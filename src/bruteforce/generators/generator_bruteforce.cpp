@@ -2,9 +2,10 @@
 
 #include "algorithm/keeloq/keeloq_kernel_input.h"
 #include "kernels/kernel_result.h"
+#include "device/cuda_config.h"
 
 
-int GeneratorBruteforce::PrepareDecryptors(KeeloqKernelInput& inputs, uint16_t blocks, uint16_t threads)
+int GeneratorBruteforce::PrepareDecryptors(KeeloqKernelInput& inputs, const CudaConfig& cuda)
 {
     const BruteforceConfig& config = inputs.GetConfig();
     KernelResult generator_results;
@@ -15,23 +16,23 @@ int GeneratorBruteforce::PrepareDecryptors(KeeloqKernelInput& inputs, uint16_t b
     {
     case BruteforceType::Simple:
     {
-        GeneratorBruteforceSimple::LaunchKernel(blocks, threads, inputs.ptr(), generator_results.ptr());
+        GeneratorBruteforceSimple::LaunchKernel(cuda, inputs.ptr(), generator_results.ptr());
         break;
     }
     case BruteforceType::Seed:
     {
-        GeneratorBruteforceSeed::LaunchKernel(blocks, threads, inputs.ptr(), generator_results.ptr());
+        GeneratorBruteforceSeed::LaunchKernel(cuda, inputs.ptr(), generator_results.ptr());
         break;
     }
     case BruteforceType::Filtered:
     {
-        GeneratorBruteforceFiltered::LaunchKernel(blocks, threads, inputs.ptr(), generator_results.ptr());
+        GeneratorBruteforceFiltered::LaunchKernel(cuda, inputs.ptr(), generator_results.ptr());
         break;
     }
     case BruteforceType::Pattern:
     case BruteforceType::Alphabet:
     {
-        GeneratorBruteforcePattern::LaunchKernel(blocks, threads, inputs.ptr(), generator_results.ptr());
+        GeneratorBruteforcePattern::LaunchKernel(cuda, inputs.ptr(), generator_results.ptr());
         break;
     }
     case BruteforceType::Dictionary:

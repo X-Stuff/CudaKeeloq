@@ -10,21 +10,17 @@
 #include <cuda_runtime_api.h>
 
 
-BruteforceRound::BruteforceRound(const std::vector<EncParcel>& enc, const BruteforceConfig& config, const KeeloqLearning::Matrix& learning_matrix,
-    uint32_t blocks, uint32_t threads, uint32_t iterations)
-    : encrypted_data(enc)
+BruteforceRound::BruteforceRound(const std::vector<EncParcel>& inputs, const BruteforceConfig& config, const KeeloqLearning::Matrix& learning_matrix, const CudaConfig& cuda)
+    : cudaConfig(cuda)
 {
 #if NO_INNER_LOOPS
-    iterations = 1;
+    cudaConfig.substeps = 1;
 #endif
 
-    CUDASetup[0] = blocks;
-    CUDASetup[1] = threads;
-    CUDASetup[2] = iterations;
+    num_decryptors_per_batch = cudaConfig.blocks * cudaConfig.threads * cudaConfig.substeps;
 
-    num_decryptors_per_batch = iterations * threads * blocks;
-
-    kernel_inputs.Initialize(config, learning_matrix);
+    kernel_inputs.Initialize(config, inputs, learning_matrix);
+    encrypted_data_num = static_cast<uint8_t>(inputs.size());
 }
 
 bool BruteforceRound::read_results_gpu(std::vector<SingleResult>& container) const
@@ -40,7 +36,7 @@ bool BruteforceRound::read_results_gpu(std::vector<SingleResult>& container) con
     return num_copied > 0;
 }
 
-bool BruteforceRound::check_results(const KernelResult& result)
+bool BruteforceRound::check_results(const KernelResult& result, const std::vector<EncParcel>& inputs)
 {
     if (result.error < 0)
     {
@@ -55,28 +51,9 @@ bool BruteforceRound::check_results(const KernelResult& result)
     if (result.value > 0)
     {
         printf("Matches count: %d\n", result.value);
-
-        std::vector<SingleResult> all_results;
-        if (!read_results_gpu(all_results))
-        {
-            printf("Failed to read results from GPU. Round should be finished!\n");
-            return true;
-        }
-
-        for (const auto& result : all_results)
-        {
-            if (result.match == KeeloqLearning::NoMatch)
-            {
-                continue;
-            }
-
-            result.print();
-        }
-
-        return true;
     }
 
-    return false;
+    return result.value != 0;
 }
 
 size_t BruteforceRound::get_mem_size(bool cpu) const
@@ -85,7 +62,7 @@ size_t BruteforceRound::get_mem_size(bool cpu) const
 
     if (cpu)
     {
-        return encrypted_data.size() * sizeof(EncParcel);
+        return encrypted_data_num * sizeof(EncParcel);
     }
     else
     {
@@ -115,7 +92,7 @@ size_t BruteforceRound::keys_per_batch() const
 
 size_t BruteforceRound::results_per_batch() const
 {
-    return encrypted_data.size() * num_decryptors_per_batch;
+    return encrypted_data_num * num_decryptors_per_batch;
 }
 
 void BruteforceRound::Init()
@@ -133,15 +110,15 @@ std::string BruteforceRound::to_string() const
     assert(inited);
 
     return str::format<std::string>("Setup:\n"
-        "\tCUDA: Blocks:%u Threads:%u Iterations:%u\n"
-        "\tCUDA: Used memory:%zd\n"
-        "\tEncrypted data size:%zd\n"
-        "\tResults per batch:%zd\n"
+        "\tCUDA: Blocks:%u Threads:%u Substeps:%u\n"
+        "\tCUDA: Used memory: %.1f GB\n"
+        "\tInputs num: %u\n"
+        "\tResults per batch: %zd\n"
         "\tDecryptors per batch:%zd\n"
-        "\tConfig: %s"
-        "\tLearning Matrix:%s\n",
-        CudaBlocks(), CudaThreads(), CudaThreadIterations(), get_mem_size(false),
-        encrypted_data.size(), results_per_batch(), keys_per_batch(), Config().toString().c_str(),
+        "\tConfig: %s\n"
+        "\tLearning: %s\n",
+        cudaConfig.blocks, cudaConfig.threads, cudaConfig.substeps, (get_mem_size(false) / static_cast<float>(1024 * 1024 * 1024)),
+        encrypted_data_num, results_per_batch(), keys_per_batch(), Config().toString().c_str(),
         kernel_inputs.GetLearningMatrix().to_string().c_str());
 }
 
@@ -149,16 +126,11 @@ std::string BruteforceRound::to_string() const
 void BruteforceRound::alloc()
 {
     //
-    assert(kernel_inputs.encdata == nullptr		&& "Encrypted data already allocated on GPU");
     assert(kernel_inputs.decryptors == nullptr	&& "Decryptors data already allocated on GPU");
     assert(kernel_inputs.results == nullptr		&& "Results data already allocated on GPU");
 
-    // ALLOCATE ON GPU
-    if (kernel_inputs.encdata == nullptr)
-    {
-        kernel_inputs.encdata = CudaArray<EncParcel>::allocate(encrypted_data);
-    }
 
+    // ALLOCATE ON GPU
     if (kernel_inputs.decryptors == nullptr)
     {
         kernel_inputs.decryptors = CudaArray<Decryptor>::allocate(num_decryptors_per_batch);
@@ -172,12 +144,6 @@ void BruteforceRound::alloc()
 
 void BruteforceRound::free()
 {
-    if (kernel_inputs.encdata != nullptr)
-    {
-        kernel_inputs.encdata->free();
-        kernel_inputs.encdata = nullptr;
-    }
-
     if (kernel_inputs.decryptors != nullptr)
     {
         kernel_inputs.decryptors->free();
@@ -189,6 +155,4 @@ void BruteforceRound::free()
         kernel_inputs.results->free();
         kernel_inputs.results = nullptr;
     }
-
-    encrypted_data.clear();
 }
