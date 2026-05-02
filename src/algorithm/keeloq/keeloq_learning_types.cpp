@@ -1,4 +1,5 @@
 #include "keeloq_learning_types.h"
+#include "bruteforce/bruteforce_config.h"
 
 #include <string>
 #include <array>
@@ -67,10 +68,13 @@ Matrix::Matrix(const std::vector<LearningType>& types, Modifier::Mask mask) : ma
 
 }
 
-std::string Matrix::to_string() const
+std::string Matrix::to_string(const BruteforceConfig* bruteConfig) const
 {
     char buffer[8196];
     int at = 0;
+
+    const bool withSeed = bruteConfig == nullptr || bruteConfig->has_seed();
+    const bool seedOnly = bruteConfig != nullptr && bruteConfig->type == BruteforceType::Seed;
 
     at += snprintf(&buffer[at], sizeof(buffer) - at, "Matrix:\n" "      Simple Normal Secure Xor Faac Serial1 Serial2 Serial3\n");
 
@@ -82,14 +86,14 @@ std::string Matrix::to_string() const
 
         at += snprintf(&buffer[at], sizeof(buffer) - at, "%s:    %-6s %-6s %-5s %-3s %-5s %-7s %-7s %-7s\n",
             ModNames[i],
-            isEnabled(LearningType::Simple, mod) ? "+" : " ",
-            isEnabled(LearningType::Normal, mod) ? "+" : " ",
-            isEnabled(LearningType::Secure, mod) ? "+" : " ",
-            isEnabled(LearningType::Xor,   mod) ? "+" : " ",
-            isEnabled(LearningType::Faac,  mod) ? "+" : " ",
-            isEnabled(LearningType::Serial1, mod) ? "+" : " ",
-            isEnabled(LearningType::Serial2, mod) ? "+" : " ",
-            isEnabled(LearningType::Serial3, mod) ? "+" : " "
+            (isEnabled(LearningType::Simple, mod) && !seedOnly)     ? "+" : " ",
+            (isEnabled(LearningType::Normal, mod) && !seedOnly)     ? "+" : " ",
+            (isEnabled(LearningType::Secure, mod) && withSeed)      ? "+" : " ",
+            (isEnabled(LearningType::Xor,   mod) && !seedOnly)      ? "+" : " ",
+            (isEnabled(LearningType::Faac,  mod) && withSeed)       ? "+" : " ",
+            (isEnabled(LearningType::Serial1, mod) && !seedOnly)    ? "+" : " ",
+            (isEnabled(LearningType::Serial2, mod) && !seedOnly)    ? "+" : " ",
+            (isEnabled(LearningType::Serial3, mod) && !seedOnly)    ? "+" : " "
         );
     }
 

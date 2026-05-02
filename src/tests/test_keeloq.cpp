@@ -54,7 +54,7 @@ bool tests::keeloq::every_learning_with_mod(const BruteforceConfig& config)
 {
     using namespace KeeloqLearning;
 
-    static const CudaConfig cudaConfig{ 4, 4, 1 };
+    static const CudaConfig cudaConfig = CudaConfig::Tests();
 
     const bool config_valid = config.brute_size() <= 1 && config.dict_size() <= 1;
     if (!config_valid)
@@ -114,24 +114,29 @@ bool tests::keeloq::every_learning_with_mod(const BruteforceConfig& config)
                     generatorInputs.WriteDecryptors(config.decryptors, 0, config.decryptors.size());
                 }
 
-                auto result = ::keeloq::kernels::cuda_brute(generatorInputs, cudaConfig);
+                auto kenelResult = ::keeloq::kernels::cuda_brute(generatorInputs, cudaConfig);
 
                 // read from GPU first (for debug)
                 decryptors.read();
                 results.read();
 
+                assertf(kenelResult.cudaError == cudaSuccess, "CUDA error during bruteforce:'%s' ! Error code: %d, Inputs: %d, learning type: %s, modifier: %s",
+                    cudaGetErrorString(kenelResult.cudaError), kenelResult.cudaError, numInputs, KeeloqLearning::Name(learningType), KeeloqLearning::Name(learningMod));
+
                 // Check were not errors
-                if (result.error != 0)
+                if (kenelResult.threadsFinished() != cudaConfig.threadsCount())
                 {
-                    assertf(result.error == 0, "Error during bruteforce! Inputs:%d, learning type: %s, modifier: %s",
-                        numInputs, KeeloqLearning::Name(learningType), KeeloqLearning::Name(learningMod));
+                    assertf(kenelResult.threadsFinished() == cudaConfig.threadsCount(),
+                        "Fatal Error during bruteforce! Number of real calculations:%u  doesn't match configured:%u . Inputs:%d, learning type: %s, modifier: %s",
+                        kenelResult.threadsFinished(), cudaConfig.threadsCount(), numInputs, KeeloqLearning::Name(learningType), KeeloqLearning::Name(learningMod));
                     return false;
                 }
 
                 // Check that we have matches
-                if (result.value == 0)
+                if (!kenelResult.hasMatch())
                 {
-                    assertf(result.value, "Bruteforce didn't succedded! Inputs: %d, learning type: %s, modifier: %s",
+                    assertf(kenelResult.hasMatch(),
+                        "Bruteforce didn't succedded! Inputs: %d, learning type: %s, modifier: %s",
                         numInputs, KeeloqLearning::Name(learningType), KeeloqLearning::Name(learningMod));
                     return false;
                 }
@@ -216,9 +221,30 @@ bool tests::keeloq::every_brute_type()
     return true;
 }
 
+
+bool tests::keeloq::check_kernel_results()
+{
+    KernelResult kr;
+
+    kr.onKernelFinish(1);
+    assert(kr.hasMatch() && "Must be match");
+    assert(kr.threadsFinished() == 1 && "Number of threads must be 1");
+
+    kr.onKernelFinish(0);
+    assert(kr.hasMatch() && "Must be still present!");
+    assert(kr.threadsFinished() == 2 && "Number of threads must be 2");
+
+    kr.onKernelFinish(1);
+    assert(kr.hasMatch() && "Second match should not reset first one");
+    assert(kr.threadsFinished() == 3 && "Number of threads must be 3");
+
+    return kr.hasMatch() && kr.threadsFinished() == 3;
+}
+
 bool tests::keeloq::all()
 {
     bool ok = true;
+    ok &= check_kernel_results();
     ok &= encparcel();
     ok &= every_brute_type();
 

@@ -89,7 +89,7 @@
       <ExtensibleWholeProgramCompilation>false</ExtensibleWholeProgramCompilation>
       <NvccCompilation>compile</NvccCompilation>
       <Keep>false</Keep>
-      <AdditionalOptions>--std=c++17 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>--std=c++17 --ptxas-options=-v %(AdditionalOptions)</AdditionalOptions>
     </CudaCompile>
     <CudaLink>
       <PerformDeviceLinkTimeOptimization>true</PerformDeviceLinkTimeOptimization>

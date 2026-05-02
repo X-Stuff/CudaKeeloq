@@ -54,7 +54,7 @@ public:
 
     // Checks Kernel's results
     // Return true if Round should be finished
-    bool check_results(const KernelResult& result, const std::vector<EncParcel>& inputs);
+    bool check_results(const KernelResult& result);
 
     // Get allocated memory amount for data
     size_t get_mem_size(bool cpu = false) const;

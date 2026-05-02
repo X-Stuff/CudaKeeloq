@@ -33,22 +33,14 @@ void SingleResult::LearningsArray::print() const
     }
 }
 
-void SingleResult::print(const std::vector<EncParcel>& inputs, bool onlymatch /* = true */) const
+void SingleResult::print(const std::vector<EncParcel>& inputs) const
 {
     printf("Results (Input: 0x%" PRIX64 " - Man key: 0x%" PRIX64 " - Seed: %u )\n\n",
         inputs[inputIndex].ota, decryptor.man(), decryptor.seed());
 
     for (auto resIndex = 0; resIndex < KeeloqLearning::DecryptedResults::InvalidIndex; ++resIndex)
     {
-        const bool isMatch = match == resIndex;
-        if (!onlymatch)
-        {
-            decrypted.print(resIndex, inputs[inputIndex].ota, isMatch);
-        }
-        else if (isMatch)
-        {
-            decrypted.print(resIndex, inputs[inputIndex].ota, isMatch);
-        }
+        decrypted.print(resIndex, inputs[inputIndex].ota, match == resIndex);
     }
     printf("\n");
 }

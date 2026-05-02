@@ -10,7 +10,6 @@
 
 namespace misc
 {
-
 __host__ __device__ __forceinline__ uint64_t rev_bits(uint64_t x) {
 #if defined(__CUDA_ARCH__)
     // GPU: Hardware instruction

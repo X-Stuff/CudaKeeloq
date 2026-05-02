@@ -38,9 +38,9 @@ bool tests::generators::pattern()
 {
     using namespace KeeloqLearning;
 
-    static constexpr CudaConfig cudaConfig{ 64, 64, 1 };
-
     constexpr auto NumInputs = 3;
+
+    const CudaConfig cudaConfig = CudaConfig::Tests();
 
     const uint64_t debugKey = "hello_world"_u64;
 
@@ -81,7 +81,7 @@ bool tests::generators::seed()
     constexpr auto NumTestRounds = 8;
     constexpr auto NumInputs = 3;
 
-    const CudaConfig cudaConfig{ 64, 64, 1 };
+    const CudaConfig cudaConfig = CudaConfig::Tests();
     const uint64_t debugKey = "hello_world"_u64;
 
     const auto inputs = tests::keeloq::gen_inputs(debugKey, NumInputs, LearningType::Secure);
@@ -110,8 +110,8 @@ bool tests::generators::seed()
         }
 
         // This will generate decryptors in GPU memory
-        auto error = GeneratorBruteforce::PrepareDecryptors(generatorInputs, cudaConfig);
-        assert(error == 0 && "Error during decryptors generation");
+        auto cudaError = GeneratorBruteforce::PrepareDecryptors(generatorInputs, cudaConfig);
+        assert(cudaError == cudaSuccess && "Error during decryptors generation");
 
         decryptors.read();
 

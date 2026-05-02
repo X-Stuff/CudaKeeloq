@@ -46,6 +46,10 @@ bool every_learning_with_mod(const BruteforceConfig& config);
  */
 bool every_brute_type();
 
+/**
+ *  Test kernel results logic works
+ */
+bool check_kernel_results();
 
 /**
  *  Launch all tests in this file

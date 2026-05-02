@@ -49,10 +49,10 @@ SingleResult Bruteforcer::run(const BruteforceConfig& config, const CudaConfig& 
             }
 
             // Generate decryptors (if available)
-            int error = GeneratorBruteforce::PrepareDecryptors(kernelInput, cuda);
-            if (error)
+            auto cudaError = GeneratorBruteforce::PrepareDecryptors(kernelInput, cuda);
+            if (cudaError != cudaSuccess)
             {
-                printf("Error: Key generation resulted with error: %d\n", error);
+                printf("Error: Key generation resulted with error: %s: %s\n", cudaGetErrorName(cudaError), cudaGetErrorString(cudaError));
                 assert(false);
                 return SingleResult::Invalid();
             }
@@ -65,7 +65,7 @@ SingleResult Bruteforcer::run(const BruteforceConfig& config, const CudaConfig& 
 
         // do the bruteforce
         lastResult = keeloq::kernels::cuda_brute(kernelInput, cuda);
-        if (attackRound.check_results(lastResult, inputs))
+        if (attackRound.check_results(lastResult))
         {
             break;
         }
@@ -90,7 +90,7 @@ SingleResult Bruteforcer::run(const BruteforceConfig& config, const CudaConfig& 
         console::progress_bar(progressPercent, roundTimer.elapsed_seconds());
     }
 
-    if (lastResult.value != 0)
+    if (lastResult.hasMatch())
     {
         return getMatchResult(attackRound);
     }

@@ -23,10 +23,21 @@
 #endif
 
 
+#ifndef WARP_SIZE
+#define WARP_SIZE 32
+#endif // !WARP_SIZE
+
 
 /************************************************************************/
 /*                  Bruteforce generator helper macros                  */
 /************************************************************************/
+
+#ifndef KERNEL_LAUNCH_BOUNDS_MAX_THREADS
+    #define KERNEL_LAUNCH_BOUNDS_MAX_THREADS 1024
+#endif
+
+#define KERNEL_LAUNCH_BOUNDS __launch_bounds__(KERNEL_LAUNCH_BOUNDS_MAX_THREADS, 1)
+
 #define GENERATOR_KERNEL_NAME(name) \
     Kernel_##name
 
@@ -34,7 +45,7 @@
     GetKernel_##name
 
 #define DEFINE_GENERATOR_KERNEL(name, ...) \
-    GENERATOR_KERNEL_NAME(name)(__VA_ARGS__)
+    KERNEL_LAUNCH_BOUNDS GENERATOR_KERNEL_NAME(name)(__VA_ARGS__)
 
 #define DEFINE_GENERATOR_GETTER(name) \
     extern "C" void* GENERATOR_KERNEL_GETTER_NAME(name)() { return (void*)&Kernel_##name; }

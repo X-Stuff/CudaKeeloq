@@ -36,24 +36,28 @@ bool BruteforceRound::read_results_gpu(std::vector<SingleResult>& container) con
     return num_copied > 0;
 }
 
-bool BruteforceRound::check_results(const KernelResult& result, const std::vector<EncParcel>& inputs)
+bool BruteforceRound::check_results(const KernelResult& result)
 {
-    if (result.error < 0)
+    if (result.cudaError != cudaSuccess)
     {
-        printf("Kernel fatal error: %d\n Round should be finished!\n", result.error);
+        printf("Kernel fatal error: %s: %s\n Round should be finished!\n", cudaGetErrorName(result.cudaError), cudaGetErrorString(result.cudaError));
         return true;
     }
-    else if (result.error != 0)
+
+    if (result.threadsFinished() != cudaConfig.threadsCount())
     {
-        printf("CUDA calculations num errors: %d\n", result.error);
+        printf("Kernel fatal error: Silent kernel crash happened. Expected number of calculations: %u, actual: %u\n",
+            cudaConfig.threadsCount(), result.threadsFinished());
+        return true;
     }
 
-    if (result.value > 0)
+    if (result.hasMatch())
     {
-        printf("Matches count: %d\n", result.value);
+        printf("Matches count: %d\n", result.hasMatch());
+        return true;
     }
 
-    return result.value != 0;
+    return false;
 }
 
 size_t BruteforceRound::get_mem_size(bool cpu) const
@@ -119,7 +123,7 @@ std::string BruteforceRound::to_string() const
         "\tLearning: %s\n",
         cudaConfig.blocks, cudaConfig.threads, cudaConfig.substeps, (get_mem_size(false) / static_cast<float>(1024 * 1024 * 1024)),
         encrypted_data_num, results_per_batch(), keys_per_batch(), Config().toString().c_str(),
-        kernel_inputs.GetLearningMatrix().to_string().c_str());
+        kernel_inputs.GetLearningMatrix().to_string(&Config()).c_str());
 }
 
 

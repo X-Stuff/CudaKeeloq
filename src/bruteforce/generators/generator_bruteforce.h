@@ -44,7 +44,7 @@ struct GeneratorBruteforce
     // Decryptors are generated on GPU and stored in GPU memory
     //
     // Decryptors size MUST be `N * blocks * threads` where N > 0
-    static int PrepareDecryptors(KeeloqKernelInput& inputs, const CudaConfig& cuda);
+    static cudaError_t PrepareDecryptors(KeeloqKernelInput& inputs, const CudaConfig& cuda);
 };
 
 

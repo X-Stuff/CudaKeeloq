@@ -11,6 +11,8 @@
 #include <type_traits>
 #include <string_view>
 
+struct BruteforceConfig;
+
 enum class LearningDecryptionMode
 {
     // Explicit defined learning types
@@ -517,7 +519,7 @@ public:
         matrix |= (1ULL << bitIndex);
     }
 
-    __host__ std::string to_string() const;
+    __host__ std::string to_string(const BruteforceConfig* config = nullptr) const;
 
 private:
     //  64 bits are too much, we have only 24 possible combinations,

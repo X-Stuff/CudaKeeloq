@@ -89,7 +89,7 @@ struct TGenericGpuObject
 		return SelfGpu.ptr();
 	}
 
-	void read()
+	virtual void read()
 	{
 		SelfGpu.read();
 	}

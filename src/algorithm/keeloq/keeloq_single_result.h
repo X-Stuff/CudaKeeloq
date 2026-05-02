@@ -84,8 +84,8 @@ public:
     /** True if this result has match to inputs with the internal decryptor */
     bool hasMatch() const { return match != KeeloqLearning::NoMatch; }
 
-    /** Prints decrypted results, all learnings or only one that matched */
-	void print(const std::vector<EncParcel>& inputs, bool onlymatch = true) const;
+    /** Prints decrypted results, all learnings (may be multiple matches) */
+	void print(const std::vector<EncParcel>& inputs) const;
 };
 
 

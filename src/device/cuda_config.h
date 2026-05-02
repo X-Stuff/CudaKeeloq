@@ -22,9 +22,17 @@ struct CudaConfig
     uint16_t substeps = 1;
 
 public:
-    inline size_t total() const
+    inline uint32_t total() const
     {
         return blocks * threads * substeps;
+    }
+
+    /**
+     *  Overall threads count (blocks * threads)
+     */
+    inline uint32_t threadsCount() const
+    {
+        return blocks * threads;
     }
 
 public:
@@ -34,7 +42,17 @@ public:
      */
     static CudaConfig Optimal()
     {
-        return { MaxCudaBlocks(), MaxCudaThreads(), 1 };
+        static CudaConfig optimal = { MaxCudaBlocks(), MaxCudaThreads(), 1 };
+        return optimal;
+    }
+
+    /**
+     *  CUDA config got test launches
+     */
+    static CudaConfig Tests()
+    {
+        static CudaConfig tests = { 1, MaxCudaThreads(), 1 };
+        return tests;
     }
 
     /**

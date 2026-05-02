@@ -69,7 +69,7 @@ bool tests::filters_generation()
         }
 
         // Filtered generator test itself
-        constexpr CudaConfig config = { 32, 1024, 1 };
+        const CudaConfig config = CudaConfig::Tests();
 
         constexpr auto NumToGenerate = 0xFFFFF;
         constexpr auto FilteredKey = 0xAADEADBEEFA63ED2;
@@ -89,10 +89,8 @@ bool tests::filters_generation()
         generatorInputs.decryptors = decryptors.gpu();
         generatorInputs.Initialize(testConfig, inputs, KeeloqLearning::Matrix(KeeloqLearning::Matrix::kEverything));
 
-        KernelResult result;
-
-        auto error = GeneratorBruteforce::PrepareDecryptors(generatorInputs, config);
-        result_success &= error == 0;
+        auto cudaError = GeneratorBruteforce::PrepareDecryptors(generatorInputs, config);
+        result_success &= cudaError == cudaSuccess;
 
         const auto& dcpu = decryptors.read().cpu();
 
@@ -106,6 +104,5 @@ bool tests::filters_generation()
         assert(found);
         result_success &= found;
 
-        result.read();
         return result_success;
     }
