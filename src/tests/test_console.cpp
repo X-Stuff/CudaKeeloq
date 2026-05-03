@@ -17,7 +17,7 @@ void print_args(const char** args, size_t num)
 }
 
 
-CommandLineArgs tests::console::run()
+void tests::console::run()
 {
     const char* commandline[] = {
         APP_NAME,
@@ -60,6 +60,17 @@ CommandLineArgs tests::console::run()
         "--" ARG_MODE"=5"
     };
 
+    const char* commandlineModesVariation[] = {
+        APP_NAME,
+        "--" ARG_INPUTS"=0xC65D52A0A81FD504,0xCCA9B335A81FD504,0xE0DA7372A81FD504",
+        "--" ARG_MODE"=5",
+        "--" ARG_CHECKINV"=true",
+        "--" ARG_CHECKREV"=true",
+        "--" ARG_NO_REGKEYS"=true",
+        "--" ARG_NO_NRMALGS"=true"
+
+    };
+
     // Print Help
     print_args(help, sizeof(help) / sizeof(char*));
     CommandLineArgs args = CommandLineArgs::parse(sizeof(help) / sizeof(char*), help);
@@ -78,5 +89,13 @@ CommandLineArgs tests::console::run()
     assert(args.run_bench);
     assert(args.run_tests);
 
-    return args;
+    print_args(commandlineModesVariation, sizeof(commandlineModesVariation) / sizeof(char*));
+    args = CommandLineArgs::parse(sizeof(commandlineModesVariation) / sizeof(char*), commandlineModesVariation);
+
+    assert(args.selected_algo_mods.size() == 1);
+    assert(args.selected_algo_mods[0] == KeeloqLearning::Modifier::Algo::Inverted);
+
+    assert(args.selected_input_mods.size() == 1);
+    assert(args.selected_input_mods[0] == KeeloqLearning::Modifier::Input::Reversed);
+
 }

@@ -386,16 +386,23 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv)
             "\n\t5: - Serial1"
             "\n\t6: - Serial2"
             "\n\t7: - Serial3"
-            "\nALL",
+            "\n\tALL",
             cxxopts::value<std::vector<std::string>>()->default_value("ALL"), "<type>")
+
         (ARG_CHECKREV,
             "Check also byte-reversed man keys during bruteforce, some manufacturers mixes up or do this intentionally. "
-            "You need this setting set to false only if you are doing, full 2^64 bruteforce.",
+            "You need this setting set to false only if you are doing, full 2^64 bruteforce.\n",
             cxxopts::value<bool>()->default_value("true"), "true|false")
+        (ARG_NO_REGKEYS,
+            "Disable regular keys checking during bruteforce. Set if to 'true' only if you want force check ONLY reversed keys.\n",
+            cxxopts::value<bool>()->default_value("false"), "true|false")
         (ARG_CHECKINV,
             "Check also inverted algorithms during bruteforce, some manufacturers mixes up or do this intentionally (multiplies time x2). "
-            "Affects only: Normal, Secure, FAAC learning types.",
+            "Affects only: Normal, Secure, FAAC learning types.\n",
             cxxopts::value<bool>()->default_value("true"), "true|false")
+        (ARG_NO_NRMALGS,
+            "Disable normal algorithms check. Set if to 'true' only if you want force check only other algorithms.",
+            cxxopts::value<bool>()->default_value("false"), "true|false")
 
         // Dictionaries files
         (ARG_WORDDICT, "Word dictionary file(s) or word(s) - contains hexadecimal strings which will be used as keys. e.g: 0xaabb1122 FFbb9800121212",
@@ -566,16 +573,28 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv)
         }
     }
 
-    // Learning modifications
+    // Modifications
     {
+        // By default we check normal keys
+        if (!result.count(ARG_NO_REGKEYS) || !result[ARG_NO_REGKEYS].as<bool>())
+        {
+            args.selected_input_mods.push_back(KeeloqLearning::Modifier::Input::Normal);
+        }
+
         if (result.count(ARG_CHECKREV) && result[ARG_CHECKREV].as<bool>())
         {
-            args.selected_mod_mask = args.selected_mod_mask | KeeloqLearning::Modifier::Mask::RevKey;
+            args.selected_input_mods.push_back(KeeloqLearning::Modifier::Input::ReversedKey);
+        }
+
+        // By default we use normal algos
+        if (!result.count(ARG_NO_NRMALGS) || !result[ARG_NO_NRMALGS].as<bool>())
+        {
+            args.selected_algo_mods.push_back(KeeloqLearning::Modifier::Algo::Normal);
         }
 
         if (result.count(ARG_CHECKINV) && result[ARG_CHECKINV].as<bool>())
         {
-            args.selected_mod_mask = args.selected_mod_mask | KeeloqLearning::Modifier::Mask::InvDec;
+            args.selected_algo_mods.push_back(KeeloqLearning::Modifier::Algo::Inverted);
         }
     }
 

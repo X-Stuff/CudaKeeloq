@@ -6,6 +6,6 @@ namespace tests
 {
 namespace console
 {
-    CommandLineArgs run();
+    void run();
 }
 }

@@ -86,7 +86,7 @@ void bruteforce(const CommandLineArgs& args)
     {
         printf("Bruteforcing without specific learning type (slower)"
             "(1 KKey/s == %u Kkc (keeloq calcs) per second)\n"
-            "In case of full range there also redundant checks since using _REV learning types ( X-00:11:22 == X_REV-22:11:00 )\n", KeeloqLearning::Registry::NumResults);
+            "In case of full range there also redundant checks since using _REV learning types ( X-00:11:22 == X_REV-22:11:00 )\n", KeeloqLearning::DecryptedArraySize);
     }
 
     printf("Total bruteforce configs to run: %zd\n", args.brute_configs.size());
@@ -95,7 +95,7 @@ void bruteforce(const CommandLineArgs& args)
 
     for (const auto& config : args.brute_configs)
     {
-        auto learningMatrix = KeeloqLearning::Matrix(args.selected_learning, args.selected_mod_mask);
+        auto learningMatrix = KeeloqLearning::Matrix(args.selected_learning, args.selected_input_mods, args.selected_algo_mods);
 
         SingleResult result = bruteforcer.run(config, args.cudaConfig(), learningMatrix);
         if (result.hasMatch())
@@ -142,15 +142,22 @@ int main(int argc, const char** argv)
     if (args.run_tests)
     {
         printf("\n...RUNNING TESTS...\n");
+#if _DEBUG
         tests::console::run();
+#endif
 
-        tests::check_utils();
+        bool tests_ok = tests::check_utils();
 
-        tests::generators::all();
-        tests::alphabet_generation();
-        tests::filters_generation();
-        tests::keeloq::all();
+        tests_ok &= tests::generators::all();
+        tests_ok &= tests::alphabet_generation();
+        tests_ok &= tests::filters_generation();
+        tests_ok &= tests::keeloq::all();
 
+        if (!tests_ok)
+        {
+            printf("\n...TESTS FAILED...\n");
+            return 1;
+        }
         printf("\n...TESTS FINISHED...\n");
     }
 

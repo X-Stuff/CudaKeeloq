@@ -7,13 +7,13 @@
 namespace KeeloqLearning
 {
 
-Matrix::Matrix(const std::initializer_list<Pair>& pairs) : matrix(0)
+Matrix::Matrix(const std::initializer_list<LearningItem>& params)
 {
-    if (pairs.size() > 0)
+    if (params.size() > 0)
     {
-        for (const auto& pair : pairs)
+        for (const auto& param : params)
         {
-            enable(pair.type, pair.mod);
+            enable(param.learning, param.imod, param.amod);
         }
     }
     else
@@ -22,50 +22,30 @@ Matrix::Matrix(const std::initializer_list<Pair>& pairs) : matrix(0)
     }
 }
 
-Matrix::Matrix(const std::vector<LearningType>& types, Modifier::Mask mask) : matrix(0)
+Matrix::Matrix(const std::vector<LearningType>& types, const std::vector<Modifier::Input>& iMods, const std::vector<Modifier::Algo>& aMods)
 {
-    if (types.empty())
+    if (types.empty() && iMods.empty() && aMods.empty())
     {
-        if (!!(mask & Modifier::Mask::All))
-        {
-            // Everything
-            matrix = kEverything;
-        }
-        else
-        {
-            // Everything but with mask
-            for (int lType = 0; lType < LearningTypesCount; ++lType)
-            {
-                auto type = static_cast<LearningType>(lType);
-                for (int mType = 0; mType < Modifier::Count; ++mType)
-                {
-                    auto mod = static_cast<Modifier::Type>(mType);
+        matrix = kEverything;
+        return;
+    }
 
-                    if (!!(mask & Modifier::ToMask(mod)))
-                    {
-                        enable(type, mod);
-                    }
-                }
+    static constexpr auto EveryLearning = EveryLearningType{};
+
+    const auto& typesToEnable = types.empty() ? std::vector<LearningType>(EveryLearning.begin(), EveryLearning.end()) : types;
+
+    assertf(!iMods.empty() && !aMods.empty(), "Input modifiers and Algo Modifiers must be provoided");
+
+    for (auto type : typesToEnable)
+    {
+        for (auto imod : iMods)
+        {
+            for (auto amod : aMods)
+            {
+                enable(type, imod, amod);
             }
         }
     }
-    else
-    {
-        // Specific
-        for (const auto& type : types)
-        {
-            for (int mType = 0; mType < Modifier::Count; ++mType)
-            {
-                auto mod = static_cast<Modifier::Type>(mType);
-
-                if (!!(mask & Modifier::ToMask(mod)))
-                {
-                    enable(type, mod);
-                }
-            }
-        }
-    }
-
 }
 
 std::string Matrix::to_string(const BruteforceConfig* bruteConfig) const
@@ -76,25 +56,38 @@ std::string Matrix::to_string(const BruteforceConfig* bruteConfig) const
     const bool withSeed = bruteConfig == nullptr || bruteConfig->has_seed();
     const bool seedOnly = bruteConfig != nullptr && bruteConfig->type == BruteforceType::Seed;
 
-    at += snprintf(&buffer[at], sizeof(buffer) - at, "Matrix:\n" "      Simple Normal Secure Xor Faac Serial1 Serial2 Serial3\n");
+    at += snprintf(&buffer[at], sizeof(buffer) - at, "Matrix:\n" "                     |  Simple |  Normal |  Secure |   Xor   |   Faac  | Serial1 | Serial2 | Serial3 |\n");
+    at += snprintf(&buffer[at], sizeof(buffer) - at,             "_____________________|_________|_________|_________|_________|_________|_________|_________|_________|\n");
 
-    static constexpr auto ModNames = std::array<const char*, Modifier::Count>{ "Reg", "Rev", "Inv" };
-
-    for (auto i = 0; i < Modifier::Count; ++i)
+    for (auto i = 0; i < Modifier::InputModCount; ++i)
     {
-        auto mod = static_cast<Modifier::Type>(i);
+        for (auto a = 0; a < Modifier::AlgoModCount; ++a)
+        {
+            auto imod = static_cast<Modifier::Input>(i);
+            auto amod = static_cast<Modifier::Algo>(a);
 
-        at += snprintf(&buffer[at], sizeof(buffer) - at, "%s:    %-6s %-6s %-5s %-3s %-5s %-7s %-7s %-7s\n",
-            ModNames[i],
-            (isEnabled(LearningType::Simple, mod) && !seedOnly)     ? "+" : " ",
-            (isEnabled(LearningType::Normal, mod) && !seedOnly)     ? "+" : " ",
-            (isEnabled(LearningType::Secure, mod) && withSeed)      ? "+" : " ",
-            (isEnabled(LearningType::Xor,   mod) && !seedOnly)      ? "+" : " ",
-            (isEnabled(LearningType::Faac,  mod) && withSeed)       ? "+" : " ",
-            (isEnabled(LearningType::Serial1, mod) && !seedOnly)    ? "+" : " ",
-            (isEnabled(LearningType::Serial2, mod) && !seedOnly)    ? "+" : " ",
-            (isEnabled(LearningType::Serial3, mod) && !seedOnly)    ? "+" : " "
-        );
+            at += snprintf(&buffer[at], sizeof(buffer) - at, "%8s - %8s: |", KeeloqLearning::Name(imod), KeeloqLearning::Name(amod));
+
+            for (auto learning : EveryLearningType{})
+            {
+                bool isLearningEnabled = isEnabled(learning, imod, amod);
+
+                if (HasSeed(learning))
+                {
+                    if (!withSeed)
+                    {
+                        isLearningEnabled = false;
+                    }
+                }
+                else if (seedOnly)
+                {
+                    isLearningEnabled = false;
+                }
+
+                at += snprintf(&buffer[at], sizeof(buffer) - at, "    %s    |", isLearningEnabled ? "+" : " ");
+            }
+            at += snprintf(&buffer[at], sizeof(buffer) - at, "\n");
+        }
     }
 
     return std::string(buffer);
@@ -116,13 +109,22 @@ const char* Name(LearningType type)
     }
 }
 
-const char* Name(Modifier::Type mod)
+const char* Name(Modifier::Algo amod)
 {
-    switch (mod)
+    switch (amod)
     {
-        case Modifier::Type::Regular: return "Regular";
-        case Modifier::Type::ReversedKey: return "ReversedKey";
-        case Modifier::Type::InvertedDec: return "InvertedDec";
+    case Modifier::Algo::Normal:    return "Usual";
+    case Modifier::Algo::Inverted:  return "Inverted";
+    default: return "Unknown";
+    }
+}
+
+const char* Name(Modifier::Input imod)
+{
+    switch (imod)
+    {
+        case Modifier::Input::Normal:       return "Nrm Key";
+        case Modifier::Input::ReversedKey:  return "Rev Key";
         default: return "Unknown";
     }
 }

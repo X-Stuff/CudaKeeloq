@@ -42,6 +42,21 @@ public:
 	}
 
 public:
+    // Get manufacturer key with reverse or normal byte order, depending on template parameter
+    // Declared as template to optimize and prettyfy code
+    template<bool IsReverse>
+    __host__ __device__ __forceinline__ uint64_t getKey() const
+    {
+        if constexpr (IsReverse)
+        {
+            return nam();
+        }
+        else
+        {
+            return man();
+        }
+    }
+
     // If this decryptor has seed (for special learning types)
     __host__ __device__ __forceinline__ bool has_seed() const { return seed_valid; }
 

@@ -60,7 +60,7 @@ struct SingleResult
             return ((*this)[index] & 0x0000FFFF);
         }
 
-        void print(uint8_t element, uint64_t ota, bool ismatch) const;
+        void print(const KeeloqLearning::LearningItem& item, uint32_t srl, KeeloqLearning::ResultIndex match) const;
 
         void print() const;
     };

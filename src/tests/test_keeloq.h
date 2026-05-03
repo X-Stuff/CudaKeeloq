@@ -13,13 +13,15 @@ namespace tests
 namespace keeloq
 {
 
-inline std::vector<EncParcel> gen_inputs(Encryptor& encryptor, uint8_t num = 3, KeeloqLearning::LearningType LType = KeeloqLearning::LearningType::Simple, KeeloqLearning::Modifier::Type LMod = KeeloqLearning::Modifier::Type::Regular)
+using namespace KeeloqLearning;
+
+inline std::vector<EncParcel> gen_inputs(Encryptor& encryptor, uint8_t num = 3, LearningType LType = LearningType::Simple, Modifier::Input iMod = Modifier::Input::Normal, Modifier::Algo aMod = Modifier::Algo::Normal)
 {
     std::vector<EncParcel> result;
 
     for (uint8_t i = 0; i < num; ++i)
     {
-        result.emplace_back(encryptor.click(LType, LMod));
+        result.emplace_back(encryptor.click(LType, iMod, aMod));
     }
 
     return result;
@@ -28,7 +30,7 @@ inline std::vector<EncParcel> gen_inputs(Encryptor& encryptor, uint8_t num = 3, 
 /**
  *  Generates `num` encrypted inputs with provided key, learning type and modifier.
  */
-std::vector<EncParcel> gen_inputs(uint64_t key, uint8_t num = 3, KeeloqLearning::LearningType LType = KeeloqLearning::LearningType::Simple, KeeloqLearning::Modifier::Type LMod = KeeloqLearning::Modifier::Type::Regular);
+std::vector<EncParcel> gen_inputs(uint64_t key, uint8_t num = 3, LearningType lType = LearningType::Simple, Modifier::Input iMod = Modifier::Input::Normal, Modifier::Algo aMod = Modifier::Algo::Normal);
 
 /**
  *  Test EncParcel class for valid OTA/fix/hop parsing and generation

@@ -34,7 +34,7 @@ struct BruteforceRound
         BruteforceRound(data, gen, KeeloqLearning::Matrix::Everything(), config) {}
 
     // Construct round struct with only one selected learning type
-    BruteforceRound(const std::vector<EncParcel>& data, const BruteforceConfig& gen, KeeloqLearning::Pair single, const CudaConfig& config) :
+    BruteforceRound(const std::vector<EncParcel>& data, const BruteforceConfig& gen, KeeloqLearning::LearningItem single, const CudaConfig& config) :
         BruteforceRound(data, gen, KeeloqLearning::Matrix({ single }), config) {}
 
     // Standard constructor
