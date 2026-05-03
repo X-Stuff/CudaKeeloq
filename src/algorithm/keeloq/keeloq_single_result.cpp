@@ -4,15 +4,6 @@
 
 #include "device/cuda_common.h"
 
-
-namespace
-{
-uint32_t SerialFromOTA(uint64_t ota)
-{
-    return (misc::rev_bits(ota) >> 32) & 0x0FFFFFFF;
-}
-}
-
 void SingleResult::LearningsArray::print(const KeeloqLearning::LearningItem& item, uint32_t srl, KeeloqLearning::ResultIndex match) const
 {
     const auto resIndex = KeeloqLearning::DecryptedResults::getIndex(item);

@@ -34,7 +34,7 @@ Matrix::Matrix(const std::vector<LearningType>& types, const std::vector<Modifie
 
     const auto& typesToEnable = types.empty() ? std::vector<LearningType>(EveryLearning.begin(), EveryLearning.end()) : types;
 
-    assertf(!iMods.empty() && !aMods.empty(), "Input modifiers and Algo Modifiers must be provoided");
+    assert(!iMods.empty() && !aMods.empty() && "Input modifiers and Algo Modifiers must be provided");
 
     for (auto type : typesToEnable)
     {

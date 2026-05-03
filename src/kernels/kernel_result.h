@@ -88,5 +88,6 @@ public:
     cudaError_t cudaError = cudaSuccess;
 
 private:
-    uint64_t packed = 0;
+    // Type is Clang/GNU compatibility, this is usual uint64_t
+    unsigned long long int packed = 0;
 };

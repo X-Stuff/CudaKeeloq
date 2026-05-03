@@ -493,11 +493,11 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv)
         {
             auto fix = args.inputs[0].fix();
 
-            for (int i = 1; i < args.inputs.size(); ++i)
+            for (size_t i = 1; i < args.inputs.size(); ++i)
             {
                 if (args.inputs[i].fix() != fix)
                 {
-                    printf("WARNING: Invalid input at index:%d (0x%016llX) fixed code doesn't match first input!\n",
+                    printf("WARNING: Invalid input at index:%zu (0x%016" PRIX64  ") fixed code doesn't match first input!\n",
                         i, args.inputs[i].ota);
                 }
             }

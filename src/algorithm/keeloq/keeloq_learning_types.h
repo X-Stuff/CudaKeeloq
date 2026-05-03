@@ -300,12 +300,6 @@ struct Registry
         return (Element<I>::NumMods + ... + 0);
     }
 
-    /** Real size of results array, only possible variation of algorithm modification counts */
-    static constexpr uint8_t RealAlgosNum = CountRealAlgos(LearningTypesSequence{});
-
-    /** Real size of results array, only possible variation of algorithm modification counts */
-    static constexpr uint8_t RealResultsNum = Modifier::InputModCount * RealAlgosNum;
-
 private:
     template<std::size_t... I>
     static constexpr bool ValidateOrder(std::index_sequence<I...>)
@@ -334,6 +328,32 @@ public:
     }
 };
 
+/**
+ *  Clang/GNU compatibility, it doesn't allow to initialize constexpr with constexpr method of the same class
+ */
+struct RegistryInfo
+{
+    /** Real size of results array, only possible variation of algorithm modification counts */
+    static constexpr uint8_t RealAlgosNum = Registry::CountRealAlgos(LearningTypesSequence{});
+
+    /** Real size of results array, only possible variation of algorithm modification counts */
+    static constexpr uint8_t RealResultsNum = Modifier::InputModCount * RealAlgosNum;
+
+public:
+    template<std::size_t I, std::size_t LCount>
+    static constexpr std::size_t ElementIndex() { return I % LCount; }
+
+    template<std::size_t I, std::size_t LCount>
+    static constexpr LearningType LearningFromIndex() { return static_cast<LearningType>(I % LCount); }
+
+    template<std::size_t I, std::size_t LCount, uint8_t ICount, uint8_t ACount>
+    static constexpr Modifier::Input IModFromIndex() { return static_cast<Modifier::Input>((I / (LCount * ACount) % ICount)); }
+
+    template<std::size_t I, std::size_t LCount, uint8_t ACount>
+    static constexpr Modifier::Algo AModFromIndex() { return static_cast<Modifier::Algo>((I / LCount) % ACount); }
+
+};
+
 /** Alias for indexer type in DecryptedResults, from index you can easily restore the Learning-Mod pair */
 using ResultIndex = uint8_t;
 
@@ -341,10 +361,10 @@ using ResultIndex = uint8_t;
 static constexpr const uint8_t IndicesCacheSize = LearningTypesCount * Modifier::AlgoModCount * Modifier::InputModCount;
 
 /** Size of the decrypted array (reduced only to real) */
-static constexpr const uint8_t DecryptedArraySize = Registry::RealResultsNum;
+static constexpr const uint8_t DecryptedArraySize = RegistryInfo::RealResultsNum;
 
 /** Value that points to the last element in the indices cache (Invalid) */
-static constexpr const ResultIndex InvalidResultIndex = Registry::RealResultsNum;
+static constexpr const ResultIndex InvalidResultIndex = RegistryInfo::RealResultsNum;
 
 
 /** Value if the result index that represents no match, Invalid Index points to the last (additional) element in array, however it is considered invalid */
@@ -362,7 +382,7 @@ struct IndexInResults
         {
             constexpr auto BaseIndex = Registry::CountRealAlgos(Sequence); // (Registry::Element<I>::NumMods + ... + 0);
 
-            return (BaseIndex + RegElement::template ModIndex<AMod>()) + (static_cast<uint8_t>(IMod) * Registry::RealAlgosNum);
+            return (BaseIndex + RegElement::template ModIndex<AMod>()) + (static_cast<uint8_t>(IMod) * RegistryInfo::RealAlgosNum);
         }
 
         return InvalidResultIndex;
@@ -392,26 +412,18 @@ struct DecryptedResults : public CudaFixedArray<uint32_t, DecryptedArraySize>
     };
 
 private:
-    template<std::size_t I, std::size_t LCount>
-    static constexpr std::size_t LearningIndex() { return I % LCount; }
-
-    template<std::size_t I, std::size_t LCount, uint8_t ICount, uint8_t ACount>
-    static constexpr Modifier::Input IModFromIndex() { return static_cast<Modifier::Input>((I / (LCount * ACount) % ICount)); }
-
-    template<std::size_t I, std::size_t LCount, uint8_t ACount>
-    static constexpr Modifier::Algo AModFromIndex() { return static_cast<Modifier::Algo>((I / LCount) % ACount); }
-
-    template<std::size_t I, std::size_t LCount>
-    static constexpr LearningType LTypeFromIndex() { return static_cast<LearningType>(LearningIndex<I, LCount>()); }
-
 
     /**
      *  Magic template alias that generates array of indices for all learning types and modifications, based on Registry::Available definition.
      */
     template<std::size_t LCount, uint8_t IModCount, uint8_t AModCount, std::size_t... I>
     using TIndicesType = ResultIndices<
-        (Registry::Element<LearningIndex<I, LCount>()>::HasMod(AModFromIndex<I, LCount, AModCount>())
-            ? IndexInResults<LTypeFromIndex<I, LCount>(), IModFromIndex<I, LCount, IModCount, AModCount>(), AModFromIndex<I, LCount, AModCount>()>::value
+        (Registry::Element<RegistryInfo::ElementIndex<I, LCount>()>::HasMod(RegistryInfo::AModFromIndex<I, LCount, AModCount>())
+            ? IndexInResults<
+                RegistryInfo::LearningFromIndex<I, LCount>(),
+                RegistryInfo::IModFromIndex<I, LCount, IModCount, AModCount>(),
+                RegistryInfo::AModFromIndex<I, LCount, AModCount>()
+              >::value
             : InvalidResultIndex)...>;
 
     /**
@@ -575,7 +587,7 @@ struct Matrix
             DecryptedResults::getIndex<LearningType::Simple, Modifier::Input::Normal, Modifier::Algo::Inverted>(),
             "getIndex() methods returned non-equal values");
 
-        static_assert(Registry::RealResultsNum == InvalidResultIndex, "TotalNum should match InvalidResultIndex it's basically the same");
+        static_assert(RegistryInfo::RealResultsNum == InvalidResultIndex, "TotalNum should match InvalidResultIndex it's basically the same");
         static_assert(LearningTypesCount == std::tuple_size_v<Registry::Available>, "AvailableLearnings definition missing some elements");
 #endif
     }

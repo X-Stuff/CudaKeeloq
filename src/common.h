@@ -19,7 +19,7 @@
         #define assertf(cond, fmt, ...) if (!(cond)) { printf("\n"); printf(fmt, __VA_ARGS__); printf("\n"); assert(cond && fmt && " *** details in console *** "); }
     #endif
 #else
-    #define assertf
+    #define assertf(...)
 #endif
 
 

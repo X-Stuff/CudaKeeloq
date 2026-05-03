@@ -73,7 +73,7 @@ bool benchmark::run(const std::vector<EncParcel>& inputs, const KeeloqLearning::
             auto cudaError = GeneratorBruteforce::PrepareDecryptors(kernelInput, cudaConfig);
             if (cudaError != cudaSuccess)
             {
-                printf("Benchmark skipped [% " PRIu16 " x %" PRIu16 " ]. CUDA calculation error: %s: %s\n",
+                printf("Benchmark skipped [%" PRIu16 " x %" PRIu16 " ]. CUDA calculation error: %s: %s\n",
                     numCudaBlocks, numCudaThreads, cudaGetErrorName(cudaError), cudaGetErrorString(cudaError));
                 return false;
             }

@@ -113,9 +113,15 @@ bool tests::generators::seed()
         auto cudaError = GeneratorBruteforce::PrepareDecryptors(generatorInputs, cudaConfig);
         assert(cudaError == cudaSuccess && "Error during decryptors generation");
 
+        if (cudaError != cudaSuccess)
+        {
+            printf("CUDA error occurred: %s\n", cudaGetErrorString(cudaError));
+            return false;
+        }
+
         decryptors.read();
 
-        for (auto index = 0; index < decryptors.cpu().size(); ++index, ++gen_seed_global)
+        for (size_t index = 0; index < decryptors.cpu().size(); ++index, ++gen_seed_global)
         {
             const auto& decryptor = decryptors.cpu()[index];
 

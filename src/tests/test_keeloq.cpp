@@ -61,7 +61,8 @@ bool tests::keeloq::every_learning_with_mod(const BruteforceConfig& config)
     const bool config_valid = config.brute_size() <= 1 && config.dict_size() <= 1;
     if (!config_valid)
     {
-        assertf(config_valid, "For test mode we need just 1 correct run, otherwise benchmark() need to be used!, <brute_size: %lld, dict_size: %lld>",
+        assertf(config_valid, "For test mode we need just 1 correct run, otherwise benchmark() need to be used!, "
+            "<brute_size: %" PRIu64 ", dict_size: %" PRIu64 ">",
             config.brute_size(), config.dict_size());
 
         return false;
@@ -156,7 +157,7 @@ bool tests::keeloq::every_learning_with_mod(const BruteforceConfig& config)
                     if (matched_decryptor.man() != debug_key)
                     {
                         assertf(matched_decryptor.man() == debug_key,
-                            "First decryptor didn't have correct MAN key. Expected: 0x%016llX, got: 0x%016llX. Inputs: %d, learning type: %s, input modifier: %s, algo modifier: %s",
+                            "First decryptor didn't have correct MAN key. Expected: 0x%016" PRIX64 " , got: 0x%016" PRIX64 ". Inputs: %d, learning type: %s, input modifier: %s, algo modifier: %s",
                             debug_key, matched_decryptor.man(), numInputs,
                             KeeloqLearning::Name(learningType), KeeloqLearning::Name(inputsModifier), KeeloqLearning::Name(algoModifier));
 

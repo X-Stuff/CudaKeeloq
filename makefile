@@ -15,7 +15,7 @@ CC_FLAGS=-std=c++17 -Wall
 CC_INCLUDE=-I./src/ -I./ThirdParty/ -I./ThirdParty/cpp-terminal
 
 NVCC=nvcc
-NVCC_FLAGS=--gpu-architecture=compute_86 --gpu-code=sm_86 --std=c++17 -rdc=true -dlto
+NVCC_FLAGS=-arch=sm_86 --std=c++17 -rdc=true
 NVCC_INCLUDE=-I./src/
 
 # CUDA library directory:
@@ -23,7 +23,7 @@ CUDA_LIB_DIR= -L$(CUDA_ROOT_DIR)/lib64
 # CUDA include directory:
 CUDA_INC_DIR= -I$(CUDA_ROOT_DIR)/include
 # CUDA linking libraries:
-CUDA_LINK_LIBS= -lcudart
+CUDA_LINK_LIBS= -lcudart -lcudadevrt
 
 
 # Configurations, default debug
@@ -32,13 +32,13 @@ all: debug
 
 release: OBJ_DIR=./$(ARCH)/$(CONFIG_RELEASE)/obj
 release: EXE_DIR=./$(ARCH)/$(CONFIG_RELEASE)/bin
-release: NVCC_FLAGS+= -use_fast_math -O3 -Xptxas -O3 --m64
+release: NVCC_FLAGS+= -use_fast_math -O3 -Xptxas -O3 --m64 -dlto
 release: CC_FLAGS+= -O3 -DNDEBUG
 release:link
 
 profile: OBJ_DIR=./$(ARCH)/$(CONFIG_PROFILE)/obj
 profile: EXE_DIR=./$(ARCH)/$(CONFIG_PROFILE)/bin
-profile: NVCC_FLAGS+= -lineinfo -use_fast_math
+profile: NVCC_FLAGS+= -lineinfo -use_fast_math -dlto
 profile: CC_FLAGS+= -DNDEBUG
 profile:link
 
@@ -56,11 +56,18 @@ CPP_OBJECTS = $(CPP_FILES:%.cpp=%.o)
 CUDA_FILES = $(shell find src/ -iname "*.cu")
 CUDA_OBJECTS = $(CUDA_FILES:%.cu=%.o)
 
+# Device link (required because we compile with -rdc=true)
+dlink: $(CUDA_OBJECTS)
+	$(NVCC) $(NVCC_FLAGS) $(NVCC_INCLUDE) -dlink \
+		$(addprefix $(OBJ_DIR)/, $(notdir $(CUDA_OBJECTS))) \
+		-o $(OBJ_DIR)/device_link.o
+
 # Link
-link: $(CPP_OBJECTS) $(CUDA_OBJECTS)
+link: $(CPP_OBJECTS) $(CUDA_OBJECTS) dlink
 	$(CC) $(CC_FLAGS) \
 		$(addprefix $(OBJ_DIR)/, $(notdir $(CPP_OBJECTS))) \
 		$(addprefix $(OBJ_DIR)/, $(notdir $(CUDA_OBJECTS))) \
+		$(OBJ_DIR)/device_link.o \
 		-o $(EXE_DIR)/$(TARGET_NAME) $(CUDA_INC_DIR) $(CUDA_LIB_DIR) $(CUDA_LINK_LIBS)
 
 # Compile C++
