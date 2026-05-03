@@ -233,7 +233,7 @@ void benchmark::all(const CommandLineArgs& args)
     console_clear();
 
     // Real test first
-    //real();
+    real();
 
     BruteforceConfig benchmarkConfig_no_seed = BruteforceConfig::GetAlphabet(Decryptor::MakeNoSeed(0), "0123456789abcdefgh"_b);
     BruteforceConfig benchmarkConfig_wt_seed = BruteforceConfig::GetAlphabet(Decryptor::Make(0, 1234567, true), "0123456789abcdefgh"_b);

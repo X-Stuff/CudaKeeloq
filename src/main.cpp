@@ -95,6 +95,7 @@ void bruteforce(const CommandLineArgs& args)
 
     for (const auto& config : args.brute_configs)
     {
+        printf("--------------------------------------------------------------------------------------------------------------");
         auto learningMatrix = KeeloqLearning::Matrix(args.selected_learning, args.selected_input_mods, args.selected_algo_mods);
 
         SingleResult result = bruteforcer.run(config, args.cudaConfig(), learningMatrix);
@@ -176,7 +177,7 @@ int main(int argc, const char** argv)
                    / // / -_)  ' \/ _ \  / /|_/ / _ \/ _  / -_)
                   /____/\__/_/_/_/\___/ /_/  /_/\___/\_,_/\__/
 
-                )");
+                )" "\nPrepared inputs, trying to bruteforce with different modes.\n");
         }
 
         bruteforce(args);
