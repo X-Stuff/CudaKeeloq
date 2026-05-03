@@ -40,12 +40,12 @@ uint64_t getAvg(const std::vector<uint64_t>& batchesNumKeysPerMs)
 }
 }
 
-bool benchmark::run(const CommandLineArgs& args, const BruteforceConfig& benchmarkConfig, uint16_t numCudaBlocks, uint16_t numCudaThreads)
+bool benchmark::run(const std::vector<EncParcel>& inputs, const KeeloqLearning::Matrix& learningMatrix, const BruteforceConfig& benchmarkConfig,
+    uint16_t numCudaBlocks, uint16_t numCudaThreads)
 {
-    auto learningMatrix = KeeloqLearning::Matrix(args.selected_learning);
     CudaConfig cudaConfig{ numCudaBlocks, numCudaThreads, 1 };
 
-    BruteforceRound benchmarkRound(args.inputs, benchmarkConfig, learningMatrix, cudaConfig);
+    BruteforceRound benchmarkRound(inputs, benchmarkConfig, learningMatrix, cudaConfig);
     benchmarkRound.Init();
 
     // Allocations time above doesn't count
@@ -188,14 +188,13 @@ void benchmark::real()
     printf("Real benchmark for Sommer: Time (s): %" PRIu64 "\n\n", sommerBruteTime.count());
 }
 
-void benchmark::run(const CommandLineArgs& args, const BruteforceConfig& benchmarkConfig)
+void benchmark::run(const std::vector<EncParcel>& inputs, const KeeloqLearning::Matrix& learningMatrix, const BruteforceConfig& benchmarkConfig)
 {
     static const uint32_t MaxCudaThreads = CudaConfig::MaxCudaThreads();
     static const uint32_t MaxCudaBlocks = CudaConfig::MaxCudaBlocks();
     static const float MaxCudaMemory = CudaConfig::MaxGlobalMemoryGB();
 
     const bool hasSeed = benchmarkConfig.has_seed();
-    const auto matrix = KeeloqLearning::Matrix(args.selected_learning);
 
     printf("BENCHMARK BEGIN (Esc to skip)\n\nConfig is: %s\n", BruteforceType::Name(benchmarkConfig.type));
 #ifndef NO_INNER_LOOPS
@@ -211,14 +210,17 @@ void benchmark::run(const CommandLineArgs& args, const BruteforceConfig& benchma
         MaxCudaBlocks, MaxCudaMemory, MaxCudaThreads,
         (TargetCalculations / 1000000),
         (hasSeed ? "true" : "false"),
-        matrix.to_string(&benchmarkConfig).c_str());
+        learningMatrix.to_string(&benchmarkConfig).c_str());
 
 
-    for (uint32_t numBlocks = 256; numBlocks <= MaxCudaBlocks; numBlocks *= 2)
+    for (uint32_t numBlocks = 1024; numBlocks <= MaxCudaBlocks; numBlocks *= 2)
     {
-        if (!run(args, benchmarkConfig, numBlocks, MaxCudaThreads))
+        for (uint32_t numThreads = 256; numThreads <= MaxCudaThreads; numThreads *= 2)
         {
-            return;
+            if (!run(inputs, learningMatrix, benchmarkConfig, numBlocks, numThreads))
+            {
+                return;
+            }
         }
     }
 
@@ -231,43 +233,41 @@ void benchmark::all(const CommandLineArgs& args)
     console_clear();
 
     // Real test first
-    real();
+    //real();
 
     BruteforceConfig benchmarkConfig_no_seed = BruteforceConfig::GetAlphabet(Decryptor::MakeNoSeed(0), "0123456789abcdefgh"_b);
     BruteforceConfig benchmarkConfig_wt_seed = BruteforceConfig::GetAlphabet(Decryptor::Make(0, 1234567, true), "0123456789abcdefgh"_b);
     BruteforceConfig benchmarkConfig_simple = BruteforceConfig::GetBruteforce(Decryptor::Make(0, 1234567, true), 1);
     BruteforceConfig benchmarkConfig_only_seed = BruteforceConfig::GetSeedBruteforce(Decryptor::Make(0, 0, true), 1);
 
-    CommandLineArgs copy = args;
 
     // Any inputs, we don't need to find the key
     constexpr auto NumInputs = 3;
-    copy.inputs = tests::keeloq::gen_inputs(0xFF123FF3434FFFFF, NumInputs, LearningType::Serial3);
+    auto inputs = tests::keeloq::gen_inputs(0xFF123FF3434FFFFF, NumInputs, LearningType::Serial3);
 
-    copy.selected_learning = {};
-    run(copy, benchmarkConfig_simple);
-    run(copy, benchmarkConfig_wt_seed);
-    run(copy, benchmarkConfig_no_seed);
-    run(copy, benchmarkConfig_only_seed);
+    auto learningMatrix = KeeloqLearning::Matrix({ LearningItem(LearningType::Simple, Modifier::Input::Normal, Modifier::Algo::Normal) });
+    run(inputs, learningMatrix, benchmarkConfig_simple);
 
-    copy.selected_learning = { LearningType::Simple };
-    run(copy, benchmarkConfig_no_seed);
-    run(copy, benchmarkConfig_simple);
+    learningMatrix = KeeloqLearning::Matrix({ LearningType::Simple });
+    run(inputs, learningMatrix, benchmarkConfig_wt_seed);
+    run(inputs, learningMatrix, benchmarkConfig_no_seed);
 
-    copy.selected_learning = { LearningType::Normal };
-    run(copy, benchmarkConfig_no_seed);
+    learningMatrix = KeeloqLearning::Matrix({ LearningType::Secure });
+    run(inputs, learningMatrix, benchmarkConfig_only_seed);
 
-    copy.selected_learning = { LearningType::Secure };
-    run(copy, benchmarkConfig_wt_seed);
+    learningMatrix = KeeloqLearning::Matrix({ LearningType::Simple });
+    run(inputs, learningMatrix, benchmarkConfig_no_seed);
+    run(inputs, learningMatrix, benchmarkConfig_simple);
 
-    copy.selected_learning = { LearningType::Faac };
-    run(copy, benchmarkConfig_wt_seed);
+    learningMatrix = KeeloqLearning::Matrix({ LearningType::Normal });
+    run(inputs, learningMatrix, benchmarkConfig_no_seed);
 
-    copy.selected_learning = { LearningType::Simple, LearningType::Normal, LearningType::Xor };
-    run(copy, benchmarkConfig_no_seed);
+    learningMatrix = KeeloqLearning::Matrix({ LearningType::Secure });
+    run(inputs, learningMatrix, benchmarkConfig_wt_seed);
 
-#ifndef NO_INNER_LOOPS
-    copy.cuda_loops = 4;
-    run(copy);
-#endif
+    learningMatrix = KeeloqLearning::Matrix({ LearningType::Faac });
+    run(inputs, learningMatrix, benchmarkConfig_wt_seed);
+
+    learningMatrix = KeeloqLearning::Matrix({ LearningType::Simple, LearningType::Normal, LearningType::Xor });
+    run(inputs, learningMatrix, benchmarkConfig_no_seed);
 }

@@ -30,6 +30,8 @@ void progress_bar(double percent, const std::chrono::seconds& elapsed);
 
 void clear_line(int width = 0);
 
+void clear_lines_up(int numlines, int width = 0);
+
 int read_esc_press();
 
 void set_cursor_state(bool visible);

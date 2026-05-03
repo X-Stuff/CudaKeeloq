@@ -522,7 +522,7 @@ struct Matrix
 {
     static constexpr auto kEverything = static_cast<uint64_t>(-1);
 
-    __host__ __device__ __inline__ constexpr Matrix(uint64_t value = 0) : matrix(value)
+    __host__ __device__ __inline__ constexpr explicit Matrix(uint64_t value = 0) : matrix(value)
     {
 #if !__CUDA_ARCH__
         static_assert(DecryptedResults::getIndex(LearningType::Simple, Modifier::Input::Normal, Modifier::Algo::Normal) == 0, "Invalid index for Simple/Normal/Normal");
@@ -584,7 +584,7 @@ struct Matrix
     Matrix(const std::initializer_list<LearningItem>& pairs);
 
     /** Creates a learning matrix with specific learning types enabled and all modifications */
-    __host__ Matrix(const std::vector<LearningType>& types) :
+    Matrix(const std::initializer_list<LearningType>& types) :
         Matrix(types, { Modifier::Input::Normal, Modifier::Input::ReversedKey }, { Modifier::Algo::Normal, Modifier::Algo::Inverted })
     {
     }

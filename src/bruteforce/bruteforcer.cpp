@@ -84,11 +84,14 @@ SingleResult Bruteforcer::run(const BruteforceConfig& config, const CudaConfig& 
         const Decryptor& lastUsedDecryptor = kernelInput.GetConfig().last;
 
         console_cursor_ret_up(2);
-        printf("[%c][%zd/%zd]    %" PRIu64 "(ms)/batch Speed: %" PRIu64 " KKeys/s   Last key:0x%" PRIX64 " (%u)         \n",
-            WAIT_CHAR(batch), batch, batchesInRound, batchDurationMs, kResultPreSecond, lastUsedDecryptor.man(), lastUsedDecryptor.seed());
 
+        // Overwrite lines
+        printf("[%c][%zd/%zd]    %" PRIu64 "(ms)/batch Speed: %" PRIu64 " KKeys/s   Last key:0x%" PRIX64 " (%u)           \n",
+            WAIT_CHAR(batch), batch, batchesInRound, batchDurationMs, kResultPreSecond, lastUsedDecryptor.man(), lastUsedDecryptor.seed());
         console::progress_bar(progressPercent, roundTimer.elapsed_seconds());
     }
+
+    console::clear_lines_up(2);
 
     if (lastResult.hasMatch())
     {
@@ -106,8 +109,22 @@ SingleResult Bruteforcer::getMatchResult(const BruteforceRound& round, bool firs
 
     const auto results = round.Inputs().results->host();
 
-    for (size_t index = 0; index < results.num; index += MaxElements)
+    auto searchTimer = Timer<std::chrono::steady_clock>::start();
+
+    const auto numIterations = results.num / MaxElements;
+
+    for (size_t index = 0, count = 0; index < results.num; index += MaxElements, ++count)
     {
+        // Progress bar
+        console_cursor_ret_up(2);
+
+        printf("[%c][%zd/%zd] Searching match in GPU memory...                                                                 \n",
+            WAIT_CHAR(count), count, numIterations);
+
+        const auto progressPercent = (double)(count + 1) / numIterations;
+        console::progress_bar(progressPercent, searchTimer.elapsed_seconds());
+
+
         // Read decryptors in batches, just to save RAM on host, using static method since we already copied object to host
         auto copied_results = CudaArray<SingleResult>::read(results, index, MaxElements);
 
@@ -115,10 +132,14 @@ SingleResult Bruteforcer::getMatchResult(const BruteforceRound& round, bool firs
         {
             if (result.match != KeeloqLearning::NoMatch)
             {
+                console::clear_lines_up(2);
+                printf("Found!\n");
                 return result;
             }
         }
     }
 
+    console::clear_lines_up(2);
+    printf("NOT FOUND!\n");
     return SingleResult::Invalid();
 }

@@ -27,7 +27,7 @@ void console::progress_bar(double percent, const std::chrono::seconds& elapsed)
         std::memset(progress_none, '-', sizeof(progress_none));
     }
 
-    std::chrono::seconds eta = elapsed.count() > 0 ?
+    const auto eta = (elapsed.count() > 0 && percent > 0.01) ?
         std::chrono::seconds((uint64_t)(elapsed.count() / percent)) - elapsed : std::chrono::seconds(0);
 
     printf("[%.*s>", (int)(progress_width * percent), progress_fill);
@@ -47,6 +47,17 @@ void console::clear_line(int width /*= 0*/)
     printf("\r");
 }
 
+
+void console::clear_lines_up(int numlines, int width /*= 0*/)
+{
+    console_cursor_ret_up(numlines);
+    for (int i = 0; i < numlines; ++i)
+    {
+        console::clear_line(width);
+        printf("\n");
+    }
+    console_cursor_ret_up(numlines);
+}
 
 int console::read_esc_press()
 {

@@ -714,6 +714,13 @@ __host__ KernelResult keeloq::kernels::cuda_brute(KeeloqKernelInput& mainInputs,
 {
     KernelResult kernel_results;
 
+    if (!mainInputs.GetLearningMatrix().isValid())
+    {
+        assert(false && "Invalid learning matrix! No learning type enabled. Check your config and generator.");
+        printf("Invalid learning matrix! No learning type enabled. CUDA launch skipped!\n");
+        return kernel_results;
+    }
+
     switch (mainInputs.NumInputs())
     {
     case 1:

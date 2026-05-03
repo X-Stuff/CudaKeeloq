@@ -10,9 +10,10 @@ struct BruteforceConfig;
 
 namespace benchmark
 {
-    bool run(const CommandLineArgs& args, const BruteforceConfig& benchmarkConfig, uint16_t CudaBlocks, uint16_t CudaThreads);
+    bool run(const std::vector<EncParcel>& inputs, const KeeloqLearning::Matrix& learningMatrix, const BruteforceConfig& benchmarkConfig,
+        uint16_t CudaBlocks, uint16_t CudaThreads);
 
-    void run(const CommandLineArgs& args, const BruteforceConfig& benchmarkConfig);
+    void run(const std::vector<EncParcel>& inputs, const KeeloqLearning::Matrix& learningMatrix, const BruteforceConfig& benchmarkConfig);
 
     void real();
 

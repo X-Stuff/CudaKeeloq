@@ -56,6 +56,8 @@ std::string Matrix::to_string(const BruteforceConfig* bruteConfig) const
     const bool withSeed = bruteConfig == nullptr || bruteConfig->has_seed();
     const bool seedOnly = bruteConfig != nullptr && bruteConfig->type == BruteforceType::Seed;
 
+    uint8_t enabledCount = 0;
+
     at += snprintf(&buffer[at], sizeof(buffer) - at, "Matrix:\n" "                     |  Simple |  Normal |  Secure |   Xor   |   Faac  | Serial1 | Serial2 | Serial3 |\n");
     at += snprintf(&buffer[at], sizeof(buffer) - at,             "_____________________|_________|_________|_________|_________|_________|_________|_________|_________|\n");
 
@@ -84,11 +86,14 @@ std::string Matrix::to_string(const BruteforceConfig* bruteConfig) const
                     isLearningEnabled = false;
                 }
 
+                enabledCount += static_cast<uint8_t>(isLearningEnabled);
                 at += snprintf(&buffer[at], sizeof(buffer) - at, "    %s    |", isLearningEnabled ? "+" : " ");
             }
             at += snprintf(&buffer[at], sizeof(buffer) - at, "\n");
         }
     }
+    at += snprintf(&buffer[at], sizeof(buffer) - at,            "¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯\n");
+    at += snprintf(&buffer[at], sizeof(buffer) - at, "Total enabled calculations: %u\n", enabledCount);
 
     return std::string(buffer);
 }

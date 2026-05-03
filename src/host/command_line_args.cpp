@@ -581,7 +581,7 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv)
             args.selected_input_mods.push_back(KeeloqLearning::Modifier::Input::Normal);
         }
 
-        if (result.count(ARG_CHECKREV) && result[ARG_CHECKREV].as<bool>())
+        if (result[ARG_CHECKREV].as<bool>())
         {
             args.selected_input_mods.push_back(KeeloqLearning::Modifier::Input::ReversedKey);
         }
@@ -592,7 +592,7 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv)
             args.selected_algo_mods.push_back(KeeloqLearning::Modifier::Algo::Normal);
         }
 
-        if (result.count(ARG_CHECKINV) && result[ARG_CHECKINV].as<bool>())
+        if (result[ARG_CHECKINV].as<bool>())
         {
             args.selected_algo_mods.push_back(KeeloqLearning::Modifier::Algo::Inverted);
         }

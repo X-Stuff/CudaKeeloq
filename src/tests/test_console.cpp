@@ -96,6 +96,5 @@ void tests::console::run()
     assert(args.selected_algo_mods[0] == KeeloqLearning::Modifier::Algo::Inverted);
 
     assert(args.selected_input_mods.size() == 1);
-    assert(args.selected_input_mods[0] == KeeloqLearning::Modifier::Input::Reversed);
-
+    assert(args.selected_input_mods[0] == KeeloqLearning::Modifier::Input::ReversedKey);
 }
