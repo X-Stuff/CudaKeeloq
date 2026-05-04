@@ -1,11 +1,16 @@
 #pragma once
 
+#include <cassert>
+#include <cinttypes>
 #include <cstddef>
-#include <stdint.h>
-#include <assert.h>
-#include <stdio.h>
-#include <inttypes.h>
+#include <cstdint>
+#include <cstdio>
 
+
+/**
+ *  Project-wide macros, compile-time constants and tiny utility templates.
+ * This header is included by host, device, and kernel translation units alike.
+ */
 
 #define CUDA_CHECK(error) \
     if (error != 0) { printf("\nASSERTION FAILED. CUDA ERROR!\n%s: %s\n", cudaGetErrorName((cudaError_t)error), cudaGetErrorString((cudaError_t)error)); }\
@@ -79,6 +84,10 @@
 #define APP_VERSION_STRING STR(APP_VERSION_MAJOR) "." STR(APP_VERSION_MINOR) "." STR(APP_VERSION_PATCH)
 static constexpr auto AppVersion = APP_VERSION_STRING;
 
+/**
+ * Compile-time identity byte array — element[i] == i.
+ * Primarily used to seed "accept every byte" alphabets without hand-writing the 0..255 list.
+ */
 template<uint8_t NSize = 255>
 struct DefaultByteArray
 {
@@ -92,8 +101,9 @@ struct DefaultByteArray
         }
     }
 
+    /** Materialise the array as a container (e.g. `std::vector<uint8_t>`). */
     template<typename Vector>
-    static inline Vector as_vector()
+    static inline Vector asVector()
     {
         constexpr DefaultByteArray array = DefaultByteArray();
         return Vector(&array.element[0], &array.element[0] + NSize);
@@ -104,6 +114,7 @@ struct DefaultByteArray
 namespace str
 {
 
+/** printf-style formatting that returns a `std::string` (or any string-like type). */
 template<typename String, typename ... Args>
 inline String format(const String& format, Args ... args)
 {
@@ -124,6 +135,7 @@ inline String format(const String& format, Args ... args)
 
 }
 
+/** UDL that packs up to 8 ASCII characters into a uint64_t (big-endian byte order). */
 constexpr inline uint64_t operator "" _u64(const char* ascii, size_t num)
 {
     const uint8_t size = sizeof(uint64_t);

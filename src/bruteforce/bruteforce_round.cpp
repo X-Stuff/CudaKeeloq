@@ -1,13 +1,15 @@
-#include "bruteforce_round.h"
+#include "bruteforce/bruteforce_round.h"
+
+#include <cuda_runtime_api.h>
 
 #include "common.h"
-#include "bruteforce_config.h"
-#include "kernels/kernel_result.h"
+
 #include "algorithm/keeloq/keeloq_encrypted.h"
 #include "algorithm/keeloq/keeloq_learning_types.h"
 #include "algorithm/keeloq/keeloq_single_result.h"
 
-#include <cuda_runtime_api.h>
+#include "bruteforce/bruteforce_config.h"
+#include "kernels/kernel_result.h"
 
 
 BruteforceRound::BruteforceRound(const std::vector<EncParcel>& inputs, const BruteforceConfig& config, const KeeloqLearning::Matrix& learning_matrix, const CudaConfig& cuda)
@@ -23,7 +25,7 @@ BruteforceRound::BruteforceRound(const std::vector<EncParcel>& inputs, const Bru
     encrypted_data_num = static_cast<uint8_t>(inputs.size());
 }
 
-bool BruteforceRound::read_results_gpu(std::vector<SingleResult>& container) const
+bool BruteforceRound::readResultsGpu(std::vector<SingleResult>& container) const
 {
     assert(inited);
     if (kernel_inputs.results == nullptr)
@@ -36,7 +38,7 @@ bool BruteforceRound::read_results_gpu(std::vector<SingleResult>& container) con
     return num_copied > 0;
 }
 
-bool BruteforceRound::check_results(const KernelResult& result)
+bool BruteforceRound::checkResults(const KernelResult& result)
 {
     if (result.cudaError != cudaSuccess)
     {
@@ -60,7 +62,7 @@ bool BruteforceRound::check_results(const KernelResult& result)
     return false;
 }
 
-size_t BruteforceRound::get_mem_size(bool cpu) const
+size_t BruteforceRound::getMemSize(bool cpu) const
 {
     assert(inited);
 
@@ -74,32 +76,32 @@ size_t BruteforceRound::get_mem_size(bool cpu) const
     }
 }
 
-size_t BruteforceRound::num_batches() const
+size_t BruteforceRound::numBatches() const
 {
     assert(inited);
-    if (Type() == BruteforceType::Dictionary)
+    if (type() == BruteforceType::Dictionary)
     {
-        uint8_t non_align = Config().dict_size() % keys_per_batch() == 0 ? 0 : 1;
-        return Config().dict_size() / keys_per_batch() + non_align;
+        uint8_t non_align = config().dictSize() % keysPerBatch() == 0 ? 0 : 1;
+        return config().dictSize() / keysPerBatch() + non_align;
     }
     else
     {
-        uint8_t non_align = Config().brute_size() % keys_per_batch() == 0 ? 0 : 1;
-        return Config().brute_size() / keys_per_batch() + non_align;
+        uint8_t non_align = config().bruteSize() % keysPerBatch() == 0 ? 0 : 1;
+        return config().bruteSize() / keysPerBatch() + non_align;
     }
 }
 
-size_t BruteforceRound::keys_per_batch() const
+size_t BruteforceRound::keysPerBatch() const
 {
     return num_decryptors_per_batch;
 }
 
-size_t BruteforceRound::results_per_batch() const
+size_t BruteforceRound::resultsPerBatch() const
 {
     return encrypted_data_num * num_decryptors_per_batch;
 }
 
-void BruteforceRound::Init()
+void BruteforceRound::init()
 {
     if (!inited)
     {
@@ -109,7 +111,7 @@ void BruteforceRound::Init()
     }
 }
 
-std::string BruteforceRound::to_string() const
+std::string BruteforceRound::toString() const
 {
     assert(inited);
 
@@ -121,9 +123,9 @@ std::string BruteforceRound::to_string() const
         "\tDecryptors per batch:%zd\n"
         "\tConfig: %s\n"
         "\tLearning: %s\n",
-        cudaConfig.blocks, cudaConfig.threads, cudaConfig.substeps, (get_mem_size(false) / static_cast<float>(1024 * 1024 * 1024)),
-        encrypted_data_num, results_per_batch(), keys_per_batch(), Config().toString().c_str(),
-        kernel_inputs.GetLearningMatrix().to_string(&Config()).c_str());
+        cudaConfig.blocks, cudaConfig.threads, cudaConfig.substeps, (getMemSize(false) / static_cast<float>(1024 * 1024 * 1024)),
+        encrypted_data_num, resultsPerBatch(), keysPerBatch(), config().toString().c_str(),
+        kernel_inputs.GetLearningMatrix().toString(&config()).c_str());
 }
 
 
@@ -142,7 +144,7 @@ void BruteforceRound::alloc()
 
     if (kernel_inputs.results == nullptr)
     {
-        kernel_inputs.results = CudaArray<SingleResult>::allocate(results_per_batch());
+        kernel_inputs.results = CudaArray<SingleResult>::allocate(resultsPerBatch());
     }
 }
 

@@ -1,19 +1,19 @@
-#include "keeloq_encryptor.h"
+#include "algorithm/keeloq/keeloq_encryptor.h"
 
-#include "keeloq_kernel.h"
+#include "algorithm/keeloq/keeloq_kernel.h"
 
 
 EncParcel Encryptor::click(KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Input imod, KeeloqLearning::Modifier::Algo amod)
 {
-    const auto cpu_encrypted = cpu_encrypt(ltype, imod, amod);
-    assert(gpu_encrypt(ltype, imod, amod) == cpu_encrypted && "GPU and CPU encryption results do not match");
+    const auto cpu_encrypted = cpuEncrypt(ltype, imod, amod);
+    assert(gpuEncrypt(ltype, imod, amod) == cpu_encrypted && "GPU and CPU encryption results do not match");
 
     const uint64_t detpyrcne = ((uint64_t)fixed() << 32) | cpu_encrypted;
     const auto ota = misc::rev_bits(detpyrcne);
 
-    const auto cpu_decrypted = cpu_decrypt(ota, ltype, imod, amod);
+    const auto cpu_decrypted = cpuDecrypt(ota, ltype, imod, amod);
 
-    assert(cpu_decrypted == gpu_decrypt(ota, ltype, imod, amod) && "GPU and CPU decryption results do not match");
+    assert(cpu_decrypted == gpuDecrypt(ota, ltype, imod, amod) && "GPU and CPU decryption results do not match");
     assert(cpu_decrypted == unencrypted() && "Decryption failed, decrypted result doesn't match initial unencrypted data");
 
     if (cpu_decrypted != unencrypted())
@@ -74,7 +74,7 @@ uint64_t Encryptor::man(KeeloqLearning::LearningType ltype, KeeloqLearning::Modi
     }
 }
 
-uint32_t Encryptor::cpu_encrypt(KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Input imod, KeeloqLearning::Modifier::Algo amod) const
+uint32_t Encryptor::cpuEncrypt(KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Input imod, KeeloqLearning::Modifier::Algo amod) const
 {
     const auto cpu_encrypted = keeloq::common::encrypt(unencrypted(), man(ltype, imod, amod));
 
@@ -82,7 +82,7 @@ uint32_t Encryptor::cpu_encrypt(KeeloqLearning::LearningType ltype, KeeloqLearni
     return cpu_encrypted;
 }
 
-uint32_t Encryptor::cpu_decrypt(uint64_t enc, KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Input imod, KeeloqLearning::Modifier::Algo amod) const
+uint32_t Encryptor::cpuDecrypt(uint64_t enc, KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Input imod, KeeloqLearning::Modifier::Algo amod) const
 {
     auto reversed_enc = misc::rev_bits(enc);
     auto hopping = (uint32_t)reversed_enc;
@@ -91,7 +91,7 @@ uint32_t Encryptor::cpu_decrypt(uint64_t enc, KeeloqLearning::LearningType ltype
     return cpu_decrypted;
 }
 
-uint32_t Encryptor::gpu_encrypt(KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Input imod, KeeloqLearning::Modifier::Algo amod) const
+uint32_t Encryptor::gpuEncrypt(KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Input imod, KeeloqLearning::Modifier::Algo amod) const
 {
     const uint8_t resIndex = KeeloqLearning::DecryptedResults::getIndex(ltype, imod, amod);
     const auto results = keeloq::kernels::cuda_enc(((uint64_t)fixed() << 32) | unencrypted(), key, seed);
@@ -101,7 +101,7 @@ uint32_t Encryptor::gpu_encrypt(KeeloqLearning::LearningType ltype, KeeloqLearni
     return gpu_encrypted;
 }
 
-uint32_t Encryptor::gpu_decrypt(uint64_t enc, KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Input imod, KeeloqLearning::Modifier::Algo amod) const
+uint32_t Encryptor::gpuDecrypt(uint64_t enc, KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Input imod, KeeloqLearning::Modifier::Algo amod) const
 {
     const uint8_t resIndex = KeeloqLearning::DecryptedResults::getIndex(ltype, imod, amod);
 

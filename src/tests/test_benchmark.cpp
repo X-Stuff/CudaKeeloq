@@ -1,18 +1,20 @@
+#include "tests/test_benchmark.h"
+
+#include <algorithm>
+#include <numeric>
+
 #include "common.h"
 
-#include <numeric>
-#include <algorithm>
+#include "algorithm/keeloq/keeloq_kernel.h"
 
-#include "test_benchmark.h"
+#include "bruteforce/bruteforce_config.h"
+#include "bruteforce/bruteforce_round.h"
+#include "bruteforce/bruteforcer.h"
+#include "bruteforce/generators/generator_bruteforce.h"
+
 #include "host/console.h"
 #include "host/timer.h"
 
-#include "bruteforce/bruteforcer.h"
-#include "bruteforce/generators/generator_bruteforce.h"
-#include "bruteforce/bruteforce_config.h"
-#include "bruteforce/bruteforce_round.h"
-
-#include "algorithm/keeloq/keeloq_kernel.h"
 #include "tests/test_keeloq.h"
 
 #if _DEBUG
@@ -46,18 +48,18 @@ bool benchmark::run(const std::vector<EncParcel>& inputs, const KeeloqLearning::
     CudaConfig cudaConfig{ numCudaBlocks, numCudaThreads, 1 };
 
     BruteforceRound benchmarkRound(inputs, benchmarkConfig, learningMatrix, cudaConfig);
-    benchmarkRound.Init();
+    benchmarkRound.init();
 
     // Allocations time above doesn't count
     auto roundTimer = Timer<std::chrono::system_clock>::start();
 
-    const size_t keysInBatch = benchmarkRound.keys_per_batch();
+    const size_t keysInBatch = benchmarkRound.keysPerBatch();
     const size_t numBatches = std::max<size_t>(4, (TargetCalculations / keysInBatch) + 1);
     const size_t keysTotal = numBatches * keysInBatch;
 
     std::vector<uint64_t> batchesNumKeysPerMs;
 
-    console::set_cursor_state(false);
+    console::setCursorState(false);
     printf("\n");
 
     bool kernel_fail = false;
@@ -67,7 +69,7 @@ bool benchmark::run(const std::vector<EncParcel>& inputs, const KeeloqLearning::
         auto batchTime = std::chrono::milliseconds();
         {
             ScopeTimer timer(&batchTime);
-            KeeloqKernelInput& kernelInput = benchmarkRound.Inputs();
+            KeeloqKernelInput& kernelInput = benchmarkRound.inputs();
             kernelInput.NextDecryptor();
 
             auto cudaError = GeneratorBruteforce::PrepareDecryptors(kernelInput, cudaConfig);
@@ -79,7 +81,7 @@ bool benchmark::run(const std::vector<EncParcel>& inputs, const KeeloqLearning::
             }
 
             auto result = keeloq::kernels::cuda_brute(kernelInput, cudaConfig);
-            kernel_fail = benchmarkRound.check_results(result);
+            kernel_fail = benchmarkRound.checkResults(result);
         }
 
         if (batchTime.count() > 0)
@@ -88,12 +90,12 @@ bool benchmark::run(const std::vector<EncParcel>& inputs, const KeeloqLearning::
         }
 
         console_cursor_ret_up(1);
-        console::progress_bar(i / (double)numBatches, roundTimer.elapsed_seconds());
+        console::progressBar(i / (double)numBatches, roundTimer.elapsedSeconds());
 
-        if (console::read_esc_press())
+        if (console::readEscPress())
         {
             console_cursor_ret_up(1);
-            console::clear_line();
+            console::clearLine();
             printf("Benchmark skipped\n");
             return false;
         }
@@ -104,7 +106,7 @@ bool benchmark::run(const std::vector<EncParcel>& inputs, const KeeloqLearning::
         const uint64_t avg = getAvg(batchesNumKeysPerMs);
 
         console_cursor_ret_up(1);
-        console::clear_line();
+        console::clearLine();
 
         auto roundElapsedMs = roundTimer.elapsed().count();
         auto roundAvgSpeed = keysTotal / roundElapsedMs;
@@ -112,7 +114,7 @@ bool benchmark::run(const std::vector<EncParcel>& inputs, const KeeloqLearning::
         // Creating results
         printf("| CUDA: %5" PRIu16 " x %-5" PRIu16 " | MKeys: %3" PRIu64 " | GPU Memory (MB):%-6" PRIu64 " | Round: Time (ms):%-6" PRIu64 " | Avg. speed (K/s):%-8" PRIu64 " | Batch Avg. Speed (K/s):%-8" PRIu64 " | \n",
             numCudaBlocks, numCudaThreads, keysTotal / 1000000,
-            benchmarkRound.get_mem_size() / (1024 * 1024),
+            benchmarkRound.getMemSize() / (1024 * 1024),
             roundElapsedMs, roundAvgSpeed,
             avg);
     }
@@ -120,7 +122,7 @@ bool benchmark::run(const std::vector<EncParcel>& inputs, const KeeloqLearning::
     {
         printf("| CUDA: %5" PRIu16 " x %-5" PRIu16 " | MKeys: %3" PRIu64 " | GPU Memory (MB):%-6" PRIu64 " | Round: Time (ms):FAILURE| Avg. speed (K/s):FAILURE  | Batch Avg. Speed (K/s):FAILURE   | \n",
             numCudaBlocks, numCudaThreads, keysTotal / 1000000,
-            benchmarkRound.get_mem_size() / (1024 * 1024));
+            benchmarkRound.getMemSize() / (1024 * 1024));
     }
 
     return true;
@@ -154,10 +156,10 @@ void benchmark::real()
 
         assertf(result.match == KeeloqLearning::DecryptedResults::getIndex(learningItem),
             "Invalid match for real benchmark test, expected: %s (%s, %s), got: %s (%s, %s)",
-            KeeloqLearning::Name(learningDH), KeeloqLearning::Name(learningItem.imod), KeeloqLearning::Name(learningItem.amod),
-            KeeloqLearning::Name(KeeloqLearning::DecryptedResults::getByIndex(result.match).learning),
-            KeeloqLearning::Name(KeeloqLearning::DecryptedResults::getByIndex(result.match).imod),
-            KeeloqLearning::Name(KeeloqLearning::DecryptedResults::getByIndex(result.match).amod));
+            KeeloqLearning::name(learningDH), KeeloqLearning::name(learningItem.imod), KeeloqLearning::name(learningItem.amod),
+            KeeloqLearning::name(KeeloqLearning::DecryptedResults::getByIndex(result.match).learning),
+            KeeloqLearning::name(KeeloqLearning::DecryptedResults::getByIndex(result.match).imod),
+            KeeloqLearning::name(KeeloqLearning::DecryptedResults::getByIndex(result.match).amod));
 
         result.print(dhInputs);
     }
@@ -178,10 +180,10 @@ void benchmark::real()
 
         assertf(result.match == KeeloqLearning::DecryptedResults::getIndex(learningItem),
             "Invalid match for real benchmark test, expected: %s (%s, %s), got: %s (%s, %s)",
-            KeeloqLearning::Name(learningSommer), KeeloqLearning::Name(learningItem.imod), KeeloqLearning::Name(learningItem.amod),
-            KeeloqLearning::Name(KeeloqLearning::DecryptedResults::getByIndex(result.match).learning),
-            KeeloqLearning::Name(KeeloqLearning::DecryptedResults::getByIndex(result.match).imod),
-            KeeloqLearning::Name(KeeloqLearning::DecryptedResults::getByIndex(result.match).amod));
+            KeeloqLearning::name(learningSommer), KeeloqLearning::name(learningItem.imod), KeeloqLearning::name(learningItem.amod),
+            KeeloqLearning::name(KeeloqLearning::DecryptedResults::getByIndex(result.match).learning),
+            KeeloqLearning::name(KeeloqLearning::DecryptedResults::getByIndex(result.match).imod),
+            KeeloqLearning::name(KeeloqLearning::DecryptedResults::getByIndex(result.match).amod));
 
         result.print(sommerInputs);
     }
@@ -194,9 +196,9 @@ void benchmark::run(const std::vector<EncParcel>& inputs, const KeeloqLearning::
     static const uint32_t MaxCudaBlocks = CudaConfig::MaxCudaBlocks();
     static const float MaxCudaMemory = CudaConfig::MaxGlobalMemoryGB();
 
-    const bool hasSeed = benchmarkConfig.has_seed();
+    const bool hasSeed = benchmarkConfig.hasSeed();
 
-    printf("BENCHMARK BEGIN (Esc to skip)\n\nConfig is: %s\n", BruteforceType::Name(benchmarkConfig.type));
+    printf("BENCHMARK BEGIN (Esc to skip)\n\nConfig is: %s\n", BruteforceType::name(benchmarkConfig.type));
 #ifndef NO_INNER_LOOPS
     printf("Num loops inside CUDA           : %u\n", args.cuda_loops);
 #endif // !NO_INNER_LOOPS
@@ -210,7 +212,7 @@ void benchmark::run(const std::vector<EncParcel>& inputs, const KeeloqLearning::
         MaxCudaBlocks, MaxCudaMemory, MaxCudaThreads,
         (TargetCalculations / 1000000),
         (hasSeed ? "true" : "false"),
-        learningMatrix.to_string(&benchmarkConfig).c_str());
+        learningMatrix.toString(&benchmarkConfig).c_str());
 
 
     for (uint32_t numBlocks = 1024; numBlocks <= MaxCudaBlocks; numBlocks *= 2)
@@ -243,7 +245,7 @@ void benchmark::all(const CommandLineArgs& args)
 
     // Any inputs, we don't need to find the key
     constexpr auto NumInputs = 3;
-    auto inputs = tests::keeloq::gen_inputs(0xFF123FF3434FFFFF, NumInputs, LearningType::Serial3);
+    auto inputs = tests::keeloq::genInputs(0xFF123FF3434FFFFF, NumInputs, LearningType::Serial3);
 
     auto learningMatrix = KeeloqLearning::Matrix({ LearningItem(LearningType::Simple, Modifier::Input::Normal, Modifier::Algo::Normal) });
     run(inputs, learningMatrix, benchmarkConfig_simple);

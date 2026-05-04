@@ -1,16 +1,16 @@
 #include "bruteforce/bruteforcer.h"
-#include "bruteforce/bruteforce_round.h"
+
+#include <chrono>
 
 #include "algorithm/keeloq/keeloq_kernel.h"
 #include "algorithm/keeloq/keeloq_learning_types.h"
 
-#include "generators/generator_bruteforce.h"
+#include "bruteforce/bruteforce_round.h"
+#include "bruteforce/generators/generator_bruteforce.h"
 
-#include "host/console.h"
 #include "host/command_line_args.h"
+#include "host/console.h"
 #include "host/timer.h"
-
-#include <chrono>
 
 
 Bruteforcer::Bruteforcer(const std::vector<EncParcel>& inputs) : inputs(inputs)
@@ -23,14 +23,14 @@ SingleResult Bruteforcer::run(const BruteforceConfig& config, const CudaConfig& 
     BruteforceRound attackRound(inputs, config, learningMatrix, cuda);
 
     printf("\nAllocating...");
-    attackRound.Init();
+    attackRound.init();
 
-    printf("\rRunning...    \n%s\n", attackRound.to_string().c_str());
+    printf("\rRunning...    \n%s\n", attackRound.toString().c_str());
 
     KernelResult lastResult;
 
-    const size_t batchesInRound = attackRound.num_batches();
-    const size_t keysInBatch = attackRound.keys_per_batch();
+    const size_t batchesInRound = attackRound.numBatches();
+    const size_t keysInBatch = attackRound.keysPerBatch();
 
     auto roundTimer = Timer<std::chrono::steady_clock>::start();
 
@@ -38,9 +38,9 @@ SingleResult Bruteforcer::run(const BruteforceConfig& config, const CudaConfig& 
     {
         auto batchTimer = Timer<std::chrono::steady_clock>::start();
 
-        KeeloqKernelInput& kernelInput = attackRound.Inputs();
+        KeeloqKernelInput& kernelInput = attackRound.inputs();
 
-        if (attackRound.Type() != BruteforceType::Dictionary)
+        if (attackRound.type() != BruteforceType::Dictionary)
         {
             if (batch != 0)
             {
@@ -65,14 +65,14 @@ SingleResult Bruteforcer::run(const BruteforceConfig& config, const CudaConfig& 
 
         // do the bruteforce
         lastResult = keeloq::kernels::cuda_brute(kernelInput, cuda);
-        if (attackRound.check_results(lastResult))
+        if (attackRound.checkResults(lastResult))
         {
             break;
         }
 
         if (batch == 0)
         {
-            console::set_cursor_state(false);
+            console::setCursorState(false);
             printf("\n\n\n");
         }
 
@@ -88,10 +88,10 @@ SingleResult Bruteforcer::run(const BruteforceConfig& config, const CudaConfig& 
         // Overwrite lines
         printf("[%c][%zd/%zd]    %" PRIu64 "(ms)/batch Speed: %" PRIu64 " KKeys/s   Last key:0x%" PRIX64 " (%u)           \n",
             WAIT_CHAR(batch), batch, batchesInRound, batchDurationMs, kResultPreSecond, lastUsedDecryptor.man(), lastUsedDecryptor.seed());
-        console::progress_bar(progressPercent, roundTimer.elapsed_seconds());
+        console::progressBar(progressPercent, roundTimer.elapsedSeconds());
     }
 
-    console::clear_lines_up(2);
+    console::clearLinesUp(2);
 
     if (lastResult.hasMatch())
     {
@@ -107,7 +107,7 @@ SingleResult Bruteforcer::getMatchResult(const BruteforceRound& round, bool firs
 {
     constexpr auto MaxElements = 1024 * 1024;
 
-    const auto results = round.Inputs().results->host();
+    const auto results = round.inputs().results->host();
 
     auto searchTimer = Timer<std::chrono::steady_clock>::start();
 
@@ -122,7 +122,7 @@ SingleResult Bruteforcer::getMatchResult(const BruteforceRound& round, bool firs
             WAIT_CHAR(count), count, numIterations);
 
         const auto progressPercent = (double)(count + 1) / numIterations;
-        console::progress_bar(progressPercent, searchTimer.elapsed_seconds());
+        console::progressBar(progressPercent, searchTimer.elapsedSeconds());
 
 
         // Read decryptors in batches, just to save RAM on host, using static method since we already copied object to host
@@ -132,14 +132,14 @@ SingleResult Bruteforcer::getMatchResult(const BruteforceRound& round, bool firs
         {
             if (result.match != KeeloqLearning::NoMatch)
             {
-                console::clear_lines_up(2);
+                console::clearLinesUp(2);
                 printf("Found!\n");
                 return result;
             }
         }
     }
 
-    console::clear_lines_up(2);
+    console::clearLinesUp(2);
     printf("NOT FOUND!\n");
     return SingleResult::Invalid();
 }

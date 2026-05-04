@@ -1,9 +1,10 @@
-#include "test_keeloq.h"
+#include "tests/test_keeloq.h"
 
-#include "device/cuda_vector.h"
 #include "algorithm/keeloq/keeloq_kernel.h"
 
 #include "bruteforce/generators/generator_bruteforce.h"
+
+#include "device/cuda_vector.h"
 
 
 static constexpr auto debug_key = "test_keeloq"_u64;
@@ -11,7 +12,7 @@ static constexpr auto debug_seed = 158500;
 
 using namespace KeeloqLearning;
 
-std::vector<EncParcel> tests::keeloq::gen_inputs(uint64_t key, uint8_t num /*= 3*/, LearningType lType /*= LearningType::Simple*/, Modifier::Input iMod /*= Modifier::Input::Normal*/, Modifier::Algo aMod /*= Modifier::Algo::Normal*/)
+std::vector<EncParcel> tests::keeloq::genInputs(uint64_t key, uint8_t num /*= 3*/, LearningType lType /*= LearningType::Simple*/, Modifier::Input iMod /*= Modifier::Input::Normal*/, Modifier::Algo aMod /*= Modifier::Algo::Normal*/)
 {
     static constexpr uint32_t kDefaultSeed = 987654321;
     static constexpr uint8_t kDefaultButton = 0x3;
@@ -52,18 +53,18 @@ bool tests::keeloq::encparcel()
     return memcmp(&parcelOTA, &parcelHopFix, sizeof(EncParcel)) == 0;
 }
 
-bool tests::keeloq::every_learning_with_mod(const BruteforceConfig& config)
+bool tests::keeloq::everyLearningWithMod(const BruteforceConfig& config)
 {
     using namespace KeeloqLearning;
 
     static const CudaConfig cudaConfig = CudaConfig::Tests();
 
-    const bool config_valid = config.brute_size() <= 1 && config.dict_size() <= 1;
+    const bool config_valid = config.bruteSize() <= 1 && config.dictSize() <= 1;
     if (!config_valid)
     {
         assertf(config_valid, "For test mode we need just 1 correct run, otherwise benchmark() need to be used!, "
             "<brute_size: %" PRIu64 ", dict_size: %" PRIu64 ">",
-            config.brute_size(), config.dict_size());
+            config.bruteSize(), config.dictSize());
 
         return false;
     }
@@ -87,13 +88,13 @@ bool tests::keeloq::every_learning_with_mod(const BruteforceConfig& config)
                     continue;
                 }
 
-                if (!config.has_seed() && KeeloqLearning::HasSeed(learningType))
+                if (!config.hasSeed() && KeeloqLearning::hasSeed(learningType))
                 {
                     // If learning has see but config was created without seed, then we will never have correct decryptor to decrypt
                     continue;
                 }
 
-                if (config.type == BruteforceType::Seed && !KeeloqLearning::HasSeed(learningType))
+                if (config.type == BruteforceType::Seed && !KeeloqLearning::hasSeed(learningType))
                 {
                     // And the reverse situation, in Seed only mode, no other learning types will be ever calculated
                     continue;
@@ -104,7 +105,7 @@ bool tests::keeloq::every_learning_with_mod(const BruteforceConfig& config)
                 {
                     Encryptor encryptor(debug_key, debug_seed);
 
-                    const auto inputs = gen_inputs(encryptor, numInputs, learningType, inputsModifier, algoModifier);
+                    const auto inputs = genInputs(encryptor, numInputs, learningType, inputsModifier, algoModifier);
                     CudaVector<Decryptor> decryptors(cudaConfig.total());
                     CudaVector<SingleResult> results(decryptors.size() * inputs.size());
 
@@ -130,7 +131,7 @@ bool tests::keeloq::every_learning_with_mod(const BruteforceConfig& config)
 
                     assertf(kenelResult.cudaError == cudaSuccess, "CUDA error during bruteforce:'%s' ! Error code: %d, Inputs: %d, learning type: %s, input modifier: %s, algo modifier: %s",
                         cudaGetErrorString(kenelResult.cudaError), kenelResult.cudaError, numInputs,
-                        KeeloqLearning::Name(learningType), KeeloqLearning::Name(inputsModifier), KeeloqLearning::Name(algoModifier));
+                        KeeloqLearning::name(learningType), KeeloqLearning::name(inputsModifier), KeeloqLearning::name(algoModifier));
 
                     // Check were not errors
                     if (kenelResult.threadsFinished() != cudaConfig.threadsCount())
@@ -138,7 +139,7 @@ bool tests::keeloq::every_learning_with_mod(const BruteforceConfig& config)
                         assertf(kenelResult.threadsFinished() == cudaConfig.threadsCount(),
                             "Fatal Error during bruteforce! Number of real calculations:%u  doesn't match configured:%u . Inputs:%d, learning type: %s, input modifier: %s, algo modifier: %s",
                             kenelResult.threadsFinished(), cudaConfig.threadsCount(), numInputs,
-                            KeeloqLearning::Name(learningType), KeeloqLearning::Name(inputsModifier), KeeloqLearning::Name(algoModifier));
+                            KeeloqLearning::name(learningType), KeeloqLearning::name(inputsModifier), KeeloqLearning::name(algoModifier));
                         return false;
                     }
 
@@ -147,7 +148,7 @@ bool tests::keeloq::every_learning_with_mod(const BruteforceConfig& config)
                     {
                         assertf(kenelResult.hasMatch(),
                             "Bruteforce didn't succedded! Inputs: %d, learning type: %s, input modifier: %s, algo modifier: %s",
-                            numInputs, KeeloqLearning::Name(learningType), KeeloqLearning::Name(inputsModifier), KeeloqLearning::Name(algoModifier));
+                            numInputs, KeeloqLearning::name(learningType), KeeloqLearning::name(inputsModifier), KeeloqLearning::name(algoModifier));
                         return false;
                     }
 
@@ -159,7 +160,7 @@ bool tests::keeloq::every_learning_with_mod(const BruteforceConfig& config)
                         assertf(matched_decryptor.man() == debug_key,
                             "First decryptor didn't have correct MAN key. Expected: 0x%016" PRIX64 " , got: 0x%016" PRIX64 ". Inputs: %d, learning type: %s, input modifier: %s, algo modifier: %s",
                             debug_key, matched_decryptor.man(), numInputs,
-                            KeeloqLearning::Name(learningType), KeeloqLearning::Name(inputsModifier), KeeloqLearning::Name(algoModifier));
+                            KeeloqLearning::name(learningType), KeeloqLearning::name(inputsModifier), KeeloqLearning::name(algoModifier));
 
                         return false;
                     }
@@ -174,7 +175,7 @@ bool tests::keeloq::every_learning_with_mod(const BruteforceConfig& config)
                         assertf(matched_result.match == resIndex,
                             "Result Index didn't match expected index. Expected: %d, got: %d. Num Inputs: %d, learning type: %s, input modifier: %s, algo modifier: %s",
                             resIndex, matched_result.match, numInputs,
-                            KeeloqLearning::Name(learningType), KeeloqLearning::Name(inputsModifier), KeeloqLearning::Name(algoModifier));
+                            KeeloqLearning::name(learningType), KeeloqLearning::name(inputsModifier), KeeloqLearning::name(algoModifier));
 
                         return false;
                     }
@@ -187,7 +188,7 @@ bool tests::keeloq::every_learning_with_mod(const BruteforceConfig& config)
                         assertf(matched_result.decrypted[resIndex] == encryptor.unencrypted(),
                             "Decrypted value at Index: %d, didn't match expected unencrypted value. Expected: 0x%08X, got: 0x%08X. Inputs: %d, learning type: %s, input modifier: %s, algo modifier: %s",
                             resIndex, encryptor.unencrypted(), matched_result.decrypted[resIndex], numInputs,
-                            KeeloqLearning::Name(learningType), KeeloqLearning::Name(inputsModifier), KeeloqLearning::Name(algoModifier));
+                            KeeloqLearning::name(learningType), KeeloqLearning::name(inputsModifier), KeeloqLearning::name(algoModifier));
 
                         return false;
                     }
@@ -199,7 +200,7 @@ bool tests::keeloq::every_learning_with_mod(const BruteforceConfig& config)
     return true;
 }
 
-bool tests::keeloq::every_brute_type()
+bool tests::keeloq::everyBruteType()
 {
     BruteforceConfig dict = BruteforceConfig::GetDictionary({ Decryptor::Make(debug_key, debug_seed, true) });
 
@@ -224,7 +225,7 @@ bool tests::keeloq::every_brute_type()
     {
         printf("--- Testing:\n\t%s\n", config.toString().c_str());
 
-        if (!every_learning_with_mod(config))
+        if (!everyLearningWithMod(config))
         {
             return false;
         }
@@ -236,7 +237,7 @@ bool tests::keeloq::every_brute_type()
 }
 
 
-bool tests::keeloq::check_kernel_results()
+bool tests::keeloq::checkKernelResults()
 {
     KernelResult kr;
 
@@ -258,9 +259,9 @@ bool tests::keeloq::check_kernel_results()
 bool tests::keeloq::all()
 {
     bool ok = true;
-    ok &= check_kernel_results();
+    ok &= checkKernelResults();
     ok &= encparcel();
-    ok &= every_brute_type();
+    ok &= everyBruteType();
 
     return ok;
 }

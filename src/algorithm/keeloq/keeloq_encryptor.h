@@ -1,14 +1,14 @@
 #pragma once
 
-#include "cstdint"
+#include <cstdint>
 
-#include "keeloq_encrypted.h"
-#include "keeloq_learning_types.h"
+#include "algorithm/keeloq/keeloq_encrypted.h"
+#include "algorithm/keeloq/keeloq_learning_types.h"
+
 
 /**
- *  Convenience struct for holding encryption parameters for key generation in learning algorithms.
- * Only C++, not used in CUDA kernels.
- * Used only for tests
+ * Host-only helper that produces keeloq OTA parcels from a known key/seed/serial.
+ * Used by the test and bench paths to generate matching ciphertext; never invoked from kernels.
  */
 struct Encryptor
 {
@@ -35,37 +35,37 @@ public:
     }
 
 public:
-    /** Generates OTA parcel, increases counter like emulate of button click */
+    /** Generates an OTA parcel and bumps the counter (simulates a button click). */
     EncParcel click(KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Input imod, KeeloqLearning::Modifier::Algo amod);
 
-    /** Returns new MAN key according to learning type and modifiers */
+    /** Derives the effective manufacturer key for the given learning type and modifiers. */
     uint64_t man(KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Input imod, KeeloqLearning::Modifier::Algo amod) const;
 
-    /** Returns hopping part before encryption */
+    /** Assembled hopping-code value prior to encryption. */
     inline uint32_t unencrypted() const { return (uint32_t)button << 28 | ((serial & 0x3FF) << 16) | count; }
 
-    /** Returns fixed part (button, serial, always the same) */
+    /** Assembled fixed code (button + serial) — constant per device. */
     inline uint32_t fixed() const { return (uint32_t)button << 28 | (serial & 0x0FFFFFFF); }
 
-    /** Returns current counter value */
+    /** Current counter value. */
     inline uint16_t getCounter() const { return count; }
 
-    /** Overrides current counter value */
+    /** Overrides the counter (for tests that need a deterministic counter). */
     inline void setCounter(uint16_t value) { count = value; }
 
 private:
 
-    /** Returns CPU encrypted value, NOT reversed bits, not OTA */
-    uint32_t cpu_encrypt(KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Input imod, KeeloqLearning::Modifier::Algo amod) const;
+    /** CPU encryption result — raw, not bit-reversed, not OTA. */
+    uint32_t cpuEncrypt(KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Input imod, KeeloqLearning::Modifier::Algo amod) const;
 
-    /** Decrypts OTA (rev bits) value on CPU with specific learning and modifier */
-    uint32_t cpu_decrypt(uint64_t enc, KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Input imod, KeeloqLearning::Modifier::Algo amod) const;
+    /** CPU decryption of an OTA value with the given learning/modifier. */
+    uint32_t cpuDecrypt(uint64_t enc, KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Input imod, KeeloqLearning::Modifier::Algo amod) const;
 
-    /** Return GPU encrypted value, NOT reversed bits, not OTA */
-    uint32_t gpu_encrypt(KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Input imod, KeeloqLearning::Modifier::Algo amod) const;
+    /** GPU encryption result — raw, not bit-reversed, not OTA. */
+    uint32_t gpuEncrypt(KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Input imod, KeeloqLearning::Modifier::Algo amod) const;
 
-    /** Decrypts OTA (rev bits) value on GPU with specific learning and modifier */
-    uint32_t gpu_decrypt(uint64_t enc, KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Input imod, KeeloqLearning::Modifier::Algo amod) const;
+    /** GPU decryption of an OTA value with the given learning/modifier. */
+    uint32_t gpuDecrypt(uint64_t enc, KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Input imod, KeeloqLearning::Modifier::Algo amod) const;
 
 private:
 

@@ -1,43 +1,41 @@
 #pragma once
 
+#include <string>
+#include <vector>
+
 #include "common.h"
 
-#include <vector>
-#include <string>
+#include "device/cuda_config.h"
+#include "kernels/kernel_result.h"
 
-#include "algorithm/keeloq/keeloq_learning_types.h"
-#include "algorithm/keeloq/keeloq_single_result.h"
 #include "algorithm/keeloq/keeloq_encrypted.h"
 #include "algorithm/keeloq/keeloq_kernel_input.h"
+#include "algorithm/keeloq/keeloq_learning_types.h"
+#include "algorithm/keeloq/keeloq_single_result.h"
 
-#include "device/cuda_config.h"
 #include "bruteforce/bruteforce_config.h"
-#include "kernels/kernel_result.h"
 
 
 /**
- *  Round is a set of bruteforce batches
- * Each batch runs `T` CUDA threads in `B` blocks
- * Each thread checks 1 or more decryptor
- * Each check is 1 or more (configured in args) keeloq learnings
+ * A single attack "round" — the full sweep of one BruteforceConfig.
  *
- * Typical is:
- *  Via command line some rounds were created - e.g. Dictionary and Simple attacks
- *  Each attack has N decryptors to check, through num blocks B, num threads T, and I iteration
- *  This means `(1 BATCH size) = B * T * I` decryptors check
- *  This means num of batches = `Total Num to Check / (1 BATCH size)`
+ * A round is composed of batches; each batch runs `B` CUDA blocks × `T` threads,
+ * each thread checks one or more decryptors, and each check evaluates one or
+ * more keeloq learning types.
+ *
+ * Total batches in a round ≈ (keys to check) / (B * T * I).
  */
 struct BruteforceRound
 {
-    // Construct round struct without specific learning type (means use all learnings)
+    /** Construct a round using every learning type (default). */
     BruteforceRound(const std::vector<EncParcel>& data, const BruteforceConfig& gen, const CudaConfig& config) :
         BruteforceRound(data, gen, KeeloqLearning::Matrix::Everything(), config) {}
 
-    // Construct round struct with only one selected learning type
+    /** Construct a round restricted to a single learning type. */
     BruteforceRound(const std::vector<EncParcel>& data, const BruteforceConfig& gen, KeeloqLearning::LearningItem single, const CudaConfig& config) :
         BruteforceRound(data, gen, KeeloqLearning::Matrix({ single }), config) {}
 
-    // Standard constructor
+    /** Construct a round with an explicit learning matrix. */
     BruteforceRound(const std::vector<EncParcel>& data, const BruteforceConfig& gen, const KeeloqLearning::Matrix& learning_matrix, const CudaConfig& config);
 
     ~BruteforceRound()
@@ -46,38 +44,42 @@ struct BruteforceRound
     }
 
 public:
-    // Allocates memory
-    void Init();
+    /** One-shot allocation of GPU buffers; must be called before running batches. */
+    void init();
 
-    // Reads results data from GPU memory into internal container and returns const reference to it
-    bool read_results_gpu(std::vector<SingleResult>& container) const;
+    /** Reads GPU result buffer into the supplied container; returns true if any data was copied. */
+    bool readResultsGpu(std::vector<SingleResult>& container) const;
 
-    // Checks Kernel's results
-    // Return true if Round should be finished
-    bool check_results(const KernelResult& result);
+    /** Inspects a kernel result and returns true if the round should stop (match or fatal error). */
+    bool checkResults(const KernelResult& result);
 
-    // Get allocated memory amount for data
-    size_t get_mem_size(bool cpu = false) const;
+    /** Allocated memory (bytes) for CPU or GPU buffers. */
+    size_t getMemSize(bool cpu = false) const;
 
-    // How many batches in this round (basically total keys to check divides by number of keys in a batch)
-    size_t num_batches() const;
+    /** Number of batches required to cover the configured key space. */
+    size_t numBatches() const;
 
-    // How many calculated results are in a batch (if use 3 inputs - 3 x keys_per_batch)
-    size_t results_per_batch() const;
+    /** Result slots written per batch (num inputs × keys per batch). */
+    size_t resultsPerBatch() const;
 
-    // How many keys to check in this batch
-    size_t keys_per_batch() const;
+    /** Decryptor count processed per batch. */
+    size_t keysPerBatch() const;
 
-    std::string to_string() const;
+    /** Human-readable summary of the round's CUDA config, memory, and attack parameters. */
+    std::string toString() const;
 
 public:
-    inline const BruteforceConfig& Config() const { assert(inited); return kernel_inputs.GetConfig(); }
+    /** Underlying bruteforce configuration (requires init()). */
+    inline const BruteforceConfig& config() const { assert(inited); return kernel_inputs.GetConfig(); }
 
-    inline BruteforceType::Type Type() const { assert(inited); return Config().type; }
+    /** Bruteforce attack type (requires init()). */
+    inline BruteforceType::Type type() const { assert(inited); return config().type; }
 
-    inline KeeloqKernelInput& Inputs() { assert(inited); return kernel_inputs; }
+    /** Mutable kernel inputs (requires init()). */
+    inline KeeloqKernelInput& inputs() { assert(inited); return kernel_inputs; }
 
-    inline const KeeloqKernelInput& Inputs() const { assert(inited); return kernel_inputs; }
+    /** Const kernel inputs (requires init()). */
+    inline const KeeloqKernelInput& inputs() const { assert(inited); return kernel_inputs; }
 
 private:
 

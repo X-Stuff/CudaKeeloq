@@ -1,11 +1,12 @@
 #pragma once
 
+#include <chrono>
+#include <cstdio>
+
 #include "common.h"
 
-#include <stdio.h>
-#include <chrono>
-
 #include "host/command_line_args.h"
+
 
 constexpr char WAIT_SPIN[] = "|/-\\";
 #define WAIT_CHAR(i) (WAIT_SPIN[i % (sizeof(WAIT_SPIN) - 1)])
@@ -23,19 +24,29 @@ constexpr char WAIT_SPIN[] = "|/-\\";
 #define save_cursor_pos() printf("\033[s")
 #define load_cursor_pos() printf("\033[u")
 
+/**
+ * Thin terminal helpers used by the interactive progress UI.
+ * Backed by cpp-terminal; printf-based escape sequences are exposed as macros above.
+ */
 namespace console
 {
 
-void progress_bar(double percent, const std::chrono::seconds& elapsed);
+/** Render a 0..1 progress bar with elapsed/ETA time annotation. */
+void progressBar(double percent, const std::chrono::seconds& elapsed);
 
-void clear_line(int width = 0);
+/** Clear the current terminal line (full width by default). */
+void clearLine(int width = 0);
 
-void clear_lines_up(int numlines, int width = 0);
+/** Move the cursor up `numlines` and clear each line in that range. */
+void clearLinesUp(int numlines, int width = 0);
 
-int read_esc_press();
+/** Poll for an Escape key press; returns non-zero if pressed since last call. */
+int readEscPress();
 
-void set_cursor_state(bool visible);
+/** Show or hide the terminal cursor. */
+void setCursorState(bool visible);
 
-uint32_t get_width();
+/** Current terminal width in columns. */
+uint32_t getWidth();
 
 }

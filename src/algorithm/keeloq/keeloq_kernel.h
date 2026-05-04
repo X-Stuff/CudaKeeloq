@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cuda_runtime_api.h>
+
 #include "common.h"
 
 #include "device/cuda_config.h"
@@ -8,8 +10,6 @@
 
 #include "algorithm/keeloq/keeloq_kernel_input.h"
 #include "algorithm/keeloq/keeloq_learning_types.h"
-
-#include <cuda_runtime_api.h>
 
 #define NLF_LOOKUP_CONSTANT 0x3a5c742e
 
@@ -58,7 +58,6 @@ __device__ __host__ inline uint32_t decrypt(const uint32_t data, const uint64_t 
             --r;
         }
     }
-
 
     return x;
 }

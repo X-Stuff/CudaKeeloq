@@ -1,8 +1,9 @@
-#include "generator_bruteforce.h"
+#include "bruteforce/generators/generator_bruteforce.h"
+
+#include "device/cuda_config.h"
+#include "kernels/kernel_result.h"
 
 #include "algorithm/keeloq/keeloq_kernel_input.h"
-#include "kernels/kernel_result.h"
-#include "device/cuda_config.h"
 
 
 cudaError_t GeneratorBruteforce::PrepareDecryptors(KeeloqKernelInput& inputs, const CudaConfig& cuda)
@@ -41,7 +42,7 @@ cudaError_t GeneratorBruteforce::PrepareDecryptors(KeeloqKernelInput& inputs, co
     default:
     {
         printf("Error: Invalid bruteforce type: %d (%s)! Don't know how to generate decryptors!\n",
-            (int)config.type, BruteforceType::Name(config.type));
+            (int)config.type, BruteforceType::name(config.type));
         return cudaErrorUnknown;
     }
     }

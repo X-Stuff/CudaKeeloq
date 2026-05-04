@@ -1,4 +1,4 @@
-#include "bruteforce_type.h"
+#include "bruteforce/bruteforce_type.h"
 
 
 const char* BruteforceType::GeneratorTypeName[] = {
@@ -12,7 +12,7 @@ const char* BruteforceType::GeneratorTypeName[] = {
 
 const size_t BruteforceType::GeneratorTypeNamesCount = sizeof(GeneratorTypeName) / sizeof(char*);
 
-const char* BruteforceType::Name(Type type)
+const char* BruteforceType::name(Type type)
 {
     if (type > GeneratorTypeNamesCount)
     {

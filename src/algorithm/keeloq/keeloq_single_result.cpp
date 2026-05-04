@@ -1,6 +1,6 @@
-#include "keeloq_single_result.h"
+#include "algorithm/keeloq/keeloq_single_result.h"
 
-#include <stdio.h>
+#include <cstdio>
 
 #include "device/cuda_common.h"
 
@@ -10,7 +10,7 @@ void SingleResult::LearningsArray::print(const KeeloqLearning::LearningItem& ite
     const bool ismatch = match == resIndex;
 
     printf("[%-8s: %-8s: %-8s] Btn:0x%02X | Serial:0x%08X (0x%08" PRIX32 ") | Counter:0x%04X | %7s |\n",
-        KeeloqLearning::Name(item.learning), KeeloqLearning::Name(item.imod), KeeloqLearning::Name(item.amod),
+        KeeloqLearning::name(item.learning), KeeloqLearning::name(item.imod), KeeloqLearning::name(item.amod),
         (data[resIndex] >> 28),         // Button
         (data[resIndex] >> 16) & 0x3ff, // Serial
         srl,                            // Serial (OTA)

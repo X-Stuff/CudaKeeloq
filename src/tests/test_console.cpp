@@ -1,4 +1,4 @@
-#include "test_console.h"
+#include "tests/test_console.h"
 
 #include "host/command_line_args.h"
 #include "host/console.h"

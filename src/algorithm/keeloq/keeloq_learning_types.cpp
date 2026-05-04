@@ -1,8 +1,9 @@
-#include "keeloq_learning_types.h"
-#include "bruteforce/bruteforce_config.h"
+#include "algorithm/keeloq/keeloq_learning_types.h"
 
-#include <string>
 #include <array>
+#include <string>
+
+#include "bruteforce/bruteforce_config.h"
 
 namespace KeeloqLearning
 {
@@ -48,12 +49,12 @@ Matrix::Matrix(const std::vector<LearningType>& types, const std::vector<Modifie
     }
 }
 
-std::string Matrix::to_string(const BruteforceConfig* bruteConfig) const
+std::string Matrix::toString(const BruteforceConfig* bruteConfig) const
 {
     char buffer[8196];
     int at = 0;
 
-    const bool withSeed = bruteConfig == nullptr || bruteConfig->has_seed();
+    const bool withSeed = bruteConfig == nullptr || bruteConfig->hasSeed();
     const bool seedOnly = bruteConfig != nullptr && bruteConfig->type == BruteforceType::Seed;
 
     uint8_t enabledCount = 0;
@@ -68,13 +69,13 @@ std::string Matrix::to_string(const BruteforceConfig* bruteConfig) const
             auto imod = static_cast<Modifier::Input>(i);
             auto amod = static_cast<Modifier::Algo>(a);
 
-            at += snprintf(&buffer[at], sizeof(buffer) - at, "%8s - %8s: |", KeeloqLearning::Name(imod), KeeloqLearning::Name(amod));
+            at += snprintf(&buffer[at], sizeof(buffer) - at, "%8s - %8s: |", KeeloqLearning::name(imod), KeeloqLearning::name(amod));
 
             for (auto learning : EveryLearningType{})
             {
                 bool isLearningEnabled = isEnabled(learning, imod, amod);
 
-                if (HasSeed(learning))
+                if (hasSeed(learning))
                 {
                     if (!withSeed)
                     {
@@ -98,7 +99,7 @@ std::string Matrix::to_string(const BruteforceConfig* bruteConfig) const
     return std::string(buffer);
 }
 
-const char* Name(LearningType type)
+const char* name(LearningType type)
 {
     switch (type)
     {
@@ -114,7 +115,7 @@ const char* Name(LearningType type)
     }
 }
 
-const char* Name(Modifier::Algo amod)
+const char* name(Modifier::Algo amod)
 {
     switch (amod)
     {
@@ -124,7 +125,7 @@ const char* Name(Modifier::Algo amod)
     }
 }
 
-const char* Name(Modifier::Input imod)
+const char* name(Modifier::Input imod)
 {
     switch (imod)
     {
@@ -134,10 +135,10 @@ const char* Name(Modifier::Input imod)
     }
 }
 
-bool Parse(const char* data, LearningType& out)
+bool parse(const char* data, LearningType& out)
 {
-    std::string name(data);
-    for (auto& c : name)
+    std::string nameStr(data);
+    for (auto& c : nameStr)
     {
         c = std::tolower(c);
     }
@@ -145,14 +146,14 @@ bool Parse(const char* data, LearningType& out)
     for (int i = 0; i < LearningTypesCount; ++i)
     {
         auto type = static_cast<LearningType>(i);
-        std::string typeName(Name(type));
+        std::string typeName(name(type));
 
         for (auto& c : typeName)
         {
             c = std::tolower(c);
         }
 
-        if (name == typeName || std::to_string(i) == name)
+        if (nameStr == typeName || std::to_string(i) == nameStr)
         {
             out = type;
             return true;

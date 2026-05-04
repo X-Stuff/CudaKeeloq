@@ -1,16 +1,18 @@
 #pragma once
 
-#include "common.h"
-
 #include <cuda_runtime.h>
 
-#include "algorithm/keeloq/keeloq_kernel_input.h"
-#include "kernels/kernel_result.h"
+#include "common.h"
+
 #include "device/cuda_config.h"
+#include "kernels/kernel_result.h"
+
+#include "algorithm/keeloq/keeloq_kernel_input.h"
 
 
 /**
- * Declare new struct which represents a wrapper around cu implementation
+ * Declares a host-side wrapper around a cu-file generator kernel.
+ * Pairs each generator struct with its __global__ kernel symbol and an extern "C" getter.
  */
 #define DECLARE_GENERATOR(name, ...) \
     extern "C" void* GENERATOR_KERNEL_GETTER_NAME(name)(); \
@@ -22,6 +24,9 @@
     };
 
 
+/**
+ * CRTP helper that launches a generator kernel using its derived class's function pointer.
+ */
 template<typename TSelf>
 struct IGenerator
 {
@@ -38,12 +43,17 @@ struct IGenerator
     }
 };
 
+/**
+ * Dispatcher that picks the correct generator kernel for a given BruteforceConfig and
+ * writes the next batch of decryptors to GPU memory.
+ */
 struct GeneratorBruteforce
 {
-    // Checks type of used generator in inputs and launches kernel to generate next batch of decryptors
-    // Decryptors are generated on GPU and stored in GPU memory
-    //
-    // Decryptors size MUST be `N * blocks * threads` where N > 0
+    /**
+     * Generate the next batch of decryptors on the GPU based on the active bruteforce type.
+     *
+     * Note: `inputs.decryptors.size()` must be `N * blocks * threads` with N > 0.
+     */
     static cudaError_t PrepareDecryptors(KeeloqKernelInput& inputs, const CudaConfig& cuda);
 };
 
@@ -53,6 +63,3 @@ DECLARE_GENERATOR(GeneratorBruteforcePattern, KeeloqKernelInput::TCudaPtr input,
 DECLARE_GENERATOR(GeneratorBruteforceFiltered, KeeloqKernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls);
 DECLARE_GENERATOR(GeneratorBruteforceSimple, KeeloqKernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls);
 DECLARE_GENERATOR(GeneratorBruteforceSeed, KeeloqKernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls);
-
-
-

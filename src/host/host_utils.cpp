@@ -1,11 +1,11 @@
 #define _CRT_SECURE_NO_WARNINGS
 
-#include "common.h"
+#include "host/host_utils.h"
 
-#include <stdlib.h>
+#include <cstdlib>
 #include <cstring>
 
-#include "host_utils.h"
+#include "common.h"
 
 #include "algorithm/keeloq/keeloq_decryptor.h"
 
@@ -68,7 +68,7 @@ bool parse_seed(char* seed_str, uint32_t& seed)
 
 }
 
-std::vector<Decryptor> host::utils::read_word_dictionary_file(const char* file)
+std::vector<Decryptor> host::utils::readWordDictionaryFile(const char* file)
 {
     std::vector<Decryptor> results;
 
@@ -105,7 +105,7 @@ std::vector<Decryptor> host::utils::read_word_dictionary_file(const char* file)
     return results;
 }
 
-std::vector<Decryptor> host::utils::read_binary_dictionary_file(const char* file, uint8_t mode, const uint32_t* seed_ptr)
+std::vector<Decryptor> host::utils::readBinaryDictionaryFile(const char* file, uint8_t mode, const uint32_t* seed_ptr)
 {
     std::vector<Decryptor> decryptors;
 
@@ -137,7 +137,7 @@ std::vector<Decryptor> host::utils::read_binary_dictionary_file(const char* file
     return decryptors;
 }
 
-std::vector<uint8_t> host::utils::read_alphabet_binary_file(const char* file)
+std::vector<uint8_t> host::utils::readAlphabetBinaryFile(const char* file)
 {
     constexpr uint32_t MaxFileSize = 256;
 

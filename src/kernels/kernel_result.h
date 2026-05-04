@@ -5,7 +5,11 @@
 #include "device/cuda_object.h"
 
 /**
- *  Generic output from CUDA kernel
+ * Minimal result aggregate for a kernel launch.
+ *
+ * Kernels call `onKernelFinish(numMatches)`; the struct atomically accumulates
+ * "threads that finished" in the high 32 bits and "any match seen" in the low 32 bits,
+ * so the host can read both with a single packed field.
  */
 struct KernelResult final : TGenericGpuObject<KernelResult>
 {
@@ -28,11 +32,13 @@ struct KernelResult final : TGenericGpuObject<KernelResult>
         return *this;
     }
 public:
+    /** Zero-initialised KernelResult representing "no kernel has run yet". */
     static KernelResult NotStarted() { return KernelResult(); }
 
 public:
     /**
-     *  Method that kernel should call at the end of execution to update results in unified way, so we can easily read them on host side.
+     * Called by each thread at the end of the kernel; contributes its match count
+     * and a "finished" signal into the packed counters.
      */
     __host__ __device__ __forceinline__ void onKernelFinish(uint8_t numMatches)
     {
@@ -54,18 +60,15 @@ public:
     }
 
 public:
-    /**
-     *  Flag that indicates that at least one match was found
-     */
+    /** True if at least one thread reported a match. */
     bool hasMatch() const
     {
         return !!(packed & 0xFFFFFFFF);
     }
 
     /**
-     *  Number of threads that successfully finished their execution, used to check if kernel executed fully or was interrupted by some error
-     * You need to compare this number to number of blocks multiplied by number of threads per block,
-     * to understand if kernel executed fully or was interrupted by some error (like OOM or something else)
+     * Count of threads that reached `onKernelFinish`. Compare against the configured
+     * (blocks × threads) to detect kernel crashes or early exits.
      */
     uint32_t threadsFinished() const
     {

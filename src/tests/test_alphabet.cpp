@@ -1,15 +1,18 @@
 #include "tests/test_alphabet.h"
-#include "tests/test_keeloq.h"
+
+#include "algorithm/keeloq/keeloq_decryptor.h"
+#include "algorithm/keeloq/keeloq_kernel_input.h"
+
+#include "bruteforce/bruteforce_config.h"
+#include "bruteforce/generators/generator_bruteforce.h"
 
 #include "device/cuda_vector.h"
 #include "kernels/kernel_result.h"
-#include "bruteforce/bruteforce_config.h"
-#include "bruteforce/generators/generator_bruteforce.h"
-#include "algorithm/keeloq/keeloq_kernel_input.h"
-#include "algorithm/keeloq/keeloq_decryptor.h"
+
+#include "tests/test_keeloq.h"
 
 
-bool tests::alphabet_generation()
+bool tests::alphabetGeneration()
 {
     // Filtered generator test itself
     const CudaConfig Cuda = CudaConfig::Tests();
@@ -20,7 +23,7 @@ bool tests::alphabet_generation()
     const auto fullTurn = static_cast<uint32_t>(std::pow(pattern.size(), 8)); // 65536
 
     auto testConfig = BruteforceConfig::GetAlphabet(Decryptor::Make(0, 0, true), pattern, 0xFFFFFFFF);
-    auto inputs = keeloq::gen_inputs(0x6161616161616161);
+    auto inputs = keeloq::genInputs(0x6161616161616161);
 
     CudaVector<Decryptor> decryptors(Cuda.total());
 

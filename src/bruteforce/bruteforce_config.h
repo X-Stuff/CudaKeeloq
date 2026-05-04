@@ -1,23 +1,22 @@
 #pragma once
 
-#include "common.h"
-
-#include <vector>
 #include <string>
+#include <vector>
 
 #include <cuda_runtime_api.h>
 
+#include "common.h"
+
 #include "algorithm/keeloq/keeloq_decryptor.h"
 
-#include "bruteforce/bruteforce_pattern.h"
 #include "bruteforce/bruteforce_filters.h"
+#include "bruteforce/bruteforce_pattern.h"
 #include "bruteforce/bruteforce_type.h"
-#include "bruteforce/bruteforce_config.h"
 
 
 /**
- *  Single run attack configuration
- * Run - selected type with specific parameters
+ * Single-run attack descriptor: which generator to use, where to start,
+ * and which decryptor/filter/pattern state is associated with it.
  */
 struct BruteforceConfig
 {
@@ -51,35 +50,47 @@ public:
 
 public:
 
+    /** Dictionary attack over an explicit list of decryptors. */
     static BruteforceConfig GetDictionary(std::vector<Decryptor>&& dictionary);
 
+    /** Plain +1 bruteforce over a contiguous key range. */
     static BruteforceConfig GetBruteforce(Decryptor first, size_t size);
 
+    /** +1 bruteforce with include/exclude filters applied. */
     static BruteforceConfig GetBruteforce(Decryptor first, size_t size, const BruteforceFilters& filters);
 
+    /** +1 bruteforce over the 32-bit seed space for a fixed manufacturer key. */
     static BruteforceConfig GetSeedBruteforce(Decryptor first, uint32_t size = static_cast<uint32_t>(-1));
 
+    /** Alphabet (same byte set on every position) bruteforce. */
     static BruteforceConfig GetAlphabet(Decryptor first, const MultibaseDigit& alphabet, size_t num = (size_t)-1);
 
+    /** Pattern bruteforce (per-position byte sets). */
     static BruteforceConfig GetPattern(Decryptor first, const BruteforcePattern& pattern, size_t num = (size_t)-1);
 
 public:
 
-    // Number of elements in dictionary (for dictionary type) or 0 for other types
-    uint64_t dict_size() const;
+    /** Dictionary entry count for Dictionary mode, 0 otherwise. */
+    uint64_t dictSize() const;
 
-    // Number of decryptors to generate (for non-dictionary types) or 0 for dictionary type
-    uint64_t brute_size() const;
+    /** Generation budget for non-Dictionary modes, 0 otherwise. */
+    uint64_t bruteSize() const;
 
-    // Update start and last decryptors to next values.
-    // New start will be current last, and new last will be calculated according to generator type and size.
-    void next_decryptor();
+    /**
+     * Advance `start` to the next batch boundary (using generator-specific arithmetic).
+     * New `start` is the previous `last`; new `last` is computed after the next batch runs.
+     */
+    void nextDecryptor();
 
-    // Returns true if config's start decryptor has seed, for regular bruteforce type
-    // Returns true if config's type is seed bruteforce
-    // Returns true if at least one of decryptors in dictionary has seed (for dictionary type)
-    bool has_seed() const;
+    /**
+     * Whether the active configuration meaningfully carries a seed.
+     *  - Simple/Filtered/Alphabet/Pattern: reflects `start.has_seed()`
+     *  - Seed: always true
+     *  - Dictionary: true if any dictionary entry has a seed
+     */
+    bool hasSeed() const;
 
+    /** Human-readable one-line description of the configuration. */
     std::string toString() const;
 
 private:

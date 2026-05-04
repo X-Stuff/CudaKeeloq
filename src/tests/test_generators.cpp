@@ -1,7 +1,9 @@
 #include "tests/test_generators.h"
-#include "tests/test_keeloq.h"
 
 #include <algorithm>
+
+#include "algorithm/keeloq/keeloq_kernel.h"
+#include "algorithm/keeloq/keeloq_kernel_input.h"
 
 #include "bruteforce/bruteforce_config.h"
 #include "bruteforce/bruteforce_pattern.h"
@@ -9,8 +11,7 @@
 
 #include "device/cuda_vector.h"
 
-#include "algorithm/keeloq/keeloq_kernel.h"
-#include "algorithm/keeloq/keeloq_kernel_input.h"
+#include "tests/test_keeloq.h"
 
 
 namespace
@@ -44,7 +45,7 @@ bool tests::generators::pattern()
 
     const uint64_t debugKey = "hello_world"_u64;
 
-    auto inputs = tests::keeloq::gen_inputs(debugKey, NumInputs, LearningType::Simple);
+    auto inputs = tests::keeloq::genInputs(debugKey, NumInputs, LearningType::Simple);
 
     CudaVector<Decryptor> decryptors(cudaConfig.total());
     CudaVector<SingleResult> results(decryptors.size() * inputs.size());
@@ -84,7 +85,7 @@ bool tests::generators::seed()
     const CudaConfig cudaConfig = CudaConfig::Tests();
     const uint64_t debugKey = "hello_world"_u64;
 
-    const auto inputs = tests::keeloq::gen_inputs(debugKey, NumInputs, LearningType::Secure);
+    const auto inputs = tests::keeloq::genInputs(debugKey, NumInputs, LearningType::Secure);
     CudaVector<Decryptor> decryptors(cudaConfig.total());
     CudaVector<SingleResult> results(decryptors.size() * inputs.size());
 
@@ -145,4 +146,3 @@ bool tests::generators::all()
 
     return ok;
 }
-

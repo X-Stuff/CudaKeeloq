@@ -1,18 +1,23 @@
 #pragma once
 
-#include "common.h"
-#include "device/cuda_fixed_array.h"
+#include <string>
+#include <string_view>
+#include <tuple>
+#include <type_traits>
+#include <vector>
 
 #include <cuda_runtime_api.h>
 
-#include <string>
-#include <vector>
-#include <tuple>
-#include <type_traits>
-#include <string_view>
+#include "common.h"
+
+#include "device/cuda_fixed_array.h"
 
 struct BruteforceConfig;
 
+/**
+ * Bitmask describing which decryption path the kernel takes and which optional
+ * learning-type groups / modifiers are included in a single kernel launch.
+ */
 enum class LearningDecryptionMode
 {
     // Explicit defined learning types
@@ -85,6 +90,7 @@ namespace KeeloqLearning
 {
 
 /**
+ * Catalogue of supported keeloq learning algorithms.
  * reference: https://github.com/DarkFlippers/unleashed-firmware/blob/dev/lib/subghz/protocols/keeloq_common.h
  */
 enum LearningType : uint8_t
@@ -111,6 +117,7 @@ enum LearningType : uint8_t
     Serial3,
 };
 
+/** Compile-time set of learning types, used to expand template packs. */
 template<LearningType... Values> struct LearningTypesSet
 {
     static constexpr CudaFixedArray<LearningType, sizeof...(Values)> values = { Values... };
@@ -152,8 +159,8 @@ using SeededTypes = LearningTypesSet<LearningType::Secure, LearningType::Faac>;
 /** Defined all normal (no seed) learning types as set of values */
 using NormalTypes = LearningTypesSet<LearningType::Simple, LearningType::Normal, LearningType::Xor, LearningType::Serial1, LearningType::Serial2, LearningType::Serial3>;
 
-/** Helper runtime function that checks if a learning type has a seed */
-constexpr bool HasSeed(LearningType type)
+/** True if the given learning type requires a seed. */
+constexpr bool hasSeed(LearningType type)
 {
     for (uint8_t i = 0; i < SeededTypes::values.size(); ++i)
     {
@@ -167,7 +174,8 @@ constexpr bool HasSeed(LearningType type)
 
 
 /**
- *  Additional modification for learning types, in some cases might be useful
+ * Additional tweaks that can be applied on top of a learning algorithm.
+ * Some learning types only support a subset of these modifiers.
  */
 struct Modifier
 {
@@ -198,7 +206,7 @@ struct Modifier
     using TypeSequence = std::make_index_sequence<AlgoModCount>;
 };
 
-/** Helper struct that aggregates single learning matrix entry */
+/** Single cell (learning type + input/algo modifiers) in the learning matrix. */
 struct LearningItem
 {
     constexpr LearningItem() = default;
@@ -233,13 +241,12 @@ struct LearningItem
 };
 
 /**
- *  Meta-programming helpers struct for definition of Indices arrays in KeeloqLearningMatrix.
+ * Meta-programming registry for enumerating legal learning-type/modifier combinations.
+ * Add a new learning type by extending `Available`.
  */
 struct Registry
 {
-    /**
-     *  Internal information for each learning type that will be in Available tuple.
-     */
+    /** Per-learning descriptor: seeded flag and supported algorithm modifiers. */
     template<LearningType LType, bool bIsSeeded, Modifier::Algo... AMods>
     struct Entry
     {
@@ -397,7 +404,10 @@ struct IndexInResults
  */
 extern __constant__ CudaFixedArray<ResultIndex, IndicesCacheSize> IndicesCache;
 
-/** Decoded array type, used to have exact memory fit for all learning types with modifications, and one last element for invalid combination */
+/**
+ * Fixed-size buffer of decrypted/encrypted values, one slot per valid
+ * (LearningType × Input-mod × Algo-mod) combination plus one terminal "invalid" slot.
+ */
 struct DecryptedResults : public CudaFixedArray<uint32_t, DecryptedArraySize>
 {
     template<uint8_t... Is>
@@ -526,9 +536,8 @@ public:
 };
 
 /**
- *  Used for:
- *
- *  - Setting up dynamic learning matrix, to select specific learnings and their modifications
+ * Bitmask of enabled learning-type/modifier combinations for a single kernel run.
+ * Bit-indexed using DecryptedResults::getIndex().
  */
 struct Matrix
 {
@@ -655,7 +664,8 @@ public:
         matrix |= (1ULL << bitIndex);
     }
 
-    __host__ std::string to_string(const BruteforceConfig* config = nullptr) const;
+    /** Human-readable table of enabled learning/modifier entries. */
+    __host__ std::string toString(const BruteforceConfig* config = nullptr) const;
 
 private:
     //  64 bits are too much, we have only 24 possible combinations,
@@ -673,11 +683,15 @@ private:
     uint64_t matrix = 0;
 };
 
-const char* Name(LearningType type);
+/** Human-readable name of a learning type. */
+const char* name(LearningType type);
 
-const char* Name(Modifier::Algo amod);
+/** Human-readable name of an algorithm modifier. */
+const char* name(Modifier::Algo amod);
 
-const char* Name(Modifier::Input imod);
+/** Human-readable name of an input modifier. */
+const char* name(Modifier::Input imod);
 
-bool Parse(const char* name, LearningType& out);
+/** Parses a learning-type name (case-insensitive) or its numeric index. */
+bool parse(const char* name, LearningType& out);
 }

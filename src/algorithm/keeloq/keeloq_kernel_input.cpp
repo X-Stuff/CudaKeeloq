@@ -1,4 +1,5 @@
-#include "keeloq_kernel_input.h"
+#include "algorithm/keeloq/keeloq_kernel_input.h"
+
 #include "common.h"
 
 
@@ -28,7 +29,7 @@ void KeeloqKernelInput::InitInputsCache(const std::vector<EncParcel>& inputs)
         encrypted_array[i] = i < inputs.size() ? inputs[i] : EncParcel{};
     }
 
-    CudaFixedArray<EncParcel, 3>::constant_copy(InputsCache, encrypted_array);
+    CudaFixedArray<EncParcel, 3>::constantCopy(InputsCache, encrypted_array);
 }
 
 size_t KeeloqKernelInput::BytesAllocated() const
@@ -51,7 +52,7 @@ void KeeloqKernelInput::WriteDecryptors(const std::vector<Decryptor>& source, si
 void KeeloqKernelInput::NextDecryptor()
 {
 	assert(config.type != BruteforceType::Dictionary);
-	config.next_decryptor();
+	config.nextDecryptor();
 }
 
 void KeeloqKernelInput::Initialize(const BruteforceConfig& inConfig, const std::vector<EncParcel>& inInputs, const KeeloqLearning::Matrix& inLearnings)
@@ -81,7 +82,7 @@ void KeeloqKernelInput::AfterGeneratedDecryptors()
 {
     // last generated decryptor - is first on next batch
     //  Warning: In case of non-aligned calculations "real" last decryptor may be somewhere in the middle of array
-    config.last = decryptors->host_last();
+    config.last = decryptors->hostLast();
 }
 
 size_t KeeloqKernelInput::NumInputs() const

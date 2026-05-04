@@ -1,4 +1,4 @@
-#include "bruteforce_pattern.h"
+#include "bruteforce/bruteforce_pattern.h"
 
 #include <utility>
 
@@ -38,7 +38,7 @@ BruteforcePattern::BruteforcePattern(const MultibaseDigit& same_bytes)
 {
 }
 
-__host__ std::string BruteforcePattern::to_string(bool extended) const
+__host__ std::string BruteforcePattern::toString(bool extended) const
 {
     if (!extended)
     {
@@ -49,7 +49,7 @@ __host__ std::string BruteforcePattern::to_string(bool extended) const
 
     for (int d = 0; d < PatternSystem::DigitsNumber; ++d)
     {
-        const auto& digitConfig = system.get_config(d);
+        const auto& digitConfig = system.getConfig(d);
 
         result += str::format<std::string>("\t 0%d: (", d);
 
@@ -71,7 +71,7 @@ __host__ std::string BruteforcePattern::to_string(bool extended) const
     return "\"" + repr_string + "\": \n" + result;
 }
 
-bool BruteforcePattern::TryParseSingleByte(std::string text, uint8_t& out)
+bool BruteforcePattern::tryParseSingleByte(std::string text, uint8_t& out)
 {
     if (text.size() == 2 || (text.size() == 4 && text.rfind("0x", 0) == 0))
     {
@@ -87,7 +87,7 @@ bool BruteforcePattern::TryParseSingleByte(std::string text, uint8_t& out)
     return false;
 }
 
-std::vector<uint8_t> BruteforcePattern::TryParseRangeBytes(std::string text)
+std::vector<uint8_t> BruteforcePattern::tryParseRangeBytes(std::string text)
 {
     auto delimeter_index = text.find("-");
     std::string from = text.substr(0, delimeter_index);
@@ -96,7 +96,7 @@ std::vector<uint8_t> BruteforcePattern::TryParseRangeBytes(std::string text)
     uint8_t byte_from;
     uint8_t byte_to;
 
-    if (!TryParseSingleByte(from, byte_from) || !TryParseSingleByte(to, byte_to))
+    if (!tryParseSingleByte(from, byte_from) || !tryParseSingleByte(to, byte_to))
     {
         return { };
     }
@@ -115,17 +115,17 @@ std::vector<uint8_t> BruteforcePattern::TryParseRangeBytes(std::string text)
     return result;
 }
 
-std::vector<uint8_t> BruteforcePattern::ParseBytes(std::string text)
+std::vector<uint8_t> BruteforcePattern::parseBytes(std::string text)
 {
     // easy - all
     if (text == "*")
     {
-        return DefaultByteArray<>::as_vector<std::vector<uint8_t>>();
+        return DefaultByteArray<>::asVector<std::vector<uint8_t>>();
     }
 
     // easy single byte 0xAA or AA
     uint8_t single_byte;
-    if (TryParseSingleByte(text, single_byte))
+    if (tryParseSingleByte(text, single_byte))
     {
         return { single_byte };
     }
@@ -134,7 +134,7 @@ std::vector<uint8_t> BruteforcePattern::ParseBytes(std::string text)
     auto delimeter_index = text.find("-");
     if (delimeter_index != std::string::npos)
     {
-        return TryParseRangeBytes(text);
+        return tryParseRangeBytes(text);
     }
 
     // set of bytes
@@ -143,7 +143,7 @@ std::vector<uint8_t> BruteforcePattern::ParseBytes(std::string text)
     for (const auto& part : splitted)
     {
         uint8_t byte;
-        if (TryParseSingleByte(part, byte))
+        if (tryParseSingleByte(part, byte))
         {
             result.push_back(byte);
         }

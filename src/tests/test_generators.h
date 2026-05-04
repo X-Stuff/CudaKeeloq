@@ -2,21 +2,21 @@
 
 #include "common.h"
 
+/**
+ * GPU-side decryptor-generator tests.
+ */
 namespace tests
 {
 
 namespace generators
 {
+/** Validates that the pattern generator produces the expected first decryptor. */
 bool pattern();
 
-/**
- *  Check if CUDA generator for seed bruteforce generates correct decryptors on GPU
- */
+/** Validates that the seed generator produces a contiguous, monotonically increasing seed sequence. */
 bool seed();
 
-/**
- *  Run all test for generators
- */
+/** Runs every generator test and returns true if all passed. */
 bool all();
 
 }

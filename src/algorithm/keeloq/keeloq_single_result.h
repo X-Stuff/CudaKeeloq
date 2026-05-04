@@ -1,31 +1,25 @@
 #pragma once
 
+#include <cstdint>
+
 #include "common.h"
 
-#include <stdint.h>
-
 #include "device/cuda_object.h"
-#include "algorithm/keeloq/keeloq_learning_types.h"
-#include "algorithm/keeloq/keeloq_encrypted.h"
+
 #include "algorithm/keeloq/keeloq_decryptor.h"
+#include "algorithm/keeloq/keeloq_encrypted.h"
+#include "algorithm/keeloq/keeloq_learning_types.h"
 
 
 /**
- *  Result of single keeloq run (encryption or decryption).
- *
- * EncParcel - is input for decryption as OTA, for encryption is should be created in specific way
- * Decryptor - is used decryptor for this result, contains manufacturer key and seed (if needed)
- * LearningsArray - is array of decrypted or encrypted values for each learning type (now summary 18 possible combinations)
+ * Outcome of a single keeloq encryption or decryption run.
+ * Holds the source decryptor, the per-learning decrypted values, and the match index (if any).
  */
 struct SingleResult
 {
     /**
-     *  Per-Learning with modifiers type array of decrypted or encrypted values.
-     *
-     * e.g.:
-     *  at index 0 - decrypted result for Simple learning type with Normal modifier
-     *  at index 1 - decrypted result for Simple learning type with Inverted modifier
-     *  etc.
+     * Per-learning result storage, indexed by `DecryptedResults::getIndex(learning, mods)`.
+     * Provides CUDA-tuned accessors (srl/btn/cnt) to unpack the decrypted 32-bit value.
      */
 	struct LearningsArray
 	{
@@ -45,23 +39,28 @@ struct SingleResult
         }
 
     public:
+        /** Extract the serial portion of a decrypted entry (10 bits). */
         __host__ __device__ __forceinline__ uint32_t srl(uint8_t index) const
         {
             return ((*this)[index] >> 16) & 0x3ff;
         }
 
+        /** Extract the button portion of a decrypted entry (top 4 bits). */
         __host__ __device__ __forceinline__ uint32_t btn(uint8_t index) const
         {
             return ((*this)[index] >> 28);
         }
 
+        /** Extract the counter portion of a decrypted entry (lower 16 bits). */
         __host__ __device__ __forceinline__ uint32_t cnt(uint8_t index) const
         {
             return ((*this)[index] & 0x0000FFFF);
         }
 
+        /** Pretty-print one decoded entry, highlighting the matched slot. */
         void print(const KeeloqLearning::LearningItem& item, uint32_t srl, KeeloqLearning::ResultIndex match) const;
 
+        /** Pretty-print every valid decoded entry. */
         void print() const;
     };
 
@@ -90,7 +89,7 @@ public:
 
 
 /**
- *  Specific result for single decryption kernel.
+ * Result wrapper for the single-run enc/dec kernel (non-bruteforce path).
  */
 struct DecryptKernelResult final : TGenericGpuObject<DecryptKernelResult>
 {

@@ -2,10 +2,10 @@
 
 #include <vector>
 
-#include "algorithm/keeloq/keeloq_learning_types.h"
 #include "algorithm/keeloq/keeloq_encrypted.h"
 #include "algorithm/keeloq/keeloq_encryptor.h"
 #include "algorithm/keeloq/keeloq_kernel.h"
+#include "algorithm/keeloq/keeloq_learning_types.h"
 
 
 namespace tests
@@ -15,7 +15,8 @@ namespace keeloq
 
 using namespace KeeloqLearning;
 
-inline std::vector<EncParcel> gen_inputs(Encryptor& encryptor, uint8_t num = 3, LearningType LType = LearningType::Simple, Modifier::Input iMod = Modifier::Input::Normal, Modifier::Algo aMod = Modifier::Algo::Normal)
+/** Generate `num` encrypted parcels using the provided encryptor, learning, and modifiers. */
+inline std::vector<EncParcel> genInputs(Encryptor& encryptor, uint8_t num = 3, LearningType LType = LearningType::Simple, Modifier::Input iMod = Modifier::Input::Normal, Modifier::Algo aMod = Modifier::Algo::Normal)
 {
     std::vector<EncParcel> result;
 
@@ -27,35 +28,22 @@ inline std::vector<EncParcel> gen_inputs(Encryptor& encryptor, uint8_t num = 3, 
     return result;
 }
 
-/**
- *  Generates `num` encrypted inputs with provided key, learning type and modifier.
- */
-std::vector<EncParcel> gen_inputs(uint64_t key, uint8_t num = 3, LearningType lType = LearningType::Simple, Modifier::Input iMod = Modifier::Input::Normal, Modifier::Algo aMod = Modifier::Algo::Normal);
+/** Generate `num` encrypted parcels for a fresh Encryptor seeded with the given key/learning/modifiers. */
+std::vector<EncParcel> genInputs(uint64_t key, uint8_t num = 3, LearningType lType = LearningType::Simple, Modifier::Input iMod = Modifier::Input::Normal, Modifier::Algo aMod = Modifier::Algo::Normal);
 
-/**
- *  Test EncParcel class for valid OTA/fix/hop parsing and generation
- */
+/** EncParcel round-trip test (OTA ↔ fix/hop representations). */
 bool encparcel();
 
-/**
- *  Test every learning type with every modifier to check if encryption and decryption works correctly.
- * Config describes type of bruteforce
- */
-bool every_learning_with_mod(const BruteforceConfig& config);
+/** Exhaustive learning × modifier test driven by the supplied BruteforceConfig. */
+bool everyLearningWithMod(const BruteforceConfig& config);
 
-/**
- *  Test every learning type with every modifier with every brute type
- */
-bool every_brute_type();
+/** Run everyLearningWithMod over every supported bruteforce attack type. */
+bool everyBruteType();
 
-/**
- *  Test kernel results logic works
- */
-bool check_kernel_results();
+/** KernelResult accumulator sanity test (match flag + thread count). */
+bool checkKernelResults();
 
-/**
- *  Launch all tests in this file
- */
+/** Launch the full keeloq test suite. */
 bool all();
 
 }

@@ -1,4 +1,4 @@
-#include "console.h"
+#include "host/console.h"
 
 #include <cstring>
 
@@ -15,7 +15,7 @@
 static Term::Terminal s_term = Term::Terminal(true, false);
 
 
-void console::progress_bar(double percent, const std::chrono::seconds& elapsed)
+void console::progressBar(double percent, const std::chrono::seconds& elapsed)
 {
     constexpr auto progress_width = 80;
 
@@ -37,7 +37,7 @@ void console::progress_bar(double percent, const std::chrono::seconds& elapsed)
         eta.count() / 3600, (eta.count() / 60) % 60, eta.count() % 60);
 }
 
-void console::clear_line(int width /*= 0*/)
+void console::clearLine(int width /*= 0*/)
 {
     int tWidth = 0;
     int tHeight = 0;
@@ -48,29 +48,29 @@ void console::clear_line(int width /*= 0*/)
 }
 
 
-void console::clear_lines_up(int numlines, int width /*= 0*/)
+void console::clearLinesUp(int numlines, int width /*= 0*/)
 {
     console_cursor_ret_up(numlines);
     for (int i = 0; i < numlines; ++i)
     {
-        console::clear_line(width);
+        console::clearLine(width);
         printf("\n");
     }
     console_cursor_ret_up(numlines);
 }
 
-int console::read_esc_press()
+int console::readEscPress()
 {
     return s_term.read_key0() == Term::ESC;
 }
 
 
-void console::set_cursor_state(bool visible)
+void console::setCursorState(bool visible)
 {
     s_term.write(visible ? Term::cursor_on() : Term::cursor_off());
 }
 
-uint32_t console::get_width()
+uint32_t console::getWidth()
 {
     int cols = CONSOLE_WIDTH;
     int rows = 0;

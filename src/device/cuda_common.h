@@ -1,13 +1,17 @@
 #pragma once
 
-#include "common.h"
-
 #include <cuda_runtime_api.h>
+
+#include "common.h"
 
 #ifdef _MSC_VER
     #include <intrin.h>
 #endif
 
+/**
+ * Bit- and byte-reversal helpers used on both host and device.
+ * Device paths use hardware intrinsics; host paths fall back to compiler built-ins.
+ */
 namespace misc
 {
 __host__ __device__ __forceinline__ uint64_t rev_bits(uint64_t x) {

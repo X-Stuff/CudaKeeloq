@@ -1,13 +1,16 @@
 #pragma once
 
-#include "common.h"
-
 #include <vector>
+
 #include <cuda_runtime_api.h>
+
+#include "common.h"
 
 
 /**
- *  A helper class for arrays allocated in GPU memory
+ * Owning array allocated in GPU memory.
+ * The struct itself also lives in device memory — host-side helpers are static and take `device`
+ * pointers; member helpers (free/write/copy/read/host) dispatch to those statics.
  */
 template<typename T>
 struct CudaArray
@@ -29,48 +32,46 @@ struct CudaArray
         return CUDA_data[index];
     }
 
-    // Frees all associated resources assuming this pointer is GPU address
+    /** Release the underlying GPU allocation (this pointer must be a device address). */
     inline void free()
     {
         TCudaArray::free(this);
     }
 
-    // Copies bytes from @source to this array
-    // Assumes array was allocated on GPU, will not fail if num > size
+    /** Upload `num` elements from host memory into this array. */
     inline void write(const T* source, size_t num)
     {
         TCudaArray::write(this, source, num);
     }
 
-    // Copies data from GPU to @target array
+    /** Copy the full array from GPU into `target`, returning the element count. */
     inline size_t copy(std::vector<T>& target) const
     {
         return TCudaArray::copy(this, target);
     }
 
-    // Copies data from GPU to @target array
+    /** Download a slice `[index, index+num)` from GPU into a new host vector. */
     inline std::vector<T> read(size_t index, size_t num) const
     {
         return TCudaArray::read(host(), index, num);
     }
 
-    // Copies self GPU object (without all underlying data in array)
-    // into CPU memory
+    /** Copy this array's header (pointer + size) from GPU into host memory. */
     inline TCudaArray host() const
     {
         // thiscall should work even with invalid pointer
         return TCudaArray::host(this);
     }
 
-    // Number of allocated bytes in GPU memory for this array
+    /** Total device bytes allocated for this array's payload. */
     inline size_t allocated() const
     {
         // thiscall should work even with invalid pointer
         return TCudaArray::host(this).num * sizeof(T);
     }
 
-    // Copies this pointer (which assumes to be GPU) to host and return copy of the last element
-    inline T host_last() const
+    /** Download the last element of this array from GPU. */
+    inline T hostLast() const
     {
         // thiscall should work even with invalid pointer
         TCudaArray HOST_array = TCudaArray::host(this);
@@ -78,25 +79,28 @@ struct CudaArray
     }
 
 public:
-    // Allocate GPU array and copy source data to it
+    /** Allocate a device array seeded with `source`'s contents. */
     static TCudaArray* allocate(const std::vector<T>& source);
 
-    // Allocate GPU array with specified size, data will be uninitialized
+    /** Allocate an uninitialised device array of `size` elements. */
     static TCudaArray* allocate(const size_t size);
 
+    /** Free a device array (its header and payload). */
     static void free(TCudaArray* array);
 
+    /** Copy a device array's header (pointer + size) back to host. */
     static TCudaArray host(const TCudaArray* device);
 
+    /** Download a single element from a host-side header's payload. */
     static T read(const TCudaArray& HOST_Array, size_t index);
 
-    /**
-     *  Read data from GPU array at specified index, and return it.
-     */
+    /** Download a slice from a host-side header's payload. */
     static std::vector<T> read(const TCudaArray& HOST_Array, size_t index, size_t num);
 
+    /** Download an entire array into the supplied host vector. */
     static size_t copy(const TCudaArray* array, std::vector<T>& target);
 
+    /** Upload `num` elements from host memory into a device array. */
     static void write(TCudaArray* dest, const T* source, size_t num);
 };
 

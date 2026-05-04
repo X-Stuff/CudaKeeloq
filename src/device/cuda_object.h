@@ -1,10 +1,15 @@
 #pragma once
 
-#include "common.h"
-
 #include <cuda_runtime_api.h>
 
+#include "common.h"
 
+
+/**
+ * Shared ownership over a host/GPU pair of `TTarget` instances.
+ * `ptr()` lazily allocates and uploads; `read()` pulls device data back into the host copy.
+ * The destructor frees the device allocation; the host pointer is caller-owned.
+ */
 template<typename TTarget>
 struct CudaObject
 {
@@ -33,6 +38,7 @@ struct CudaObject
 		HOST_Ptr = nullptr;
 	}
 
+	/** Returns the device pointer, allocating and (optionally) uploading from host on demand. */
 	TTarget* ptr(bool sync = true)
 	{
 		if (HOST_Ptr == nullptr)
@@ -56,6 +62,7 @@ struct CudaObject
 		return CUDA_Ptr;
 	}
 
+	/** Pulls device contents back into the host copy (no-op before the first `ptr()`). */
 	void read()
 	{
 		if (HOST_Ptr == nullptr)
@@ -72,7 +79,10 @@ struct CudaObject
 	}
 };
 
-// Self owned GPU object
+/**
+ * CRTP mixin: a type derives from `TGenericGpuObject<Self>` to gain paired host/device storage
+ * with `ptr()` / `read()` that operate on its own memory.
+ */
 template<typename T>
 struct TGenericGpuObject
 {

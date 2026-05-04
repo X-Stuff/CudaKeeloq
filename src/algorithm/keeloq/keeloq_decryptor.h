@@ -1,15 +1,15 @@
 #pragma once
 
-#include "common.h"
-
 #include <cuda_runtime_api.h>
+
+#include "common.h"
 
 #include "device/cuda_common.h"
 
 
 /**
- * Data struct which allows to decrypt encrypted data
- * In fact just (in most cases) just 64-bit integer (8 bytes array)
+ * Decryption context holding the manufacturer key and (optionally) the seed.
+ * Consumed directly by the CUDA kernels, so layout and member names are locked to device code.
  */
 struct Decryptor
 {
@@ -17,16 +17,16 @@ struct Decryptor
     {
     }
 
-    /** Create without seed */
+    /** Creates a decryptor in an invalid (zero-key) state. */
     __host__ __device__ inline static Decryptor Invalid() { return Decryptor(); }
 
-    /** Create without seed */
+    /** Creates a decryptor from a key alone; seed is marked invalid. */
     __host__ __device__ inline static Decryptor MakeNoSeed(uint64_t k) { return Decryptor(k); }
 
     /**
-     *  Create with seed, and explicitly set seed validity
-     * NOTE:
-     *  We do use explicit validity flag since we do not want `if` blocks in CUDA code
+     * Creates a decryptor with an explicit seed validity flag.
+     * The explicit flag lets device code avoid branching — 0/-1 are legal seed values,
+     * so they can't double as sentinels.
      */
     __host__ __device__ inline static Decryptor Make(uint64_t k, uint32_t s, bool seed_valid) { return Decryptor(k, s, seed_valid); }
 
@@ -42,8 +42,7 @@ public:
 	}
 
 public:
-    // Get manufacturer key with reverse or normal byte order, depending on template parameter
-    // Declared as template to optimize and prettyfy code
+    /** Get the manufacturer key, optionally with reversed byte order (templated to avoid a runtime branch). */
     template<bool IsReverse>
     __host__ __device__ __forceinline__ uint64_t getKey() const
     {
@@ -57,22 +56,22 @@ public:
         }
     }
 
-    // If this decryptor has seed (for special learning types)
+    /** Whether this decryptor carries a meaningful seed (for seeded learning types). */
     __host__ __device__ __forceinline__ bool has_seed() const { return seed_valid; }
 
-    // Get manufacturer key
+    /** Raw manufacturer key. */
     __host__ __device__ __forceinline__ uint64_t man() const { return key; }
 
-    // Get seed
+    /** Seed for seeded learning types (undefined if has_seed() is false). */
     __host__ __device__ __forceinline__ uint32_t seed() const { return key_seed; }
 
-    // Get byte-reversed manufacturer key
+    /** Manufacturer key with reversed byte order. */
     __host__ __device__ __forceinline__ uint64_t nam() const { return misc::rev_bytes(key); }
 
-    // Get bit-reversed manufacturer key
+    /** Manufacturer key with reversed bit order. */
     __host__ __device__ __forceinline__ uint64_t nambits() const { return misc::rev_bits(key); }
 
-    // If decryptor was initialized properly
+    /** True if the decryptor was initialised with a non-zero key. */
     __host__ __device__ __forceinline__ bool is_valid() const { return key != 0; }
 
 private:

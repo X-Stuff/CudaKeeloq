@@ -1,9 +1,11 @@
-#include "bruteforce_config.h"
-#include "bruteforce_type.h"
-#include "bruteforce_filters.h"
+#include "bruteforce/bruteforce_config.h"
+
+#include <algorithm>
 
 #include "algorithm/keeloq/keeloq_decryptor.h"
-#include <algorithm>
+
+#include "bruteforce/bruteforce_filters.h"
+#include "bruteforce/bruteforce_type.h"
 
 
 BruteforceConfig BruteforceConfig::GetDictionary(std::vector<Decryptor>&& dictionary)
@@ -48,7 +50,7 @@ BruteforceConfig BruteforceConfig::GetPattern(Decryptor first, const BruteforceP
     return result;
 }
 
-uint64_t BruteforceConfig::dict_size() const
+uint64_t BruteforceConfig::dictSize() const
 {
     if (type == BruteforceType::Dictionary)
     {
@@ -57,7 +59,7 @@ uint64_t BruteforceConfig::dict_size() const
     return 0;
 }
 
-uint64_t BruteforceConfig::brute_size() const
+uint64_t BruteforceConfig::bruteSize() const
 {
     if (type != BruteforceType::Dictionary)
     {
@@ -66,7 +68,7 @@ uint64_t BruteforceConfig::brute_size() const
     return 0;
 }
 
-void BruteforceConfig::next_decryptor()
+void BruteforceConfig::nextDecryptor()
 {
     if (type != BruteforceType::Dictionary)
     {
@@ -85,7 +87,7 @@ void BruteforceConfig::next_decryptor()
     }
 }
 
-bool BruteforceConfig::has_seed() const
+bool BruteforceConfig::hasSeed() const
 {
     if (type == BruteforceType::Seed)
     {
@@ -104,42 +106,42 @@ bool BruteforceConfig::has_seed() const
 
 std::string BruteforceConfig::toString() const
 {
-    const char* pGeneratorName = BruteforceType::Name(type);
+    const char* pGeneratorName = BruteforceType::name(type);
     switch (type)
     {
     case BruteforceType::Simple:
     {
         return str::format<std::string>("Type: %s. First: 0x%llX (seed:%u). Last: 0x%llX",
-            pGeneratorName, start.man(), start.seed(), start.man() + brute_size());
+            pGeneratorName, start.man(), start.seed(), start.man() + bruteSize());
     }
     case BruteforceType::Filtered:
     {
         return str::format<std::string>("Type: %s. Initial: 0x%llX (seed:%u). Brute count: %zd.\n\tFilters: %s",
-            pGeneratorName, start.man(), start.seed(), brute_size(), filters.toString().c_str());
+            pGeneratorName, start.man(), start.seed(), bruteSize(), filters.toString().c_str());
     }
     case BruteforceType::Alphabet:
     case BruteforceType::Pattern:
     {
         MultibaseNumber begin = pattern.init(start.man());
-        MultibaseNumber end = pattern.next(begin, brute_size());
+        MultibaseNumber end = pattern.next(begin, bruteSize());
 
         auto result =  str::format<std::string>("Type: %s. First: 0x%llX (seed:%u). Last: 0x%llX. (Count: %zd)  All invariants: %zd",
-            pGeneratorName, begin.number(), start.seed(), end.number(), brute_size(), pattern.size());
+            pGeneratorName, begin.number(), start.seed(), end.number(), bruteSize(), pattern.size());
 
         if (type == BruteforceType::Alphabet)
         {
-            result += str::format<std::string>("\n\tAlphabet: %s", pattern.bytes_variants(0).to_string().c_str());
+            result += str::format<std::string>("\n\tAlphabet: %s", pattern.bytesVariants(0).toString().c_str());
         }
         else
         {
-            std::string pattern_string = pattern.to_string(true);
+            std::string pattern_string = pattern.toString(true);
             result += str::format<std::string>("\nPattern: %s", pattern_string.c_str());
         }
         return result;
     }
     case BruteforceType::Dictionary:
     {
-        return str::format<std::string>("Type: %s. Words num: %zd", pGeneratorName, dict_size());
+        return str::format<std::string>("Type: %s. Words num: %zd", pGeneratorName, dictSize());
     }
     case BruteforceType::Seed:
     {

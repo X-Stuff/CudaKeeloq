@@ -1,16 +1,16 @@
 #pragma once
 
-#include "common.h"
-
 #include <cuda_runtime_api.h>
 
+#include "common.h"
+
+
 /**
- *  This is convenience wrapper allows for easier array management and
- * copying between CPU and GPU (and vice versa).
+ * Paired host/device buffer; exposes explicit `writeGpu()` / `readGpu()` sync points.
  *
- * WARNING:
- *	If this object is data owner (constructed without input data) - it will free memory in destructor
- *	If this object is just pointer container - will not do anything destructive with pointers in destructor
+ * Ownership rules:
+ *  - When constructed with a size, both host and device buffers are owned (and freed).
+ *  - When constructed with an existing host pointer, the host buffer is borrowed.
  */
 template<typename T>
 struct DoubleArray
@@ -67,13 +67,15 @@ struct DoubleArray
 		}
 	}
 
-	void write_GPU()
+	/** Upload the host buffer's contents to the device buffer. */
+	void writeGpu()
 	{
 		uint32_t error = cudaMemcpy(CUDA_mem, HOST_mem, size, cudaMemcpyHostToDevice);
 		CUDA_CHECK(error);
 	}
 
-	void read_GPU()
+	/** Download the device buffer's contents into the host buffer. */
+	void readGpu()
 	{
 		uint32_t error = cudaMemcpy(HOST_mem, CUDA_mem, size, cudaMemcpyDeviceToHost);
 		CUDA_CHECK(error);

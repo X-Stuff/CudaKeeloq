@@ -1,14 +1,16 @@
 #pragma once
 
-#include <cstdint>
-#include <cuda_runtime_api.h>
 #include <cmath>
+#include <cstdint>
 
-#include "algorithm/keeloq/keeloq_single_result.h"
+#include <cuda_runtime_api.h>
+
 #include "algorithm/keeloq/keeloq_decryptor.h"
+#include "algorithm/keeloq/keeloq_single_result.h"
 
 /**
- *  Struct holder for CUDA configuration parameters, which are used in kernel launches
+ * Launch configuration for the bruteforce kernels (grid/block dimensions and per-thread work).
+ * Also exposes static helpers that query device capabilities and pick sensible defaults.
  */
 struct CudaConfig
 {
@@ -22,14 +24,13 @@ struct CudaConfig
     uint16_t substeps = 1;
 
 public:
+    /** Total per-launch work units (blocks × threads × substeps). */
     inline uint32_t total() const
     {
         return blocks * threads * substeps;
     }
 
-    /**
-     *  Overall threads count (blocks * threads)
-     */
+    /** Total thread count across the grid (blocks × threads). */
     inline uint32_t threadsCount() const
     {
         return blocks * threads;
@@ -37,27 +38,21 @@ public:
 
 public:
 
-    /**
-     *  Optimal configuration for current GPU, based on its properties and BruteforceRound's memory usage per thread.
-     */
+    /** Best-effort default configuration based on the device's memory and grid limits. */
     static CudaConfig Optimal()
     {
         static CudaConfig optimal = { MaxCudaBlocks(), MaxCudaThreads(), 1 };
         return optimal;
     }
 
-    /**
-     *  CUDA config got test launches
-     */
+    /** Minimal configuration used by the unit tests (single block, max threads). */
     static CudaConfig Tests()
     {
         static CudaConfig tests = { 1, MaxCudaThreads(), 1 };
         return tests;
     }
 
-    /**
-     *  External API, returns GPU global memory in bytes.
-     */
+    /** GPU global memory, in bytes. */
     static size_t MaxGlobalMemory()
     {
         cudaDeviceProp prop;
@@ -65,14 +60,13 @@ public:
         return prop.totalGlobalMem;
     }
 
+    /** GPU global memory, in GB. */
     static float MaxGlobalMemoryGB()
     {
         return MaxGlobalMemory() / static_cast<float>(1024 * 1024 * 1024);
     }
 
-    /**
-     *  External API, returns max number of blocks per grid for current GPU.
-     */
+    /** Maximum threads per block supported by the current device. */
     static uint16_t MaxCudaThreads()
     {
         cudaDeviceProp prop;
@@ -81,9 +75,7 @@ public:
         return static_cast<uint16_t>(prop.maxThreadsPerBlock);
     }
 
-    /**
-     *  External API, returns calculated max number of blocks for specified memory usage per thread, and GPU properties.
-     */
+    /** Maximum block count that fits in the device's memory and grid limits for this workload. */
     static uint32_t MaxCudaBlocks()
     {
         cudaDeviceProp prop;

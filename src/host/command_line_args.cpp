@@ -1,9 +1,10 @@
-#include "command_line_args.h"
+#include "host/command_line_args.h"
 
 #include <cuda_runtime_api.h>
 
-#include "host/host_utils.h"
 #include "host/console.h"
+#include "host/host_utils.h"
+
 #include "bruteforce/bruteforce_round.h"
 
 //#define CXXOPTS_NO_EXCEPTIONS
@@ -25,7 +26,7 @@ inline void read_alphabets(CommandLineArgs& target, cxxopts::ParseResult& result
 
     for (const auto& alphabet_arg : alphabet_args)
     {
-        auto alphabet_bytes = host::utils::read_alphabet_binary_file(alphabet_arg.c_str());
+        auto alphabet_bytes = host::utils::readAlphabetBinaryFile(alphabet_arg.c_str());
         if (alphabet_bytes.size() > 0)
         {
             target.alphabets.emplace_back(alphabet_bytes);
@@ -91,7 +92,7 @@ inline void parse_dictionary_mode(CommandLineArgs& target, cxxopts::ParseResult&
 
         for (const auto& dict_arg : dict)
         {
-            std::vector<Decryptor> from_file = host::utils::read_word_dictionary_file(dict_arg.c_str());
+            std::vector<Decryptor> from_file = host::utils::readWordDictionaryFile(dict_arg.c_str());
 
             if (from_file.size() > 0)
             {
@@ -125,7 +126,7 @@ inline void parse_dictionary_mode(CommandLineArgs& target, cxxopts::ParseResult&
 
         for (const auto& bin_dict_path : dicts)
         {
-            std::vector<Decryptor> decryptors = host::utils::read_binary_dictionary_file(bin_dict_path.c_str(), mode, (seed_valid ? &seed : nullptr));
+            std::vector<Decryptor> decryptors = host::utils::readBinaryDictionaryFile(bin_dict_path.c_str(), mode, (seed_valid ? &seed : nullptr));
 
             if (decryptors.size() > 0)
             {
@@ -221,7 +222,7 @@ inline void parse_pattern_mode(CommandLineArgs& target, cxxopts::ParseResult& re
 
     const auto& args = result[ARG_PATTERN].as<std::vector<std::string>>();
 
-    auto full_bytes = DefaultByteArray<>::as_vector<std::vector<uint8_t>>();
+    auto full_bytes = DefaultByteArray<>::asVector<std::vector<uint8_t>>();
 
     for (const auto& pattern_arg : args)
     {
@@ -253,12 +254,12 @@ inline void parse_pattern_mode(CommandLineArgs& target, cxxopts::ParseResult& re
                     al_index = 0;
                 }
 
-                result.push_back(target.alphabets[al_index].as_vector());
+                result.push_back(target.alphabets[al_index].asVector());
             }
             else
             {
                 // append regular pattern bytes
-                auto bytes = BruteforcePattern::ParseBytes(hex);
+                auto bytes = BruteforcePattern::parseBytes(hex);
 
                 if (bytes.size() == 0)
                 {
@@ -345,7 +346,7 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv)
 /____/_/  \_,_/\__/\__/_/ \___/_/  \__/\__/_/
 
 )" "                                               version:" APP_VERSION_STRING);
-    options.set_width(::console::get_width())
+    options.set_width(::console::getWidth())
         .allow_unrecognised_options()
         .add_options()
         ("h," ARG_HELP, "Prints this help")
@@ -467,7 +468,7 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv)
     args.run_bench = result[ARG_BENCHMARK].as<bool>();
 
     // CUDA setup
-    args.init_cuda(result[ARG_BLOCKS].as<uint16_t>(), result[ARG_THREADS].as<uint16_t>(),
+    args.initCuda(result[ARG_BLOCKS].as<uint16_t>(), result[ARG_THREADS].as<uint16_t>(),
         result.count(ARG_LOOPS) > 0 ? result[ARG_LOOPS].as<uint16_t>() : 1);
 
     if (result.count(ARG_HELP) || result.arguments().size() == 0 || result.count(ARG_INPUTS) == 0 || args.print_version)
@@ -483,7 +484,7 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv)
     // Inputs
     if (result.count(ARG_INPUTS) > 0)
     {
-        args.init_inputs(result[ARG_INPUTS].as<std::vector<uint64_t>>());
+        args.initInputs(result[ARG_INPUTS].as<std::vector<uint64_t>>());
         if (args.inputs.size() < 3)
         {
             printf("WARNING: No enough inputs: '%zd'! Need at least 3!\nHowever we'll proceed...\n", args.inputs.size());
@@ -566,7 +567,7 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv)
         for (const auto& name : learning_type_names)
         {
             KeeloqLearning::LearningType value;
-            if (KeeloqLearning::Parse(name.c_str(), value))
+            if (KeeloqLearning::parse(name.c_str(), value))
             {
                 args.selected_learning.push_back(static_cast<KeeloqLearning::LearningType>(value));
             }
@@ -601,12 +602,12 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv)
     return args;
 }
 
-bool CommandLineArgs::can_bruteforce()
+bool CommandLineArgs::canBruteforce()
 {
     return inputs.size() > 0 && brute_configs.size() > 0;
 }
 
-void CommandLineArgs::init_inputs(const std::vector<uint64_t>& inp)
+void CommandLineArgs::initInputs(const std::vector<uint64_t>& inp)
  {
      inputs.reserve(inp.size());
      for (uint64_t ota : inp)
@@ -615,7 +616,7 @@ void CommandLineArgs::init_inputs(const std::vector<uint64_t>& inp)
      }
  }
 
-void CommandLineArgs::init_cuda(uint16_t blocks, uint16_t threads, uint8_t numSubSteps)
+void CommandLineArgs::initCuda(uint16_t blocks, uint16_t threads, uint8_t numSubSteps)
 {
     auto optimal = CudaConfig::Optimal();
 

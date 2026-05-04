@@ -1,16 +1,17 @@
 #include "tests/test_filters.h"
-#include "tests/test_keeloq.h"
 
 #include <cuda_runtime_api.h>
 
-#include "device/cuda_vector.h"
 #include "device/cuda_double_array.h"
+#include "device/cuda_vector.h"
 
 #include "bruteforce/bruteforce_filters.h"
 #include "bruteforce/generators/generator_bruteforce.h"
 
+#include "tests/test_keeloq.h"
 
-bool tests::filters_generation()
+
+bool tests::filtersGeneration()
     {
         BruteforceFiltersTestInputs test_cases[] = {
            { 0x1111334404bbccee, BruteforceFilters::Flags::Max6ZerosInARow, true },
@@ -60,7 +61,7 @@ bool tests::filters_generation()
         // GPU tests
         DoubleArray<BruteforceFiltersTestInputs> test_inputs(test_cases, NumTests);
         cuda_check_bruteforce_filters(test_inputs.CUDA_mem, NumTests);
-        test_inputs.read_GPU(); // for asserts
+        test_inputs.readGpu(); // for asserts
 
         for (uint8_t i = 0; i < NumTests; ++i)
         {
@@ -83,7 +84,7 @@ bool tests::filters_generation()
             });
 
         CudaVector<Decryptor> decryptors(NumToGenerate);
-        auto inputs = tests::keeloq::gen_inputs(FilteredKey);
+        auto inputs = tests::keeloq::genInputs(FilteredKey);
 
         KeeloqKernelInput generatorInputs;
         generatorInputs.decryptors = decryptors.gpu();

@@ -1,11 +1,13 @@
 #pragma once
 
-#include "common.h"
-
 #include <cuda_runtime_api.h>
 
+#include "common.h"
+
+
 /**
- *  Fixed array - allows to be used in constexpr function and have operator[] for both host and device code. Size is template parameter.
+ * Compile-time sized array with an operator[] usable from constexpr, host, and device.
+ * Thin replacement for std::array (which isn't fully constexpr/device-friendly everywhere).
  */
 template<typename T, uint8_t N>
 struct CudaFixedArray
@@ -25,8 +27,8 @@ struct CudaFixedArray
     T data[N];
 
 public:
-    // Number of allocated bytes in GPU memory for this array
-    inline static bool constant_copy(CudaFixedArray& target, const CudaFixedArray& src)
+    /** Copy the payload of `src` into a `__constant__` memory symbol `target`. */
+    inline static bool constantCopy(CudaFixedArray& target, const CudaFixedArray& src)
     {
         auto error = cudaMemcpyToSymbol(target.data, src.data, sizeof(CudaFixedArray));
         CUDA_CHECK(error);

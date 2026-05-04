@@ -1,13 +1,16 @@
+#include <cstdio>
+
 #include "common.h"
 
-#include "stdio.h"
-
 #include "algorithm/keeloq/keeloq_kernel.h"
-#include "bruteforce/generators/generator_bruteforce.h"
+
 #include "bruteforce/bruteforcer.h"
+#include "bruteforce/generators/generator_bruteforce.h"
 
 #include "host/console.h"
+
 #include "tests/test_all.h"
+
 
 CommandLineArgs demoTestCommandlineArgs(int num_gen_input = 3)
 {
@@ -25,7 +28,7 @@ CommandLineArgs demoTestCommandlineArgs(int num_gen_input = 3)
     Decryptor first_decryptor_brtf = Decryptor::Make(first, debugSeed, true);
 
     CommandLineArgs cmd;
-    cmd.inputs = tests::keeloq::gen_inputs(debugKey, num_gen_input, KeeloqLearning::LearningType::Faac);
+    cmd.inputs = tests::keeloq::genInputs(debugKey, num_gen_input, KeeloqLearning::LearningType::Faac);
     cmd.alphabets.emplace_back(MultibaseDigit("abcdef"_b));
     cmd.alphabets.emplace_back(MultibaseDigit( { 0xC0, 0xFF, 0xEE, 0x00, 0xDE, 0xAD, 0x66 }));
 
@@ -47,10 +50,10 @@ CommandLineArgs demoTestCommandlineArgs(int num_gen_input = 3)
     // Pattern (reversed)
     cmd.brute_configs.emplace_back(BruteforceConfig::GetPattern(first_decryptor_ptrn, BruteforcePattern(
         {
-            BruteforcePattern::ParseBytes("c0|c1|c2|c3"),
-            BruteforcePattern::ParseBytes("F0-FF"),
-            BruteforcePattern::ParseBytes("E0-EF"),
-            BruteforcePattern::ParseBytes("00-99"),
+            BruteforcePattern::parseBytes("c0|c1|c2|c3"),
+            BruteforcePattern::parseBytes("F0-FF"),
+            BruteforcePattern::parseBytes("E0-EF"),
+            BruteforcePattern::parseBytes("00-99"),
             { 0xED, 0xDE },
             { 0xDA, 0xAD },
             { 0x11, 0x22, 0x33, 0x44, 0x55, 0x66 },
@@ -75,7 +78,7 @@ CommandLineArgs demoTestCommandlineArgs(int num_gen_input = 3)
     cmd.match_stop = false;
     cmd.run_bench = false;
     cmd.run_tests = false;
-    cmd.init_cuda();
+    cmd.initCuda();
 
     return cmd;
 }
@@ -150,8 +153,8 @@ int main(int argc, const char** argv)
         bool tests_ok = tests::check_utils();
 
         tests_ok &= tests::generators::all();
-        tests_ok &= tests::alphabet_generation();
-        tests_ok &= tests::filters_generation();
+        tests_ok &= tests::alphabetGeneration();
+        tests_ok &= tests::filtersGeneration();
         tests_ok &= tests::keeloq::all();
 
         if (!tests_ok)
@@ -167,7 +170,7 @@ int main(int argc, const char** argv)
         benchmark::all(args);
     }
 
-    if (args.can_bruteforce())
+    if (args.canBruteforce())
     {
         if (demo_mode)
         {
@@ -191,6 +194,6 @@ int main(int argc, const char** argv)
     // this will free all memory as well
     cudaDeviceReset();
 
-    console::set_cursor_state(true);
+    console::setCursorState(true);
     return 0;
 }

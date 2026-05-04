@@ -1,29 +1,29 @@
 #pragma once
 
+#include <vector>
+
+#include <cuda_runtime_api.h>
+
 #include "common.h"
 
 #include "device/cuda_array.h"
 
-#include <vector>
-#include <cuda_runtime_api.h>
-
 
 /**
- *  Host owned, GPU copy, vector
- * Can be considered as wrapper around host vector
- * Owns GPU data, frees on destructor
+ * Host-owned std::vector with a lazily-allocated GPU mirror.
+ * The host copy is considered the source of truth; `read()` pulls the latest GPU state back.
  */
 template<typename T>
 struct CudaVector
 {
-    // Explicit construct using initializer list
+    /** Construct from an initializer list. */
     CudaVector(std::initializer_list<T>&& initializer) :
         cpu_vector(std::move(initializer)),
         gpu_array(nullptr)
     {
     }
 
-    // Forward construction to vector
+    /** Forward any remaining args to the underlying std::vector. */
     template<typename ... Args>
     CudaVector(Args&&... args) :
         cpu_vector(std::forward<Args>(args)...),
@@ -33,19 +33,16 @@ struct CudaVector
 
     ~CudaVector();
 
-    // CPU memory is immutable since it should be
-    // synchronized with gpu
+    /** Immutable view of the host data (mutations happen through kernel → `read()`). */
     const std::vector<T>& cpu() const { return cpu_vector; }
 
-    // Size of CPU vector (gpu will be the same size once allocated)
+    /** Element count (matches GPU size once the mirror is allocated). */
     const size_t size() const { return cpu_vector.size(); }
 
-    // Reads GPU pointer and copies data from GPU memory to CPU
-    // Returns reference to self
+    /** Copy GPU data back into the host vector. Returns `*this`. */
     CudaVector<T>& read();
 
-    //  Pointer to GPU array
-    // Will allocate (and copy) by default
+    /** GPU mirror pointer; allocates (and uploads) on the first call by default. */
     CudaArray<T>* gpu(bool allocate = true);
 
 private:

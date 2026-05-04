@@ -6,10 +6,10 @@
 
 
 /**
- *  struct for convenience
- * Represents sent over the air data
- * Since from engineering perspective normal byte (bit) order is big endian
- * In order to get fixed and hopping codes OTA has to be bit-reversed
+ * An over-the-air parcel as transmitted by a keeloq remote.
+ *
+ * The wire format is bit-reversed relative to the engineering-friendly big-endian
+ * representation, so this struct stores both views (`ota` and the fixed/hopping halves).
  */
 struct EncParcel
 {
@@ -34,16 +34,16 @@ struct EncParcel
         ota = rev_hop | (rev_fix >> 32);
     }
 
-    // Fixed code in parcel
+    /** Fixed code portion of the parcel. */
     __device__ __host__ inline uint32_t fix() const { return fixed; }
 
-    // hopping code in parcel
+    /** Hopping (encrypted) code portion of the parcel. */
     __device__ __host__ inline uint32_t hop() const { return hopping; }
 
-    // first 10 bits of fixed code - serial (can be used in decryption)
+    /** 10-bit serial extracted from the fixed code (used in some learning algorithms). */
     __device__ __host__ inline uint32_t srl() const { return fixed & 0x3FF; }
 
-    // last 4 bits of fixed code - button (can be used in decryption)
+    /** 4-bit button id extracted from the fixed code (used in some learning algorithms). */
     __device__ __host__ inline uint32_t btn() const { return fixed >> 28; }
 
 private:

@@ -1,10 +1,12 @@
 #pragma once
 
+#include <vector>
+
 #include "common.h"
 
-#include <vector>
 
 namespace tests
 {
-	bool alphabet_generation();
+	/** Validates the alphabet generator produces the expected decryptor sequence. */
+	bool alphabetGeneration();
 }

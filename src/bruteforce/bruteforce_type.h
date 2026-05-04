@@ -3,7 +3,8 @@
 #include "common.h"
 
 /**
- *  Type of bruteforce attack
+ * Enumerates the attack modes supported by the bruteforcer.
+ * Each mode corresponds to a specific decryptor generator kernel.
  */
 struct BruteforceType
 {
@@ -34,7 +35,8 @@ struct BruteforceType
         LAST,
     };
 
-    static const char* Name(Type type);
+    /** Human-readable name for a bruteforce type, or "UNKNOWN" for out-of-range values. */
+    static const char* name(Type type);
 
 private:
 
@@ -42,4 +44,3 @@ private:
 
     static const size_t GeneratorTypeNamesCount;
 };
-
