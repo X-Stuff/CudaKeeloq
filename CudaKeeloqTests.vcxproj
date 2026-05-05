@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Profile|x64">
+      <Configuration>Profile</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{BBC88F27-EC22-4A92-AA49-8DBB6FBBCFC7}</ProjectGuid>
+    <RootNamespace>CudaKeeloqTests</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Profile|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+    <Import Project="$(CUDA_PATH_V13_2)\extras\visual_studio_integration\MSBuildExtensions\CUDA 13.2.props" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Profile|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LinkIncremental>true</LinkIncremental>
+    <IncludePath>$(IncludePath);$(ProjectDir)\src;$(CUDA_PATH_V13_2)\include;$(ProjectDir)\ThirdParty\cpp-terminal;$(ProjectDir)\ThirdParty;</IncludePath>
+    <OutDir>$(ProjectDir)x64\$(Configuration)\tests\</OutDir>
+    <IntDir>$(ProjectDir)x64\$(Configuration)\tests\obj\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <IncludePath>$(IncludePath);$(ProjectDir)\src;$(CUDA_PATH_V13_2)\include;$(ProjectDir)\ThirdParty\cpp-terminal;$(ProjectDir)\ThirdParty;</IncludePath>
+    <OutDir>$(ProjectDir)x64\$(Configuration)\tests\</OutDir>
+    <IntDir>$(ProjectDir)x64\$(Configuration)\tests\obj\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">
+    <IncludePath>$(IncludePath);$(ProjectDir)\src;$(CUDA_PATH_V13_2)\include;$(ProjectDir)\ThirdParty\cpp-terminal;$(ProjectDir)\ThirdParty;</IncludePath>
+    <OutDir>$(ProjectDir)x64\$(Configuration)\tests\</OutDir>
+    <IntDir>$(ProjectDir)x64\$(Configuration)\tests\obj\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>WIN32;WIN64;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard_C>stdc17</LanguageStandard_C>
+      <TreatWarningAsError>true</TreatWarningAsError>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Console</SubSystem>
+      <AdditionalDependencies>cudart_static.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <IgnoreSpecificDefaultLibraries>libcmt.lib</IgnoreSpecificDefaultLibraries>
+    </Link>
+    <CudaCompile>
+      <TargetMachinePlatform>64</TargetMachinePlatform>
+      <CodeGeneration>compute_86,sm_86</CodeGeneration>
+      <FastMath>true</FastMath>
+      <GenerateRelocatableDeviceCode>true</GenerateRelocatableDeviceCode>
+      <ExtensibleWholeProgramCompilation>false</ExtensibleWholeProgramCompilation>
+      <NvccCompilation>compile</NvccCompilation>
+      <Keep>false</Keep>
+      <AdditionalOptions>--std=c++17 --ptxas-options=-v %(AdditionalOptions)</AdditionalOptions>
+    </CudaCompile>
+    <CudaLink>
+      <PerformDeviceLinkTimeOptimization>true</PerformDeviceLinkTimeOptimization>
+    </CudaLink>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>WIN32;WIN64;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard_C>stdc17</LanguageStandard_C>
+      <TreatWarningAsError>true</TreatWarningAsError>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <SubSystem>Console</SubSystem>
+      <AdditionalDependencies>cudart_static.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <IgnoreSpecificDefaultLibraries>libcmt.lib</IgnoreSpecificDefaultLibraries>
+    </Link>
+    <CudaCompile>
+      <TargetMachinePlatform>64</TargetMachinePlatform>
+      <FastMath>true</FastMath>
+      <CodeGeneration>compute_86,lto_86</CodeGeneration>
+      <GenerateLineInfo>false</GenerateLineInfo>
+      <GPUDebugInfo>false</GPUDebugInfo>
+      <AdditionalOptions>--std=c++17 %(AdditionalOptions)</AdditionalOptions>
+      <GenerateRelocatableDeviceCode>true</GenerateRelocatableDeviceCode>
+    </CudaCompile>
+    <CudaLink>
+      <PerformDeviceLinkTimeOptimization>true</PerformDeviceLinkTimeOptimization>
+    </CudaLink>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>WIN32;WIN64;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard_C>stdc17</LanguageStandard_C>
+      <TreatWarningAsError>true</TreatWarningAsError>
+    </ClCompile>
+    <Link>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <SubSystem>Console</SubSystem>
+      <AdditionalDependencies>cudart_static.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <IgnoreSpecificDefaultLibraries>libcmt.lib</IgnoreSpecificDefaultLibraries>
+    </Link>
+    <CudaCompile>
+      <TargetMachinePlatform>64</TargetMachinePlatform>
+      <FastMath>true</FastMath>
+      <CodeGeneration>compute_86,lto_86</CodeGeneration>
+      <GenerateLineInfo>true</GenerateLineInfo>
+      <GPUDebugInfo>false</GPUDebugInfo>
+      <AdditionalOptions>--std=c++17 %(AdditionalOptions)</AdditionalOptions>
+      <GenerateRelocatableDeviceCode>true</GenerateRelocatableDeviceCode>
+    </CudaCompile>
+    <CudaLink>
+      <PerformDeviceLinkTimeOptimization>true</PerformDeviceLinkTimeOptimization>
+    </CudaLink>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClInclude Include="src\common.h" />
+    <ClInclude Include="src\algorithm\keeloq\keeloq_decryptor.h" />
+    <ClInclude Include="src\algorithm\keeloq\keeloq_encrypted.h" />
+    <ClInclude Include="src\algorithm\keeloq\keeloq_encryptor.h" />
+    <ClInclude Include="src\algorithm\keeloq\keeloq_kernel.h" />
+    <ClInclude Include="src\algorithm\keeloq\keeloq_kernel_input.h" />
+    <ClInclude Include="src\algorithm\keeloq\keeloq_learning_types.h" />
+    <ClInclude Include="src\algorithm\keeloq\keeloq_single_result.h" />
+    <ClInclude Include="src\algorithm\multibase_digit.h" />
+    <ClInclude Include="src\algorithm\multibase_number.h" />
+    <ClInclude Include="src\algorithm\multibase_system.h" />
+    <ClInclude Include="src\bruteforce\bruteforcer.h" />
+    <ClInclude Include="src\bruteforce\bruteforce_config.h" />
+    <ClInclude Include="src\bruteforce\bruteforce_filters.h" />
+    <ClInclude Include="src\bruteforce\bruteforce_pattern.h" />
+    <ClInclude Include="src\bruteforce\bruteforce_round.h" />
+    <ClInclude Include="src\bruteforce\bruteforce_type.h" />
+    <ClInclude Include="src\bruteforce\generators\generator_bruteforce.h" />
+    <ClInclude Include="src\device\cuda_array.h" />
+    <ClInclude Include="src\device\cuda_common.h" />
+    <ClInclude Include="src\device\cuda_config.h" />
+    <ClInclude Include="src\device\cuda_context.h" />
+    <ClInclude Include="src\device\cuda_double_array.h" />
+    <ClInclude Include="src\device\cuda_fixed_array.h" />
+    <ClInclude Include="src\device\cuda_object.h" />
+    <ClInclude Include="src\device\cuda_span.h" />
+    <ClInclude Include="src\device\cuda_vector.h" />
+    <ClInclude Include="src\host\command_line_args.h" />
+    <ClInclude Include="src\host\console.h" />
+    <ClInclude Include="src\host\host_utils.h" />
+    <ClInclude Include="src\host\timer.h" />
+    <ClInclude Include="src\kernels\kernel_result.h" />
+    <ClInclude Include="src\tests\support\bruteforce_filter_case.h" />
+    <ClInclude Include="src\tests\support\keeloq_inputs.h" />
+    <ClInclude Include="ThirdParty\doctest\doctest.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\algorithm\keeloq\keeloq_encryptor.cpp" />
+    <ClCompile Include="src\algorithm\keeloq\keeloq_kernel_input.cpp" />
+    <ClCompile Include="src\algorithm\keeloq\keeloq_learning_types.cpp" />
+    <ClCompile Include="src\algorithm\keeloq\keeloq_single_result.cpp" />
+    <ClCompile Include="src\bruteforce\bruteforcer.cpp" />
+    <ClCompile Include="src\bruteforce\bruteforce_config.cpp" />
+    <ClCompile Include="src\bruteforce\bruteforce_filters.cpp" />
+    <ClCompile Include="src\bruteforce\bruteforce_pattern.cpp" />
+    <ClCompile Include="src\bruteforce\bruteforce_round.cpp" />
+    <ClCompile Include="src\bruteforce\bruteforce_type.cpp" />
+    <ClCompile Include="src\bruteforce\generators\generator_bruteforce.cpp" />
+    <ClCompile Include="src\host\command_line_args.cpp" />
+    <ClCompile Include="src\host\console.cpp" />
+    <ClCompile Include="src\host\host_utils.cpp" />
+    <ClCompile Include="src\tests\support\keeloq_inputs.cpp" />
+    <ClCompile Include="src\tests\test_alphabet.cpp" />
+    <ClCompile Include="src\tests\test_cli.cpp" />
+    <ClCompile Include="src\tests\test_cuda_smoke.cpp" />
+    <ClCompile Include="src\tests\test_filters.cpp" />
+    <ClCompile Include="src\tests\test_generators.cpp" />
+    <ClCompile Include="src\tests\test_keeloq.cpp" />
+    <ClCompile Include="src\tests\test_main.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <CudaCompile Include="src\algorithm\keeloq\keeloq_kernel.cu" />
+    <CudaCompile Include="src\bruteforce\generators\generator_kernel.cu" />
+    <CudaCompile Include="src\tests\test_kernel.cu" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\algorithm\keeloq\keeloq_kernel.inl" />
+    <None Include="src\bruteforce\generators\generator_bruteforce_pattern_kernel.inl" />
+    <None Include="src\bruteforce\generators\generator_bruteforce_filtered_kernel.inl" />
+    <None Include="src\bruteforce\generators\generator_bruteforce_seed_kernel.inl" />
+    <None Include="src\bruteforce\generators\generator_bruteforce_simple_kernel.inl" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(CUDA_PATH_V13_2)\extras\visual_studio_integration\MSBuildExtensions\CUDA 13.2.targets" />
+  </ImportGroup>
+</Project>

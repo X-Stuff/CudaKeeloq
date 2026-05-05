@@ -1,0 +1,242 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="algorithm">
+      <UniqueIdentifier>{a7a1c6f0-0001-4a02-977a-dbdbc1265827}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="algorithm\keeloq">
+      <UniqueIdentifier>{a7a1c6f0-0002-43e2-b4f2-6ea75d4a849e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="bruteforce">
+      <UniqueIdentifier>{a7a1c6f0-0003-47c2-9514-8616f16b61e8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="bruteforce\generators">
+      <UniqueIdentifier>{a7a1c6f0-0004-48ba-95df-5c102fb9c8ca}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="device">
+      <UniqueIdentifier>{a7a1c6f0-0008-4b00-bc95-074a07972e2b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="host">
+      <UniqueIdentifier>{a7a1c6f0-0005-44ba-85d8-08d370307c4f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="kernels">
+      <UniqueIdentifier>{a7a1c6f0-0009-4683-bc68-b9a5c9dfd9fa}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests">
+      <UniqueIdentifier>{a7a1c6f0-0006-4e6a-b3ff-a61ddb6b9e0e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="tests\support">
+      <UniqueIdentifier>{a7a1c6f0-0007-4e6a-b3ff-a61ddb6b9e0e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty">
+      <UniqueIdentifier>{a7a1c6f0-000a-4e6a-b3ff-a61ddb6b9e0e}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Headers -->
+    <ClInclude Include="src\common.h" />
+    <ClInclude Include="src\algorithm\keeloq\keeloq_decryptor.h">
+      <Filter>algorithm\keeloq</Filter>
+    </ClInclude>
+    <ClInclude Include="src\algorithm\keeloq\keeloq_encrypted.h">
+      <Filter>algorithm\keeloq</Filter>
+    </ClInclude>
+    <ClInclude Include="src\algorithm\keeloq\keeloq_encryptor.h">
+      <Filter>algorithm\keeloq</Filter>
+    </ClInclude>
+    <ClInclude Include="src\algorithm\keeloq\keeloq_kernel.h">
+      <Filter>algorithm\keeloq</Filter>
+    </ClInclude>
+    <ClInclude Include="src\algorithm\keeloq\keeloq_kernel_input.h">
+      <Filter>algorithm\keeloq</Filter>
+    </ClInclude>
+    <ClInclude Include="src\algorithm\keeloq\keeloq_learning_types.h">
+      <Filter>algorithm\keeloq</Filter>
+    </ClInclude>
+    <ClInclude Include="src\algorithm\keeloq\keeloq_single_result.h">
+      <Filter>algorithm\keeloq</Filter>
+    </ClInclude>
+    <ClInclude Include="src\algorithm\multibase_digit.h">
+      <Filter>algorithm</Filter>
+    </ClInclude>
+    <ClInclude Include="src\algorithm\multibase_number.h">
+      <Filter>algorithm</Filter>
+    </ClInclude>
+    <ClInclude Include="src\algorithm\multibase_system.h">
+      <Filter>algorithm</Filter>
+    </ClInclude>
+    <ClInclude Include="src\bruteforce\bruteforcer.h">
+      <Filter>bruteforce</Filter>
+    </ClInclude>
+    <ClInclude Include="src\bruteforce\bruteforce_config.h">
+      <Filter>bruteforce</Filter>
+    </ClInclude>
+    <ClInclude Include="src\bruteforce\bruteforce_filters.h">
+      <Filter>bruteforce</Filter>
+    </ClInclude>
+    <ClInclude Include="src\bruteforce\bruteforce_pattern.h">
+      <Filter>bruteforce</Filter>
+    </ClInclude>
+    <ClInclude Include="src\bruteforce\bruteforce_round.h">
+      <Filter>bruteforce</Filter>
+    </ClInclude>
+    <ClInclude Include="src\bruteforce\bruteforce_type.h">
+      <Filter>bruteforce</Filter>
+    </ClInclude>
+    <ClInclude Include="src\bruteforce\generators\generator_bruteforce.h">
+      <Filter>bruteforce\generators</Filter>
+    </ClInclude>
+    <ClInclude Include="src\device\cuda_array.h">
+      <Filter>device</Filter>
+    </ClInclude>
+    <ClInclude Include="src\device\cuda_common.h">
+      <Filter>device</Filter>
+    </ClInclude>
+    <ClInclude Include="src\device\cuda_config.h">
+      <Filter>device</Filter>
+    </ClInclude>
+    <ClInclude Include="src\device\cuda_context.h">
+      <Filter>device</Filter>
+    </ClInclude>
+    <ClInclude Include="src\device\cuda_double_array.h">
+      <Filter>device</Filter>
+    </ClInclude>
+    <ClInclude Include="src\device\cuda_fixed_array.h">
+      <Filter>device</Filter>
+    </ClInclude>
+    <ClInclude Include="src\device\cuda_object.h">
+      <Filter>device</Filter>
+    </ClInclude>
+    <ClInclude Include="src\device\cuda_span.h">
+      <Filter>device</Filter>
+    </ClInclude>
+    <ClInclude Include="src\device\cuda_vector.h">
+      <Filter>device</Filter>
+    </ClInclude>
+    <ClInclude Include="src\host\command_line_args.h">
+      <Filter>host</Filter>
+    </ClInclude>
+    <ClInclude Include="src\host\console.h">
+      <Filter>host</Filter>
+    </ClInclude>
+    <ClInclude Include="src\host\host_utils.h">
+      <Filter>host</Filter>
+    </ClInclude>
+    <ClInclude Include="src\host\timer.h">
+      <Filter>host</Filter>
+    </ClInclude>
+    <ClInclude Include="src\kernels\kernel_result.h">
+      <Filter>kernels</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tests\support\bruteforce_filter_case.h">
+      <Filter>tests\support</Filter>
+    </ClInclude>
+    <ClInclude Include="src\tests\support\keeloq_inputs.h">
+      <Filter>tests\support</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\doctest\doctest.h">
+      <Filter>ThirdParty</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Shared app sources -->
+    <ClCompile Include="src\algorithm\keeloq\keeloq_encryptor.cpp">
+      <Filter>algorithm\keeloq</Filter>
+    </ClCompile>
+    <ClCompile Include="src\algorithm\keeloq\keeloq_kernel_input.cpp">
+      <Filter>algorithm\keeloq</Filter>
+    </ClCompile>
+    <ClCompile Include="src\algorithm\keeloq\keeloq_learning_types.cpp">
+      <Filter>algorithm\keeloq</Filter>
+    </ClCompile>
+    <ClCompile Include="src\algorithm\keeloq\keeloq_single_result.cpp">
+      <Filter>algorithm\keeloq</Filter>
+    </ClCompile>
+    <ClCompile Include="src\bruteforce\bruteforcer.cpp">
+      <Filter>bruteforce</Filter>
+    </ClCompile>
+    <ClCompile Include="src\bruteforce\bruteforce_config.cpp">
+      <Filter>bruteforce</Filter>
+    </ClCompile>
+    <ClCompile Include="src\bruteforce\bruteforce_filters.cpp">
+      <Filter>bruteforce</Filter>
+    </ClCompile>
+    <ClCompile Include="src\bruteforce\bruteforce_pattern.cpp">
+      <Filter>bruteforce</Filter>
+    </ClCompile>
+    <ClCompile Include="src\bruteforce\bruteforce_round.cpp">
+      <Filter>bruteforce</Filter>
+    </ClCompile>
+    <ClCompile Include="src\bruteforce\bruteforce_type.cpp">
+      <Filter>bruteforce</Filter>
+    </ClCompile>
+    <ClCompile Include="src\bruteforce\generators\generator_bruteforce.cpp">
+      <Filter>bruteforce\generators</Filter>
+    </ClCompile>
+    <ClCompile Include="src\host\command_line_args.cpp">
+      <Filter>host</Filter>
+    </ClCompile>
+    <ClCompile Include="src\host\console.cpp">
+      <Filter>host</Filter>
+    </ClCompile>
+    <ClCompile Include="src\host\host_utils.cpp">
+      <Filter>host</Filter>
+    </ClCompile>
+
+    <!-- Test support -->
+    <ClCompile Include="src\tests\support\keeloq_inputs.cpp">
+      <Filter>tests\support</Filter>
+    </ClCompile>
+
+    <!-- Tests -->
+    <ClCompile Include="src\tests\test_main.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tests\test_alphabet.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tests\test_cli.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tests\test_cuda_smoke.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tests\test_filters.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tests\test_generators.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="src\tests\test_keeloq.cpp">
+      <Filter>tests</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <CudaCompile Include="src\algorithm\keeloq\keeloq_kernel.cu">
+      <Filter>algorithm\keeloq</Filter>
+    </CudaCompile>
+    <CudaCompile Include="src\bruteforce\generators\generator_kernel.cu">
+      <Filter>bruteforce\generators</Filter>
+    </CudaCompile>
+    <CudaCompile Include="src\tests\test_kernel.cu">
+      <Filter>tests</Filter>
+    </CudaCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\algorithm\keeloq\keeloq_kernel.inl">
+      <Filter>algorithm\keeloq</Filter>
+    </None>
+    <None Include="src\bruteforce\generators\generator_bruteforce_pattern_kernel.inl">
+      <Filter>bruteforce\generators</Filter>
+    </None>
+    <None Include="src\bruteforce\generators\generator_bruteforce_filtered_kernel.inl">
+      <Filter>bruteforce\generators</Filter>
+    </None>
+    <None Include="src\bruteforce\generators\generator_bruteforce_seed_kernel.inl">
+      <Filter>bruteforce\generators</Filter>
+    </None>
+    <None Include="src\bruteforce\generators\generator_bruteforce_simple_kernel.inl">
+      <Filter>bruteforce\generators</Filter>
+    </None>
+  </ItemGroup>
+</Project>

@@ -2,12 +2,6 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClInclude Include="src\common.h" />
-    <ClInclude Include="src\tests\test_filters.h">
-      <Filter>tests</Filter>
-    </ClInclude>
-    <ClInclude Include="src\tests\test_alphabet.h">
-      <Filter>tests</Filter>
-    </ClInclude>
     <ClInclude Include="src\host\command_line_args.h">
       <Filter>host</Filter>
     </ClInclude>
@@ -62,9 +56,6 @@
     <ClInclude Include="src\algorithm\keeloq\keeloq_kernel.h">
       <Filter>algorithm\keeloq</Filter>
     </ClInclude>
-    <ClInclude Include="src\tests\test_all.h">
-      <Filter>tests</Filter>
-    </ClInclude>
     <ClInclude Include="src\algorithm\multibase_number.h">
       <Filter>algorithm</Filter>
     </ClInclude>
@@ -80,20 +71,14 @@
     <ClInclude Include="src\device\cuda_common.h">
       <Filter>device</Filter>
     </ClInclude>
-    <ClInclude Include="src\tests\test_benchmark.h">
-      <Filter>tests</Filter>
+    <ClInclude Include="src\benchmark\benchmark.h">
+      <Filter>benchmark</Filter>
     </ClInclude>
     <ClInclude Include="src\device\cuda_vector.h">
       <Filter>device</Filter>
     </ClInclude>
-    <ClInclude Include="src\tests\test_keeloq.h">
-      <Filter>tests</Filter>
-    </ClInclude>
     <ClInclude Include="src\host\host_utils.h">
       <Filter>host</Filter>
-    </ClInclude>
-    <ClInclude Include="src\tests\test_console.h">
-      <Filter>tests</Filter>
     </ClInclude>
     <ClInclude Include="src\device\cuda_span.h">
       <Filter>device</Filter>
@@ -107,9 +92,6 @@
     <ClInclude Include="src\algorithm\keeloq\keeloq_encryptor.h">
       <Filter>algorithm\keeloq</Filter>
     </ClInclude>
-    <ClInclude Include="src\tests\test_generators.h">
-      <Filter>tests</Filter>
-    </ClInclude>
     <ClInclude Include="src\bruteforce\bruteforcer.h">
       <Filter>bruteforce</Filter>
     </ClInclude>
@@ -119,11 +101,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp" />
-    <ClCompile Include="src\tests\test_filters.cpp">
-      <Filter>tests</Filter>
-    </ClCompile>
-    <ClCompile Include="src\tests\test_alphabet.cpp">
-      <Filter>tests</Filter>
+    <ClCompile Include="src\benchmark\benchmark.cpp">
+      <Filter>benchmark</Filter>
     </ClCompile>
     <ClCompile Include="src\host\command_line_args.cpp">
       <Filter>host</Filter>
@@ -158,23 +137,11 @@
     <ClCompile Include="src\bruteforce\bruteforce_pattern.cpp">
       <Filter>bruteforce</Filter>
     </ClCompile>
-    <ClCompile Include="src\tests\test_benchmark.cpp">
-      <Filter>tests</Filter>
-    </ClCompile>
-    <ClCompile Include="src\tests\test_keeloq.cpp">
-      <Filter>tests</Filter>
-    </ClCompile>
     <ClCompile Include="src\host\host_utils.cpp">
       <Filter>host</Filter>
     </ClCompile>
-    <ClCompile Include="src\tests\test_console.cpp">
-      <Filter>tests</Filter>
-    </ClCompile>
     <ClCompile Include="src\algorithm\keeloq\keeloq_encryptor.cpp">
       <Filter>algorithm\keeloq</Filter>
-    </ClCompile>
-    <ClCompile Include="src\tests\test_generators.cpp">
-      <Filter>tests</Filter>
     </ClCompile>
     <ClCompile Include="src\bruteforce\bruteforcer.cpp">
       <Filter>bruteforce</Filter>
@@ -199,19 +166,16 @@
     <Filter Include="kernels">
       <UniqueIdentifier>{348c2a54-dd3e-4683-bc68-b9a5c9dfd9fa}</UniqueIdentifier>
     </Filter>
-    <Filter Include="tests">
-      <UniqueIdentifier>{9e8a7676-0ad7-4e6a-b3ff-a61ddb6b9e0e}</UniqueIdentifier>
-    </Filter>
     <Filter Include="algorithm\keeloq">
       <UniqueIdentifier>{8636e053-53f4-43e2-b4f2-6ea75d4a849e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="benchmark">
+      <UniqueIdentifier>{d6f4a0e4-8a2f-4f1d-b2a2-5c1b1b8a6a11}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="src\bruteforce\generators\generator_kernel.cu">
       <Filter>bruteforce\generators</Filter>
-    </CudaCompile>
-    <CudaCompile Include="src\tests\test_kernel.cu">
-      <Filter>tests</Filter>
     </CudaCompile>
     <CudaCompile Include="src\algorithm\keeloq\keeloq_kernel.cu">
       <Filter>algorithm\keeloq</Filter>

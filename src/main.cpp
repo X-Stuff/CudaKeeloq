@@ -3,13 +3,15 @@
 #include "common.h"
 
 #include "algorithm/keeloq/keeloq_kernel.h"
+#include "algorithm/keeloq/keeloq_encryptor.h"
+
+#include "benchmark/benchmark.h"
 
 #include "bruteforce/bruteforcer.h"
 #include "bruteforce/generators/generator_bruteforce.h"
 
+#include "host/command_line_args.h"
 #include "host/console.h"
-
-#include "tests/test_all.h"
 
 
 CommandLineArgs demoTestCommandlineArgs(int num_gen_input = 3)
@@ -30,7 +32,9 @@ CommandLineArgs demoTestCommandlineArgs(int num_gen_input = 3)
     Decryptor first_decryptor_ptrn = Decryptor::Make(0, encryptor.getSeed(), true);
 
     CommandLineArgs cmd;
-    cmd.inputs = tests::keeloq::genInputs(encryptor, num_gen_input, KeeloqLearning::LearningType::Faac);
+    cmd.inputs.emplace_back(encryptor.click(KeeloqLearning::Faac, KeeloqLearning::Modifier::Input::Normal, KeeloqLearning::Modifier::Algo::Normal));
+    cmd.inputs.emplace_back(encryptor.click(KeeloqLearning::Faac, KeeloqLearning::Modifier::Input::Normal, KeeloqLearning::Modifier::Algo::Normal));
+    cmd.inputs.emplace_back(encryptor.click(KeeloqLearning::Faac, KeeloqLearning::Modifier::Input::Normal, KeeloqLearning::Modifier::Algo::Normal));
 
     // Dictionary
     cmd.brute_configs.emplace_back(BruteforceConfig::GetDictionary({
@@ -79,8 +83,7 @@ CommandLineArgs demoTestCommandlineArgs(int num_gen_input = 3)
     cmd.selected_learning = { }; // ALL
 
     cmd.match_stop = false;
-    cmd.run_bench = false;
-    cmd.run_tests = false;
+    cmd.run_bench  = false;
     cmd.initCuda();
 
     return cmd;
@@ -95,14 +98,14 @@ void bruteforce(const CommandLineArgs& args)
             "In case of full range there also redundant checks since using _REV learning types ( X-00:11:22 == X_REV-22:11:00 )\n", KeeloqLearning::DecryptedArraySize);
     }
 
-    const auto numConfigs = args.brute_configs.size();
+    const size_t numConfigs = args.brute_configs.size();
     printf("\nTotal bruteforce configs to run: %zd\n", numConfigs);
 
     Bruteforcer bruteforcer(args.inputs);
 
-    for (auto configIndex = 0; configIndex < numConfigs; ++configIndex)
+    for (size_t configIndex = 0; configIndex < numConfigs; ++configIndex)
     {
-        printf("\n*********************************************[CONFIG %02d/%02zd]********************************************\n", configIndex + 1, numConfigs);
+        printf("\n*********************************************[CONFIG %0zd/%02zd]********************************************\n", configIndex + 1, numConfigs);
 
         const auto& config = args.brute_configs[configIndex];
         auto learningMatrix = KeeloqLearning::Matrix(args.selected_learning, args.selected_input_mods, args.selected_algo_mods);
@@ -122,19 +125,15 @@ void bruteforce(const CommandLineArgs& args)
 
 int main(int argc, const char** argv)
 {
-    assert(tests::cuda_check_working());
-
     if (!keeloq::kernels::cuda_is_working())
     {
         printf("Error: This device cannot compute keeloq right. Single encryption and decryption mismatch.\n");
-        assert(false);
         return 1;
     }
 
     if (KeeloqLearning::DecryptedResults::cuda_init() != cudaSuccess)
     {
         printf("Error: Failed to initialize constants for DecryptedResults cache on device.\n");
-        assert(false);
         return 1;
     }
 
@@ -145,30 +144,6 @@ int main(int argc, const char** argv)
     {
         printf("Version: " APP_VERSION_STRING "\n");
         return 0;
-    }
-
-    bool had_tests = args.run_bench || args.run_tests;
-
-    if (args.run_tests)
-    {
-        printf("\n...RUNNING TESTS...\n");
-#if _DEBUG
-        tests::console::run();
-#endif
-
-        bool tests_ok = tests::check_utils();
-
-        tests_ok &= tests::generators::all();
-        tests_ok &= tests::alphabetGeneration();
-        tests_ok &= tests::filtersGeneration();
-        tests_ok &= tests::keeloq::all();
-
-        if (!tests_ok)
-        {
-            printf("\n...TESTS FAILED...\n");
-            return 1;
-        }
-        printf("\n...TESTS FINISHED...\n");
     }
 
     if (args.run_bench)
@@ -191,7 +166,7 @@ int main(int argc, const char** argv)
 
         bruteforce(args);
     }
-    else if (!had_tests)
+    else if (!args.run_bench)
     {
         printf("\nNot enough arguments for bruteforce\n");
         return 1;

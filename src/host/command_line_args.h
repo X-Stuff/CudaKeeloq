@@ -16,7 +16,6 @@
 
 #define ARG_HELP "help"
 #define ARG_VERSION "version"
-#define ARG_TEST "test"
 #define ARG_BENCHMARK "benchmark"
 #define ARG_INPUTS "inputs"
 #define ARG_BLOCKS "cuda-blocks"
@@ -68,9 +67,6 @@ struct CommandLineArgs
 
     // Stop on first match
     bool match_stop = false;
-
-    // run also tests
-    bool run_tests = false;
 
     // Run only benchmarks (with selected values)
     bool run_bench = false;

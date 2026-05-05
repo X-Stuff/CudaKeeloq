@@ -1,4 +1,4 @@
-#include "tests/test_filters.h"
+#include "doctest/doctest.h"
 
 #include <cuda_runtime_api.h>
 
@@ -6,104 +6,114 @@
 #include "device/cuda_vector.h"
 
 #include "bruteforce/bruteforce_filters.h"
+#include "bruteforce/bruteforce_config.h"
 #include "bruteforce/generators/generator_bruteforce.h"
 
-#include "tests/test_keeloq.h"
+#include "tests/support/bruteforce_filter_case.h"
+#include "tests/support/keeloq_inputs.h"
 
 
-bool tests::filtersGeneration()
+namespace
+{
+const BruteforceFiltersTestInputs kFilterCases[] = {
+    { 0x1111334404bbccee, BruteforceFilters::Flags::Max6ZerosInARow, true  },
+    { 0x11113344aabbccee, BruteforceFilters::Flags::Max6ZerosInARow, false },
+    { 0x11113344aabbccee, BruteforceFilters::Flags::Max6OnesInARow,  false },
+    { 0x11113344aFFbccee, BruteforceFilters::Flags::Max6OnesInARow,  true  },
+
+    { 0x3132333435363738, BruteforceFilters::Flags::AsciiNumbers,  true  },
+    { 0x3132333435363738, BruteforceFilters::Flags::AsciiAlphaNum, true  },
+    { 0x3132333435363738, BruteforceFilters::Flags::AsciiAny,      true  },
+    { 0x2931323334353637, BruteforceFilters::Flags::AsciiNumbers,  false },
+
+    { 0x4142434465666768, BruteforceFilters::Flags::AsciiAlpha,    true  },
+    { 0x4142434465666768, BruteforceFilters::Flags::AsciiAlphaNum, true  },
+    { 0x4142434465666768, BruteforceFilters::Flags::AsciiAny,      true  },
+    { 0x3142434465666768, BruteforceFilters::Flags::AsciiAlpha,    false },
+    { 0x2142434465666768, BruteforceFilters::Flags::AsciiAlphaNum, false },
+    { 0x1142434465666768, BruteforceFilters::Flags::AsciiAny,      false },
+
+    { 0x214023245e28297e, BruteforceFilters::Flags::AsciiSpecial,  true  },
+    { 0x214023245e28297e, BruteforceFilters::Flags::AsciiAny,      true  },
+    { 0x114023245e28297e, BruteforceFilters::Flags::AsciiSpecial,  false },
+
+    { 0x0022222222556677, BruteforceFilters::Flags::BytesRepeat4,  true  },
+    { 0x0022222222226677, BruteforceFilters::Flags::BytesRepeat4,  true  },
+    { 0x00Abcdef11111111, BruteforceFilters::Flags::BytesRepeat4,  true  },
+    { 0x0011222222556677, BruteforceFilters::Flags::BytesRepeat4,  false },
+    { 0x0011223344556677, BruteforceFilters::Flags::BytesRepeat4,  false },
+
+    { 0x112233445566aa00, BruteforceFilters::Flags::BytesIncremental, true  },
+    { 0xFFEEDDCCBBAA1234, BruteforceFilters::Flags::BytesIncremental, true  },
+    { 0x1122334455778899, BruteforceFilters::Flags::BytesIncremental, false },
+};
+
+constexpr uint8_t kFilterCaseCount = sizeof(kFilterCases) / sizeof(kFilterCases[0]);
+}
+
+
+TEST_CASE("filters: CPU check_filters matches expected results")
+{
+    for (uint8_t i = 0; i < kFilterCaseCount; ++i)
     {
-        BruteforceFiltersTestInputs test_cases[] = {
-           { 0x1111334404bbccee, BruteforceFilters::Flags::Max6ZerosInARow, true },
-           { 0x11113344aabbccee, BruteforceFilters::Flags::Max6ZerosInARow, false },
-           { 0x11113344aabbccee, BruteforceFilters::Flags::Max6OnesInARow, false },
-           { 0x11113344aFFbccee, BruteforceFilters::Flags::Max6OnesInARow, true },
+        CAPTURE(i);
+        CAPTURE(kFilterCases[i].value);
+        CAPTURE(kFilterCases[i].flags);
 
-           { 0x3132333435363738, BruteforceFilters::Flags::AsciiNumbers, true },
-           { 0x3132333435363738, BruteforceFilters::Flags::AsciiAlphaNum, true },
-           { 0x3132333435363738, BruteforceFilters::Flags::AsciiAny, true },
-           { 0x2931323334353637, BruteforceFilters::Flags::AsciiNumbers, false },
-
-           { 0x4142434465666768, BruteforceFilters::Flags::AsciiAlpha,     true },
-           { 0x4142434465666768, BruteforceFilters::Flags::AsciiAlphaNum,  true },
-           { 0x4142434465666768, BruteforceFilters::Flags::AsciiAny, true },
-           { 0x3142434465666768, BruteforceFilters::Flags::AsciiAlpha,     false },
-           { 0x2142434465666768, BruteforceFilters::Flags::AsciiAlphaNum,  false },
-           { 0x1142434465666768, BruteforceFilters::Flags::AsciiAny, false },
-
-           { 0x214023245e28297e, BruteforceFilters::Flags::AsciiSpecial, true },
-           { 0x214023245e28297e, BruteforceFilters::Flags::AsciiAny, true },
-           { 0x114023245e28297e, BruteforceFilters::Flags::AsciiSpecial, false },
-
-           { 0x0022222222556677, BruteforceFilters::Flags::BytesRepeat4, true },
-           { 0x0022222222226677, BruteforceFilters::Flags::BytesRepeat4, true },
-           { 0x00Abcdef11111111, BruteforceFilters::Flags::BytesRepeat4, true },
-           { 0x0011222222556677, BruteforceFilters::Flags::BytesRepeat4, false },
-           { 0x0011223344556677, BruteforceFilters::Flags::BytesRepeat4, false },
-
-           { 0x112233445566aa00, BruteforceFilters::Flags::BytesIncremental, true },
-           { 0xFFEEDDCCBBAA1234, BruteforceFilters::Flags::BytesIncremental, true },
-           { 0x1122334455778899, BruteforceFilters::Flags::BytesIncremental, false },
-        };
-
-        static uint8_t NumTests = sizeof(test_cases) / sizeof(BruteforceFiltersTestInputs);
-        bool result_success = true;
-
-        // CPU tests
-        for (int i = 0; i < NumTests; ++i)
-        {
-            bool value = BruteforceFilters::check_filters(test_cases[i].value, test_cases[i].flags);
-            result_success &= value == test_cases[i].result;
-
-            assert(result_success);
-        }
-
-        // GPU tests
-        DoubleArray<BruteforceFiltersTestInputs> test_inputs(test_cases, NumTests);
-        cuda_check_bruteforce_filters(test_inputs.CUDA_mem, NumTests);
-        test_inputs.readGpu(); // for asserts
-
-        for (uint8_t i = 0; i < NumTests; ++i)
-        {
-            result_success &= test_inputs.HOST_mem[i].value == 1;
-            assert(result_success);
-        }
-
-        // Filtered generator test itself
-        const CudaConfig config = CudaConfig::Tests();
-
-        constexpr auto NumToGenerate = 0xFFFFF;
-        constexpr auto FilteredKey = 0xAADEADBEEFA63ED2;
-
-        auto first_decryptor = Decryptor::Make(0xAADEADBEEFA00000, 0, true);
-
-        auto testConfig = BruteforceConfig::GetBruteforce(first_decryptor, NumToGenerate,
-            BruteforceFilters{
-                BruteforceFilters::Flags::All,     // SmartFilterFlags::AsciiAny;       //
-                BruteforceFilters::Flags::BytesIncremental | BruteforceFilters::Flags::BytesRepeat4,    // SmartFilterFlags::BytesRepeat4;   //
-            });
-
-        CudaVector<Decryptor> decryptors(NumToGenerate);
-        auto inputs = tests::keeloq::genInputs(FilteredKey);
-
-        KeeloqKernelInput generatorInputs;
-        generatorInputs.decryptors = decryptors.gpu();
-        generatorInputs.Initialize(testConfig, inputs, KeeloqLearning::Matrix(KeeloqLearning::Matrix::kEverything));
-
-        auto cudaError = GeneratorBruteforce::PrepareDecryptors(generatorInputs, config);
-        result_success &= cudaError == cudaSuccess;
-
-        const auto& dcpu = decryptors.read().cpu();
-
-        bool found = false;
-        for (size_t i = 0; !found && i < dcpu.size(); ++i)
-        {
-            // looking for exact code - check nothing missed
-            found |= dcpu[i].man() == 0xAADEADBEEFA63ED2;
-        }
-
-        assert(found);
-        result_success &= found;
-
-        return result_success;
+        const bool value = BruteforceFilters::check_filters(kFilterCases[i].value, kFilterCases[i].flags);
+        CHECK(value == kFilterCases[i].result);
     }
+}
+
+TEST_CASE("filters: GPU check_filters agrees with CPU for every case")
+{
+    BruteforceFiltersTestInputs cases[kFilterCaseCount];
+    for (uint8_t i = 0; i < kFilterCaseCount; ++i)
+    {
+        cases[i] = kFilterCases[i];
+    }
+
+    DoubleArray<BruteforceFiltersTestInputs> test_inputs(cases, kFilterCaseCount);
+    tests::cuda_check_bruteforce_filters(test_inputs.CUDA_mem, kFilterCaseCount);
+    test_inputs.readGpu();
+
+    for (uint8_t i = 0; i < kFilterCaseCount; ++i)
+    {
+        CAPTURE(i);
+        CHECK(test_inputs.HOST_mem[i].value == 1);
+    }
+}
+
+TEST_CASE("filters: filtered generator produces the target filtered key")
+{
+    const CudaConfig config = CudaConfig::Tests();
+
+    constexpr auto NumToGenerate = 0xFFFFF;
+    constexpr auto FilteredKey   = 0xAADEADBEEFA63ED2;
+
+    auto first_decryptor = Decryptor::Make(0xAADEADBEEFA00000, 0, true);
+
+    auto testConfig = BruteforceConfig::GetBruteforce(first_decryptor, NumToGenerate,
+        BruteforceFilters{
+            BruteforceFilters::Flags::All,
+            BruteforceFilters::Flags::BytesIncremental | BruteforceFilters::Flags::BytesRepeat4,
+        });
+
+    CudaVector<Decryptor> decryptors(NumToGenerate);
+    auto inputs = tests::keeloq::genInputs(FilteredKey);
+
+    KeeloqKernelInput generatorInputs;
+    generatorInputs.decryptors = decryptors.gpu();
+    generatorInputs.Initialize(testConfig, inputs, KeeloqLearning::Matrix(KeeloqLearning::Matrix::kEverything));
+
+    REQUIRE(GeneratorBruteforce::PrepareDecryptors(generatorInputs, config) == cudaSuccess);
+
+    const auto& dcpu = decryptors.read().cpu();
+
+    bool found = false;
+    for (size_t i = 0; !found && i < dcpu.size(); ++i)
+    {
+        found = dcpu[i].man() == FilteredKey;
+    }
+    CHECK(found);
+}

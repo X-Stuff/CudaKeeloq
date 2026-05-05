@@ -1,4 +1,4 @@
-#include "tests/test_generators.h"
+#include "doctest/doctest.h"
 
 #include <algorithm>
 
@@ -11,7 +11,7 @@
 
 #include "device/cuda_vector.h"
 
-#include "tests/test_keeloq.h"
+#include "tests/support/keeloq_inputs.h"
 
 
 namespace
@@ -22,7 +22,8 @@ BruteforceConfig GetSingleKeyConfig(uint64_t key, bool rev = true)
 
     std::vector<std::vector<uint8_t>> pattern =
     {
-        { pKey[7] }, { pKey[6] }, { pKey[5] }, { pKey[4] }, { pKey[3] }, { pKey[2] }, { pKey[1] }, { pKey[0] },
+        { pKey[7] }, { pKey[6] }, { pKey[5] }, { pKey[4] },
+        { pKey[3] }, { pKey[2] }, { pKey[1] }, { pKey[0] },
     };
 
     if (rev)
@@ -31,118 +32,84 @@ BruteforceConfig GetSingleKeyConfig(uint64_t key, bool rev = true)
     }
 
     BruteforcePattern br_pattern(std::move(pattern), "Test");
-    return BruteforceConfig::GetPattern(Decryptor::Make(0,0,true), br_pattern, 0xFFFFFFFF);
+    return BruteforceConfig::GetPattern(Decryptor::Make(0, 0, true), br_pattern, 0xFFFFFFFF);
 }
 }
 
-bool tests::generators::pattern()
+TEST_CASE("generators: pattern produces the expected first decryptor")
 {
     using namespace KeeloqLearning;
 
     constexpr auto NumInputs = 3;
 
     const CudaConfig cudaConfig = CudaConfig::Tests();
-
-    const uint64_t debugKey = "hello_world"_u64;
+    const uint64_t   debugKey   = "hello_world"_u64;
 
     auto inputs = tests::keeloq::genInputs(debugKey, NumInputs, LearningType::Simple);
 
-    CudaVector<Decryptor> decryptors(cudaConfig.total());
+    CudaVector<Decryptor>    decryptors(cudaConfig.total());
     CudaVector<SingleResult> results(decryptors.size() * inputs.size());
 
     BruteforceConfig config = GetSingleKeyConfig(debugKey);
-    assert(config.type == BruteforceType::Pattern && "Invalid BruteforceConfig type, must be Pattern");
-
-    if (config.pattern.init(0).number() != debugKey)
-    {
-        assert(false && "Invalid pattern initialization, pattern should have debug key as its first number");
-        return false;
-    }
+    REQUIRE(config.type == BruteforceType::Pattern);
+    REQUIRE(config.pattern.init(0).number() == debugKey);
 
     KeeloqKernelInput generatorInputs;
     generatorInputs.decryptors = decryptors.gpu();
-    generatorInputs.results = results.gpu();
+    generatorInputs.results    = results.gpu();
     generatorInputs.Initialize(config, inputs, KeeloqLearning::Matrix::Everything());
 
     GeneratorBruteforce::PrepareDecryptors(generatorInputs, cudaConfig);
-    auto result = ::keeloq::kernels::cuda_brute(generatorInputs, cudaConfig);
+    ::keeloq::kernels::cuda_brute(generatorInputs, cudaConfig);
 
     decryptors.read();
     results.read();
-    assert(decryptors.cpu()[0].man() == debugKey);
 
-    return decryptors.cpu()[0].man() == debugKey;
+    CHECK(decryptors.cpu()[0].man() == debugKey);
 }
 
-
-bool tests::generators::seed()
+TEST_CASE("generators: seed produces a contiguous, monotonically increasing sequence")
 {
     using namespace KeeloqLearning;
 
     constexpr auto NumTestRounds = 8;
-    constexpr auto NumInputs = 3;
+    constexpr auto NumInputs     = 3;
 
     const CudaConfig cudaConfig = CudaConfig::Tests();
-    const uint64_t debugKey = "hello_world"_u64;
+    const uint64_t   debugKey   = "hello_world"_u64;
 
     const auto inputs = tests::keeloq::genInputs(debugKey, NumInputs, LearningType::Secure);
-    CudaVector<Decryptor> decryptors(cudaConfig.total());
+
+    CudaVector<Decryptor>    decryptors(cudaConfig.total());
     CudaVector<SingleResult> results(decryptors.size() * inputs.size());
 
     BruteforceConfig config = BruteforceConfig::GetSeedBruteforce(Decryptor::Make(debugKey, 0, true));
-    assert(config.type == BruteforceType::Seed && "Invalid BruteforceConfig type, must be Seed");
+    REQUIRE(config.type == BruteforceType::Seed);
 
-    // Initialize brute inputs manually
     KeeloqKernelInput generatorInputs;
     generatorInputs.decryptors = decryptors.gpu();
-    generatorInputs.results = results.gpu();
+    generatorInputs.results    = results.gpu();
     generatorInputs.Initialize(config, inputs, KeeloqLearning::Matrix::Everything());
 
     uint64_t gen_seed_global = 0;
     for (int round = 0; round < NumTestRounds; ++round)
     {
+        CAPTURE(round);
+
         if (round != 0)
         {
-            // Make last decryptor from previous batch as first for this batch
             generatorInputs.NextDecryptor();
-
-            // Since last became first, and first is generated as well - we need to reduce global counter by 1
             gen_seed_global -= 1;
         }
 
-        // This will generate decryptors in GPU memory
         auto cudaError = GeneratorBruteforce::PrepareDecryptors(generatorInputs, cudaConfig);
-        assert(cudaError == cudaSuccess && "Error during decryptors generation");
-
-        if (cudaError != cudaSuccess)
-        {
-            printf("CUDA error occurred: %s\n", cudaGetErrorString(cudaError));
-            return false;
-        }
+        REQUIRE(cudaError == cudaSuccess);
 
         decryptors.read();
 
         for (size_t index = 0; index < decryptors.cpu().size(); ++index, ++gen_seed_global)
         {
-            const auto& decryptor = decryptors.cpu()[index];
-
-            const bool match = decryptor.seed() == gen_seed_global;
-            assert(match && "Invalid seed bruteforce generation, expected seed does not match generated one");
-            if (!match)
-            {
-                return false;
-            }
+            REQUIRE(decryptors.cpu()[index].seed() == gen_seed_global);
         }
     }
-
-    return true;
-}
-
-bool tests::generators::all()
-{
-    bool ok = true;
-    ok &= pattern();
-    ok &= seed();
-
-    return ok;
 }

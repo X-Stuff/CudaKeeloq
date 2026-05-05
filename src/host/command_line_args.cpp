@@ -446,10 +446,6 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv)
         (ARG_FMATCH, "Boolean. Stop bruteforce on first match. If inputs are 3+ probably should set to true",
             cxxopts::value<bool>()->default_value("true"))
 
-        // Tests run
-        (ARG_TEST, "Boolean. Run application tests. You'd better use them in debug.",
-            cxxopts::value<bool>()->default_value("false"))
-
         // Benchmarks run
         (ARG_BENCHMARK, "Boolean. Run application benchmarks. You can specify learning and num loops type from command line also.",
             cxxopts::value<bool>()->default_value("false"))
@@ -458,9 +454,6 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv)
     CommandLineArgs args;
 
     auto result = options.parse(argc, argv);
-
-    // tests
-    args.run_tests = result[ARG_TEST].as<bool>();
 
     args.print_version = result.count(ARG_VERSION) > 0;
 
@@ -473,7 +466,7 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv)
 
     if (result.count(ARG_HELP) || result.arguments().size() == 0 || result.count(ARG_INPUTS) == 0 || args.print_version)
     {
-        if (!args.run_tests && !args.run_bench && !args.print_version)
+        if (!args.run_bench && !args.print_version)
         {
             printf("\n%s\n", options.help().c_str());
             printf("%s\n", Usage());

@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cstdlib>
+#include <cstring>
+
 #include <cuda_runtime_api.h>
 
 #include "common.h"
