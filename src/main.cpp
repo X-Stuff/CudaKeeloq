@@ -1,4 +1,6 @@
+#include <csignal>
 #include <cstdio>
+#include <cstdlib>
 
 #include "common.h"
 
@@ -123,8 +125,28 @@ void bruteforce(const CommandLineArgs& args)
     }
 }
 
+static void restoreCursor()
+{
+    console::setCursorState(true);
+}
+
+static void signalRestoreCursor(int sig)
+{
+    restoreCursor();
+    std::signal(sig, SIG_DFL);
+    std::raise(sig);
+}
+
 int main(int argc, const char** argv)
 {
+    std::atexit(restoreCursor);
+    std::signal(SIGINT,  signalRestoreCursor);
+    std::signal(SIGTERM, signalRestoreCursor);
+    std::signal(SIGABRT, signalRestoreCursor);
+    std::signal(SIGSEGV, signalRestoreCursor);
+    std::signal(SIGILL,  signalRestoreCursor);
+    std::signal(SIGFPE,  signalRestoreCursor);
+
     if (!keeloq::kernels::cuda_is_working())
     {
         printf("Error: This device cannot compute keeloq right. Single encryption and decryption mismatch.\n");
@@ -186,6 +208,5 @@ int main(int argc, const char** argv)
     // this will free all memory as well
     cudaDeviceReset();
 
-    console::setCursorState(true);
     return 0;
 }
