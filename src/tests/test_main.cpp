@@ -35,6 +35,13 @@ int main(int argc, char** argv)
     cudaGetLastError();
 
     doctest::Context ctx;
+
+    // Print each test case as it runs (with timing) so the user can tell the
+    // binary is making progress — doctest's default output is silent until
+    // something fails, which looks like a hang on the long CUDA cases.
+    // User-supplied flags override these via applyCommandLine().
+    //ctx.setOption("duration", true);
+
     ctx.applyCommandLine(argc, argv);
     const int res = ctx.run();
 

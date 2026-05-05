@@ -14,7 +14,53 @@
 namespace
 {
 
-inline void read_alphabets(CommandLineArgs& target, cxxopts::ParseResult& result)
+// Small sink that routes warnings to stdout and errors to stderr, and respects
+// the caller's verbosity preference. Errors also flip `has_errors` on the
+// target so the caller can stop after parse() returns.
+struct Reporter
+{
+    CommandLineArgs& target;
+    CommandLineArgs::Verbosity verbosity;
+
+    bool silent() const { return verbosity == CommandLineArgs::Verbosity::Silent; }
+
+    template <typename... Args>
+    void warn(const char* fmt, Args... args) const
+    {
+        emit(stdout, "WARNING: ", fmt, args...);
+    }
+
+    template <typename... Args>
+    void error(const char* fmt, Args... args) const
+    {
+        target.has_errors = true;
+        emit(stderr, "ERROR: ", fmt, args...);
+    }
+
+private:
+    template <typename... Args>
+    void emit(std::FILE* out, const char* prefix, const char* fmt, Args... args) const
+    {
+        if (silent())
+        {
+            return;
+        }
+        std::fputs(prefix, out);
+        // Zero-arg path avoids GCC's -Wformat-security complaint about non-literal
+        // formats; callers pass literals, but the template can't prove that.
+        if constexpr (sizeof...(Args) == 0)
+        {
+            std::fputs(fmt, out);
+        }
+        else
+        {
+            std::fprintf(out, fmt, args...);
+        }
+        std::fputc('\n', out);
+    }
+};
+
+inline void read_alphabets(CommandLineArgs& target, cxxopts::ParseResult& result, const Reporter& report)
 {
     if (result.count(ARG_ALPHABET) == 0)
     {
@@ -54,7 +100,7 @@ inline void read_alphabets(CommandLineArgs& target, cxxopts::ParseResult& result
                 }
                 else
                 {
-                    printf("Error: cannot parse alphabet byte '%s'!\n", hex.c_str());
+                    report.error("cannot parse alphabet byte '%s'!", hex.c_str());
                 }
             }
 
@@ -65,20 +111,20 @@ inline void read_alphabets(CommandLineArgs& target, cxxopts::ParseResult& result
 
                 if (alphabet_bytes.size() > 256)
                 {
-                    printf("Warning: Alphabet: '%s' has to much bytes in hex string: %zd (should be less than 257)\n",
+                    report.warn("Alphabet: '%s' has too many bytes in hex string: %zd (should be less than 257)",
                         result[ARG_ALPHABET].as<std::string>().c_str(), alphabet_bytes.size());
                 }
             }
             else
             {
-                printf("Error: Alphabet: '%s' is not valid file, neither valid alphabet hex string (like: AA:11:b3...)!\n",
+                report.error("Alphabet: '%s' is not valid file, neither valid alphabet hex string (like: AA:11:b3...)!",
                     alphabet_arg.c_str());
             }
         }
     }
 }
 
-inline void parse_dictionary_mode(CommandLineArgs& target, cxxopts::ParseResult& result)
+inline void parse_dictionary_mode(CommandLineArgs& target, cxxopts::ParseResult& result, const Reporter& report)
 {
     if (result[ARG_WORDDICT].count() > 0)
     {
@@ -104,7 +150,8 @@ inline void parse_dictionary_mode(CommandLineArgs& target, cxxopts::ParseResult&
             }
             else
             {
-                printf("Error: invalid param passed to '--%s' argument: '%s' not a dictionary file neither word\n", ARG_WORDDICT, dict_arg.c_str());
+                report.error("invalid param passed to '--%s' argument: '%s' not a dictionary file neither word",
+                    ARG_WORDDICT, dict_arg.c_str());
             }
         }
 
@@ -134,7 +181,7 @@ inline void parse_dictionary_mode(CommandLineArgs& target, cxxopts::ParseResult&
             }
             else
             {
-                printf("Error: invalid param passed to '--%s' argument: '%s'. Invalid file!\n",
+                report.error("invalid param passed to '--%s' argument: '%s'. Invalid file!",
                     ARG_BINDICT, bin_dict_path.c_str());
             }
         }
@@ -142,7 +189,7 @@ inline void parse_dictionary_mode(CommandLineArgs& target, cxxopts::ParseResult&
     }
 }
 
-inline void parse_bruteforce_mode(CommandLineArgs& target, cxxopts::ParseResult& result)
+inline void parse_bruteforce_mode(CommandLineArgs& target, cxxopts::ParseResult& result, const Reporter& /*report*/)
 {
     auto start_key = result[ARG_START].as<uint64_t>();
     auto seed = result[ARG_SEED].as<uint32_t>();
@@ -155,11 +202,11 @@ inline void parse_bruteforce_mode(CommandLineArgs& target, cxxopts::ParseResult&
     target.brute_configs.push_back(BruteforceConfig::GetBruteforce(first_decryptor, count_key));
 }
 
-inline void parse_seed_mode(CommandLineArgs& target, cxxopts::ParseResult& result)
+inline void parse_seed_mode(CommandLineArgs& target, cxxopts::ParseResult& result, const Reporter& report)
 {
     if (result.count(ARG_START) == 0)
     {
-        printf("Error: For seed mode, it's necessary to specify a manufacturer key with '--" ARG_START "' argument!\n");
+        report.error("For seed mode, it's necessary to specify a manufacturer key with '--" ARG_START "' argument!");
         return;
     }
 
@@ -172,7 +219,7 @@ inline void parse_seed_mode(CommandLineArgs& target, cxxopts::ParseResult& resul
     target.brute_configs.push_back(BruteforceConfig::GetSeedBruteforce(first_decryptor));
 }
 
-inline void parse_bruteforce_filtered_mode(CommandLineArgs& target, cxxopts::ParseResult& result)
+inline void parse_bruteforce_filtered_mode(CommandLineArgs& target, cxxopts::ParseResult& result, const Reporter& /*report*/)
 {
     auto start_key = result[ARG_START].as<uint64_t>();
     auto seed = result[ARG_SEED].as<uint32_t>();
@@ -194,7 +241,7 @@ inline void parse_bruteforce_filtered_mode(CommandLineArgs& target, cxxopts::Par
     target.brute_configs.push_back(BruteforceConfig::GetBruteforce(first_decryptor, count_key, filters));
 }
 
-inline void parse_alphabet_mode(CommandLineArgs& target, cxxopts::ParseResult& result)
+inline void parse_alphabet_mode(CommandLineArgs& target, cxxopts::ParseResult& result, const Reporter& /*report*/)
 {
     auto start_key = result[ARG_START].as<uint64_t>();
     auto seed = result[ARG_SEED].as<uint32_t>();
@@ -210,7 +257,7 @@ inline void parse_alphabet_mode(CommandLineArgs& target, cxxopts::ParseResult& r
     }
 }
 
-inline void parse_pattern_mode(CommandLineArgs& target, cxxopts::ParseResult& result)
+inline void parse_pattern_mode(CommandLineArgs& target, cxxopts::ParseResult& result, const Reporter& report)
 {
     auto start_key = result[ARG_START].as<uint64_t>();
     auto seed = result[ARG_SEED].as<uint32_t>();
@@ -241,7 +288,7 @@ inline void parse_pattern_mode(CommandLineArgs& target, cxxopts::ParseResult& re
             {
                 if (target.alphabets.size() == 0)
                 {
-                    printf("ERROR: Cannot use Alphabet in patterns - no provided alphabets. Replacing with *\n");
+                    report.warn("Cannot use Alphabet in patterns - no provided alphabets. Replacing with *");
                     result.push_back(full_bytes);
                     continue;
                 }
@@ -249,8 +296,8 @@ inline void parse_pattern_mode(CommandLineArgs& target, cxxopts::ParseResult& re
                 auto al_index = strtoul(hex.substr(2).c_str(), nullptr, 10);
                 if (al_index >= target.alphabets.size())
                 {
-                    printf("ERROR: Argument %s referring alphabet: %ld (index: %ld), but there are only %zd available. "
-                        "Replacing with first one\n", hex.c_str(), al_index + 1, al_index, target.alphabets.size());
+                    report.warn("Argument %s referring alphabet: %ld (index: %ld), but there are only %zd available. Replacing with first one",
+                        hex.c_str(), al_index + 1, al_index, target.alphabets.size());
                     al_index = 0;
                 }
 
@@ -263,7 +310,8 @@ inline void parse_pattern_mode(CommandLineArgs& target, cxxopts::ParseResult& re
 
                 if (bytes.size() == 0)
                 {
-                    printf("ERROR: Invalid string '%s' for byte pattern! Ignoring. Replacing with *\n", hex.c_str());
+                    report.warn("Invalid string '%s' for byte pattern! Ignoring. Replacing with *",
+                        hex.c_str());
                     result.push_back(full_bytes);
                 }
                 else
@@ -276,12 +324,12 @@ inline void parse_pattern_mode(CommandLineArgs& target, cxxopts::ParseResult& re
         // validate
         if (result.size() > 8)
         {
-            printf("Warning: Pattern string: '%s' contains more than 8 per-bytes delimiters (%zd) other will be ignored.\n",
+            report.warn("Pattern string: '%s' contains more than 8 per-bytes delimiters (%zd) other will be ignored.",
                 pattern_arg.c_str(), bytes_hex.size());
         }
         else if (result.size() < 8)
         {
-            printf("Warning: Pattern string: '%s' contains less than 8 per-bytes delimiters (%zd) other fill with full pattern.\n",
+            report.warn("Pattern string: '%s' contains less than 8 per-bytes delimiters (%zd) other fill with full pattern.",
                 pattern_arg.c_str(), bytes_hex.size());
 
             for (auto i = result.size(); i < 8; ++i)
@@ -330,9 +378,7 @@ constexpr const char* Usage()
         ;
 }
 
-}
-
-CommandLineArgs CommandLineArgs::parse(int argc, const char** argv)
+cxxopts::Options buildOptions()
 {
     cxxopts::Options options(APP_NAME, R"(
   _______  _____  ___     __ __        __
@@ -451,7 +497,24 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv)
             cxxopts::value<bool>()->default_value("false"))
         ;
 
+    return options;
+}
+
+}
+
+void CommandLineArgs::printHelp(std::FILE* out)
+{
+    auto options = buildOptions();
+    std::fprintf(out, "\n%s\n", options.help().c_str());
+    std::fprintf(out, "%s\n", Usage());
+}
+
+CommandLineArgs CommandLineArgs::parse(int argc, const char** argv, Verbosity verbosity)
+{
+    auto options = buildOptions();
+
     CommandLineArgs args;
+    Reporter report{ args, verbosity };
 
     auto result = options.parse(argc, argv);
 
@@ -466,11 +529,10 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv)
 
     if (result.count(ARG_HELP) || result.arguments().size() == 0 || result.count(ARG_INPUTS) == 0 || args.print_version)
     {
-        if (!args.run_bench && !args.print_version)
-        {
-            printf("\n%s\n", options.help().c_str());
-            printf("%s\n", Usage());
-        }
+        args.has_errors = result.arguments().size() == 0 || result.count(ARG_INPUTS) == 0;
+
+        // Caller decides whether to show usage (app: yes; tests: no).
+        args.print_help = !args.run_bench && !args.print_version;
         return args;
     }
 
@@ -480,7 +542,8 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv)
         args.initInputs(result[ARG_INPUTS].as<std::vector<uint64_t>>());
         if (args.inputs.size() < 3)
         {
-            printf("WARNING: No enough inputs: '%zd'! Need at least 3!\nHowever we'll proceed...\n", args.inputs.size());
+            report.warn("Not enough inputs: '%zd'! Need at least 3! However we'll proceed...",
+                args.inputs.size());
         }
 
         if (args.inputs.size() > 0)
@@ -491,7 +554,7 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv)
             {
                 if (args.inputs[i].fix() != fix)
                 {
-                    printf("WARNING: Invalid input at index:%zu (0x%016" PRIX64  ") fixed code doesn't match first input!\n",
+                    report.warn("Invalid input at index:%zu (0x%016" PRIX64 ") fixed code doesn't match first input!",
                         i, args.inputs[i].ota);
                 }
             }
@@ -499,7 +562,8 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv)
     }
     else
     {
-        printf("Error: No inputs! Nothing to brute!\n%s\n", options.help().c_str());
+        report.error("No inputs! Nothing to brute!");
+        args.print_help = true;
         return args;
     }
 
@@ -507,7 +571,7 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv)
     args.match_stop = result[ARG_FMATCH].as<bool>();
 
     // Alphabets
-    read_alphabets(args, result);
+    read_alphabets(args, result, report);
 
     // Bruteforce configs
     if (result.count(ARG_MODE) > 0)
@@ -517,38 +581,45 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv)
             switch (mode)
             {
             case (uint8_t)BruteforceType::Dictionary:
-                parse_dictionary_mode(args, result);
+                parse_dictionary_mode(args, result, report);
                 break;
             case (uint8_t)BruteforceType::Simple:
-                parse_bruteforce_mode(args, result);
+                parse_bruteforce_mode(args, result, report);
                 break;
             case (uint8_t)BruteforceType::Filtered:
-                parse_bruteforce_filtered_mode(args, result);
+                parse_bruteforce_filtered_mode(args, result, report);
                 break;
             case (uint8_t)BruteforceType::Alphabet:
-                parse_alphabet_mode(args, result);
+                parse_alphabet_mode(args, result, report);
                 break;
             case (uint8_t)BruteforceType::Pattern:
-                parse_pattern_mode(args, result);
+                parse_pattern_mode(args, result, report);
                 break;
             case (uint8_t)BruteforceType::Seed:
-                parse_seed_mode(args, result);
+                parse_seed_mode(args, result, report);
                 break;
             default:
                 break;
+            }
+
+            if (args.has_errors)
+            {
+                return args;
             }
         }
 
         if (args.brute_configs.size() == 0)
         {
-            printf("Error: Cannot parse inputs to even single brute config! Result arguments:\n'%s'\n",
+            report.error("Cannot parse inputs to even single brute config! Result arguments:\n'%s'",
                 result.arguments_string().c_str());
+            return args;
         }
     }
     else
     {
-        printf("Error: you need to specify bruteforce mode!\n%s\n",
-            options.help().c_str());
+        report.error("You need to specify bruteforce mode!");
+        args.print_help = true;
+        return args;
     }
 
     // Learning Types if any specific selected

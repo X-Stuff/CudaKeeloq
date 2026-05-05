@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdio>
 #include <vector>
 
 #include "common.h"
@@ -74,14 +75,29 @@ struct CommandLineArgs
     // Run only benchmarks (with selected values)
     bool print_version = false;
 
+    // Set when the user requested help (-h, --help) or the invocation was
+    // incomplete in a way that warrants showing usage. main() prints the help;
+    // tests just check the flag.
+    bool print_help = false;
+
+    // Set when parsing encountered a fatal error (malformed/invalid argument).
+    // Parsing stops at the first fatal error. main() exits with non-zero.
+    bool has_errors = false;
+
 public:
+    /** Controls whether parse() writes to stdout/stderr. Tests pass Silent. */
+    enum class Verbosity : uint8_t { Normal, Silent };
+
     /** Current CUDA launch config — auto-derived unless user set blocks/threads explicitly. */
     inline CudaConfig cudaConfig() const { return CudaConfig{ cuda_blocks, cuda_threads, cuda_loops }; }
 
 public:
 
     /** Parse a standard argc/argv invocation into a CommandLineArgs. */
-    static CommandLineArgs parse(int argc, const char** argv);
+    static CommandLineArgs parse(int argc, const char** argv, Verbosity verbosity = Verbosity::Normal);
+
+    /** Print the full options help and usage examples. */
+    static void printHelp(std::FILE* out = stdout);
 
 public:
     /** True if parsed arguments are sufficient to start a bruteforce run. */

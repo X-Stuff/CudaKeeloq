@@ -140,6 +140,17 @@ int main(int argc, const char** argv)
     // Be default if no arguments specified - launch demo mode
     bool demo_mode = argc <= 1;
     auto args = demo_mode ? demoTestCommandlineArgs() : CommandLineArgs::parse(argc, argv);
+
+    if (args.print_help)
+    {
+        CommandLineArgs::printHelp();
+    }
+
+    if (args.has_errors)
+    {
+        return 1;
+    }
+
     if (args.print_version)
     {
         printf("Version: " APP_VERSION_STRING "\n");
