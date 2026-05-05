@@ -10,8 +10,7 @@ namespace
 template <size_t N>
 CommandLineArgs parseArgs(const char* (&argv)[N])
 {
-    return CommandLineArgs::parse(static_cast<int>(N), argv,
-        CommandLineArgs::Verbosity::Silent);
+    return CommandLineArgs::parse(static_cast<int>(N), argv, CommandLineArgs::Verbosity::Silent);
 }
 }
 
@@ -170,6 +169,57 @@ TEST_CASE("cli error: unknown mode produces no bruteforce config")
     auto args = parseArgs(argv);
     CHECK(args.has_errors);
     CHECK(args.brute_configs.empty());
+}
+
+TEST_CASE("cli: --mode accepts bruteforce-type names as well as numeric indices")
+{
+    // Numeric form was already exercised elsewhere; here we assert names
+    // resolve to the same mode set, case-insensitive and mixed with indices.
+    const char* argv[] = {
+        APP_NAME,
+        "--" ARG_INPUTS     "=0xC65D52A0A81FD504,0xCCA9B335A81FD504,0xE0DA7372A81FD504",
+        "--" ARG_START      "=0xAABBCCDD00112233",
+        "--" ARG_MODE       "=dictionary,Simple,FILTERED,Pattern,5",  // dict + simple + filtered + pattern + seed
+        "--" ARG_PATTERN    "=0x01:*:",
+        "--" ARG_WORDDICT   "=0x1122334455667788",
+    };
+
+    auto args = parseArgs(argv);
+    CHECK_FALSE(args.has_errors);
+    CHECK(args.brute_configs.size() == 5);
+}
+
+TEST_CASE("cli: --mode rejects unknown bruteforce-type names")
+{
+    const char* argv[] = {
+        APP_NAME,
+        "--" ARG_INPUTS "=0xC65D52A0A81FD504,0xCCA9B335A81FD504,0xE0DA7372A81FD504",
+        "--" ARG_MODE   "=not-a-mode",
+    };
+
+    auto args = parseArgs(argv);
+    CHECK(args.has_errors);
+    CHECK(args.brute_configs.empty());
+}
+
+TEST_CASE("cli: --learning-type accepts learning names as well as numeric indices")
+{
+    const char* argv[] = {
+        APP_NAME,
+        "--" ARG_INPUTS "=0xC65D52A0A81FD504,0xCCA9B335A81FD504,0xE0DA7372A81FD504",
+        "--" ARG_MODE   "=simple",
+        "--" ARG_START  "=0x1",
+        "--" ARG_LTYPE  "=Simple,normal,SECURE,3",  // names (mixed case) + numeric index for Xor
+    };
+
+    auto args = parseArgs(argv);
+    CHECK_FALSE(args.has_errors);
+
+    REQUIRE(args.selected_learning.size() == 4);
+    CHECK(args.selected_learning[0] == KeeloqLearning::LearningType::Simple);
+    CHECK(args.selected_learning[1] == KeeloqLearning::LearningType::Normal);
+    CHECK(args.selected_learning[2] == KeeloqLearning::LearningType::Secure);
+    CHECK(args.selected_learning[3] == KeeloqLearning::LearningType::Xor);
 }
 
 TEST_CASE("cli: mode-5 variation selects only the single chosen input/algo modifier")

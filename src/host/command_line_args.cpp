@@ -126,6 +126,8 @@ inline void read_alphabets(CommandLineArgs& target, cxxopts::ParseResult& result
 
 inline void parse_dictionary_mode(CommandLineArgs& target, cxxopts::ParseResult& result, const Reporter& report)
 {
+    auto bruteConfigsBefore = target.brute_configs.size();
+
     if (result[ARG_WORDDICT].count() > 0)
     {
         // In case of dict is passed directly as values, seed may be passed as well
@@ -185,7 +187,12 @@ inline void parse_dictionary_mode(CommandLineArgs& target, cxxopts::ParseResult&
                     ARG_BINDICT, bin_dict_path.c_str());
             }
         }
+    }
 
+    if (bruteConfigsBefore == target.brute_configs.size())
+    {
+        report.error("Cannot parse inputs to even single brute config! Check your --%s and --%s arguments",
+            ARG_WORDDICT, ARG_BINDICT);
     }
 }
 
@@ -266,6 +273,13 @@ inline void parse_pattern_mode(CommandLineArgs& target, cxxopts::ParseResult& re
     Decryptor first_decryptor = Decryptor::Make(start_key, seed, seed_valid);
 
     auto count_key = result[ARG_COUNT].as<size_t>();
+
+
+    if (result.count(ARG_PATTERN) == 0)
+    {
+        report.error("For pattern mode, it's necessary to specify a pattern with '--" ARG_PATTERN "' argument!");
+        return;
+    }
 
     const auto& args = result[ARG_PATTERN].as<std::vector<std::string>>();
 
@@ -413,16 +427,16 @@ cxxopts::Options buildOptions()
             cxxopts::value<uint16_t>()->default_value("2"), "<num>")
 #endif
 
-        // Mode - what bruteforce type will be used
+        // Mode - what bruteforce type will be used (accepts index or name, case-insensitive)
         (ARG_MODE,
-            "Bruteforce modes (comma separated):"
-            "\n\t0: - Dictionary."
-            "\n\t1: - Simple +1."
-            "\n\t2: - Simple +1 with filters."
-            "\n\t3: - Alphabet. Bruteforce +1 using only specified bytes."
-            "\n\t4: - Pattern. Bruteforce with bytes selected by specified pattern."
-            "\n\t5: - Seed. Bruteforce only seed with provided manufacturer key (applied only to algorithms with seed).",
-            cxxopts::value<std::vector<uint8_t>>(), "[m1,m2..]")
+            "Bruteforce modes (comma separated, index or name):"
+            "\n\t0 | Dictionary"
+            "\n\t1 | Simple   (Simple +1)"
+            "\n\t2 | Filtered (Simple +1 with filters)"
+            "\n\t3 | Alphabet"
+            "\n\t4 | Pattern"
+            "\n\t5 | Seed",
+            cxxopts::value<std::vector<std::string>>(), "[m1,m2..]")
         (ARG_LTYPE,
             "Comma separated specific learning type(s), if you know your target well. Increases approximately x16 times (since doesn't calculate other types):"
             "\n\t0: - Simple"
@@ -576,8 +590,16 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv, Verbosity ve
     // Bruteforce configs
     if (result.count(ARG_MODE) > 0)
     {
-        for (const auto& mode : result[ARG_MODE].as<std::vector<uint8_t>>())
+        for (const auto& modeStr : result[ARG_MODE].as<std::vector<std::string>>())
         {
+            BruteforceType::Type mode;
+            if (!BruteforceType::parse(modeStr.c_str(), mode))
+            {
+                report.error("Unknown bruteforce mode: '%s'. Expected index (0-5) or name (Dictionary, Simple, Filtered, Alphabet, Pattern, Seed).",
+                    modeStr.c_str());
+                return args;
+            }
+
             switch (mode)
             {
             case (uint8_t)BruteforceType::Dictionary:

@@ -38,6 +38,9 @@ struct BruteforceType
     /** Human-readable name for a bruteforce type, or "UNKNOWN" for out-of-range values. */
     static const char* name(Type type);
 
+    /** Parse a bruteforce-type name (case-insensitive) or numeric index. */
+    static bool parse(const char* name, Type& out);
+
 private:
 
     static const char* GeneratorTypeName[];

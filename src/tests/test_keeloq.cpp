@@ -174,31 +174,31 @@ TEST_CASE("keeloq: EncParcel round-trips between OTA and fix/hop")
 // independent so a single failure does not obscure the others; MESSAGE() prints
 // the name unconditionally so the reporter shows progress while the sweep runs.
 
-TEST_CASE("keeloq learning×modifier sweep: Dictionary")
+TEST_CASE("keeloq: learning×modifier sweep: Dictionary")
 {
     MESSAGE("Dictionary");
     runEveryLearningWithMod(BruteforceConfig::GetDictionary({ Decryptor::Make(kDebugKey, kDebugSeed, true) }));
 }
 
-TEST_CASE("keeloq learning×modifier sweep: Bruteforce (no seed)")
+TEST_CASE("keeloq: learning×modifier sweep: Bruteforce (no seed)")
 {
     MESSAGE("Bruteforce (no seed)");
     runEveryLearningWithMod(BruteforceConfig::GetBruteforce(Decryptor::MakeNoSeed(kDebugKey), 1));
 }
 
-TEST_CASE("keeloq learning×modifier sweep: Bruteforce (with seed)")
+TEST_CASE("keeloq: learning×modifier sweep: Bruteforce (with seed)")
 {
     MESSAGE("Bruteforce (with seed)");
     runEveryLearningWithMod(BruteforceConfig::GetBruteforce(Decryptor::Make(kDebugKey, kDebugSeed, true), 1));
 }
 
-TEST_CASE("keeloq learning×modifier sweep: Seed")
+TEST_CASE("keeloq: learning×modifier sweep: Seed")
 {
     MESSAGE("Seed");
     runEveryLearningWithMod(BruteforceConfig::GetSeedBruteforce(Decryptor::Make(kDebugKey, kDebugSeed, true), 1));
 }
 
-TEST_CASE("keeloq learning×modifier sweep: Pattern")
+TEST_CASE("keeloq: learning×modifier sweep: Pattern")
 {
     MESSAGE("Pattern");
     std::vector<std::vector<uint8_t>> bytes = {
@@ -210,7 +210,7 @@ TEST_CASE("keeloq learning×modifier sweep: Pattern")
     runEveryLearningWithMod(BruteforceConfig::GetPattern(Decryptor::Make(kDebugKey, kDebugSeed, true), BruteforcePattern(std::move(bytes)), 1));
 }
 
-TEST_CASE("keeloq learning×modifier sweep: Alphabet")
+TEST_CASE("keeloq: learning×modifier sweep: Alphabet")
 {
     MESSAGE("Alphabet");
     std::vector<uint8_t> alphabet = {
