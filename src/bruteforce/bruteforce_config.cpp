@@ -32,9 +32,9 @@ BruteforceConfig BruteforceConfig::GetSeedBruteforce(Decryptor first, uint32_t s
     return BruteforceConfig(first, BruteforceType::Seed, size);
 }
 
-BruteforceConfig BruteforceConfig::GetAlphabet(Decryptor first, const MultibaseDigit& alphabet, size_t num)
+BruteforceConfig BruteforceConfig::GetAlphabet(Decryptor first, const MultibaseDigit& alphabet, size_t num, const std::string& name)
 {
-    auto result = GetPattern(first, BruteforcePattern(alphabet), num);
+    auto result = GetPattern(first, BruteforcePattern(alphabet, name.empty() ? str::format<std::string>("Alphabet. Size: %d", alphabet.count()) : name), num);
     result.type = BruteforceType::Alphabet;
     return result;
 }

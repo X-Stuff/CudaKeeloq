@@ -20,6 +20,9 @@
  */
 struct BruteforceConfig
 {
+    static constexpr size_t MaxDecryptorsNum = static_cast<size_t>(-1);
+
+public:
     // HOST SET. ONCE. Which generator to use.
     BruteforceType::Type type;
 
@@ -63,10 +66,10 @@ public:
     static BruteforceConfig GetSeedBruteforce(Decryptor first, uint32_t size = static_cast<uint32_t>(-1));
 
     /** Alphabet (same byte set on every position) bruteforce. */
-    static BruteforceConfig GetAlphabet(Decryptor first, const MultibaseDigit& alphabet, size_t num = (size_t)-1);
+    static BruteforceConfig GetAlphabet(Decryptor first, const MultibaseDigit& alphabet, size_t num = MaxDecryptorsNum, const std::string& name = "");
 
     /** Pattern bruteforce (per-position byte sets). */
-    static BruteforceConfig GetPattern(Decryptor first, const BruteforcePattern& pattern, size_t num = (size_t)-1);
+    static BruteforceConfig GetPattern(Decryptor first, const BruteforcePattern& pattern, size_t num = MaxDecryptorsNum);
 
 public:
 

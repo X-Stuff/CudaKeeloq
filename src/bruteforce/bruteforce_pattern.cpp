@@ -33,8 +33,8 @@ BruteforcePattern::BruteforcePattern(std::vector<std::vector<uint8_t>>&& pattern
 }
 
 
-BruteforcePattern::BruteforcePattern(const MultibaseDigit& same_bytes)
-    : system(same_bytes), repr_string("N/A")
+BruteforcePattern::BruteforcePattern(const MultibaseDigit& same_bytes, const std::string& name)
+    : system(same_bytes), repr_string(name)
 {
 }
 

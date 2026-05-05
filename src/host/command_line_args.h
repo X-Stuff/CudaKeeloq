@@ -67,16 +67,16 @@ struct CommandLineArgs
     std::vector<MultibaseDigit> alphabets;
 
     // Stop on first match
-    bool match_stop;
+    bool match_stop = false;
 
     // run also tests
-    bool run_tests;
+    bool run_tests = false;
 
     // Run only benchmarks (with selected values)
-    bool run_bench;
+    bool run_bench = false;
 
     // Run only benchmarks (with selected values)
-    bool print_version;
+    bool print_version = false;
 
 public:
     /** Current CUDA launch config — auto-derived unless user set blocks/threads explicitly. */
@@ -99,9 +99,9 @@ public:
 
 private:
     // Cuda setup
-    uint32_t cuda_blocks;
+    uint32_t cuda_blocks = 0;
 
-    uint16_t cuda_threads;
+    uint16_t cuda_threads = 0;
 
-    uint16_t cuda_loops;
+    uint16_t cuda_loops = 1;
 };

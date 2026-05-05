@@ -30,13 +30,13 @@ struct BruteforcePattern
      * Construct from little-endian per-byte value sets (byte 0 is the lowest byte).
      * `pattern_string` is kept for debug printing.
      */
-    BruteforcePattern(std::vector<std::vector<uint8_t>>&& pattern_bytes, const std::string& pattern_string = "N/A");
+    BruteforcePattern(std::vector<std::vector<uint8_t>>&& pattern_bytes, const std::string& pattern_string = "");
 
     /**
      * Convenience constructor that uses the same alphabet for every byte.
      * Prefer BruteforceAlphabet at call sites — this overload exists for internal use.
      */
-    BruteforcePattern(const MultibaseDigit& same_bytes);
+    BruteforcePattern(const MultibaseDigit& same_bytes, const std::string& name = "");
 
 public:
 

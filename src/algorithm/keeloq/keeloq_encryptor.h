@@ -35,6 +35,13 @@ public:
     }
 
 public:
+    /** Access key used in this encryptor. Used for demo and tests to actually find the match for inputs of this generator */
+    inline uint64_t getKey() const { return key; }
+
+    /** Access seed used in this encryptor. Used for demo and tests to actually find the match for inputs of this generator */
+    inline uint32_t getSeed() const { return seed; }
+
+public:
     /** Generates an OTA parcel and bumps the counter (simulates a button click). */
     EncParcel click(KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Input imod, KeeloqLearning::Modifier::Algo amod);
 

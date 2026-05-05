@@ -14,38 +14,40 @@
 
 CommandLineArgs demoTestCommandlineArgs(int num_gen_input = 3)
 {
-    constexpr uint64_t debugKey = 0xC0FFEE00DEAD6666;
-    constexpr uint32_t debugSeed = 0x12345678;
+    constexpr uint64_t EncryptorKey = 0xC0FFEE00DEAD6666;
+    constexpr uint32_t EncryptorSeed = 0x12345678;
+
+    Encryptor encryptor(EncryptorKey, EncryptorSeed);
+
 
 #if _DEBUG
-    uint64_t first = debugKey & 0xFFFFFFFFFFC00000;
+    uint64_t first = encryptor.getKey() & 0xFFFFFFFFFFC00000;
 #else
-    uint64_t first = debugKey & 0xFFFFFFFFF0000000;
+    uint64_t first = encryptor.getKey() & 0xFFFFFFFFF0000000;
 #endif
     uint64_t count = 0xFFFFFFF;
 
-    Decryptor first_decryptor_ptrn = Decryptor::Make(0, debugSeed, true);
-    Decryptor first_decryptor_brtf = Decryptor::Make(first, debugSeed, true);
+    Decryptor first_decryptor_ptrn = Decryptor::Make(0, encryptor.getSeed(), true);
 
     CommandLineArgs cmd;
-    cmd.inputs = tests::keeloq::genInputs(debugKey, num_gen_input, KeeloqLearning::LearningType::Faac);
-    cmd.alphabets.emplace_back(MultibaseDigit("abcdef"_b));
-    cmd.alphabets.emplace_back(MultibaseDigit( { 0xC0, 0xFF, 0xEE, 0x00, 0xDE, 0xAD, 0x66 }));
+    cmd.inputs = tests::keeloq::genInputs(encryptor, num_gen_input, KeeloqLearning::LearningType::Faac);
 
     // Dictionary
     cmd.brute_configs.emplace_back(BruteforceConfig::GetDictionary({
-        Decryptor::Make(666, debugSeed, true),
-        Decryptor::Make(debugKey - 1, debugSeed, true),
-        Decryptor::Make(debugKey, debugSeed, true),
-        Decryptor::Make(debugKey + 1, debugSeed, true)
+        Decryptor::Make(666, 777, true),
+        Decryptor::Make(encryptor.getKey() - 1, encryptor.getSeed(), true),
+        Decryptor::Make(encryptor.getKey(),     encryptor.getSeed(), true),
+        Decryptor::Make(encryptor.getKey() + 1, encryptor.getSeed(), true)
     }));
 
     // Alphabet
-    cmd.brute_configs.emplace_back(BruteforceConfig::GetAlphabet(first_decryptor_ptrn, cmd.alphabets[1]));
-    cmd.brute_configs.emplace_back(BruteforceConfig::GetAlphabet(first_decryptor_ptrn, cmd.alphabets[0]));
+    cmd.alphabets.emplace_back(MultibaseDigit("abcdef"_b));
+    cmd.alphabets.emplace_back(MultibaseDigit({ 0xC0, 0xFF, 0xEE, 0x00, 0xDE, 0xAD, 0x66 }));
+    cmd.brute_configs.emplace_back(BruteforceConfig::GetAlphabet(first_decryptor_ptrn, cmd.alphabets[1], BruteforceConfig::MaxDecryptorsNum, "Match alphabet"));
+    cmd.brute_configs.emplace_back(BruteforceConfig::GetAlphabet(first_decryptor_ptrn, cmd.alphabets[0], BruteforceConfig::MaxDecryptorsNum, "Wrong alphabet"));
 
     // Seed
-    cmd.brute_configs.emplace_back(BruteforceConfig::GetSeedBruteforce(Decryptor::Make(debugKey, 0, true)));
+    cmd.brute_configs.emplace_back(BruteforceConfig::GetSeedBruteforce(Decryptor::Make(encryptor.getKey(), 0, true)));
 
     // Pattern (reversed)
     cmd.brute_configs.emplace_back(BruteforceConfig::GetPattern(first_decryptor_ptrn, BruteforcePattern(
@@ -58,9 +60,10 @@ CommandLineArgs demoTestCommandlineArgs(int num_gen_input = 3)
             { 0xDA, 0xAD },
             { 0x11, 0x22, 0x33, 0x44, 0x55, 0x66 },
             { 0x11, 0x22, 0x33, 0x44, 0x55, 0x66 }
-        }, "N/A")));
+        }, "Match custom pattern")));
 
     // Simple
+    Decryptor first_decryptor_brtf = Decryptor::Make(first, encryptor.getSeed(), true);
     cmd.brute_configs.emplace_back(BruteforceConfig::GetBruteforce(first_decryptor_brtf, count));
 
     // Filters
@@ -92,13 +95,16 @@ void bruteforce(const CommandLineArgs& args)
             "In case of full range there also redundant checks since using _REV learning types ( X-00:11:22 == X_REV-22:11:00 )\n", KeeloqLearning::DecryptedArraySize);
     }
 
-    printf("Total bruteforce configs to run: %zd\n", args.brute_configs.size());
+    const auto numConfigs = args.brute_configs.size();
+    printf("\nTotal bruteforce configs to run: %zd\n", numConfigs);
 
     Bruteforcer bruteforcer(args.inputs);
 
-    for (const auto& config : args.brute_configs)
+    for (auto configIndex = 0; configIndex < numConfigs; ++configIndex)
     {
-        printf("--------------------------------------------------------------------------------------------------------------");
+        printf("\n*********************************************[CONFIG %02d/%02zd]********************************************\n", configIndex + 1, numConfigs);
+
+        const auto& config = args.brute_configs[configIndex];
         auto learningMatrix = KeeloqLearning::Matrix(args.selected_learning, args.selected_input_mods, args.selected_algo_mods);
 
         SingleResult result = bruteforcer.run(config, args.cudaConfig(), learningMatrix);
