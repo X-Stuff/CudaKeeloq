@@ -46,15 +46,33 @@ struct SingleResult
         }
 
         /** Extract the button portion of a decrypted entry (top 4 bits). */
-        __host__ __device__ __forceinline__ uint32_t btn(uint8_t index) const
+        __host__ __device__ __forceinline__ uint16_t btn(uint8_t index) const
         {
             return ((*this)[index] >> 28);
         }
 
         /** Extract the counter portion of a decrypted entry (lower 16 bits). */
-        __host__ __device__ __forceinline__ uint32_t cnt(uint8_t index) const
+        __host__ __device__ __forceinline__ uint16_t cnt(uint8_t index) const
         {
             return ((*this)[index] & 0x0000FFFF);
+        }
+
+        /** Extract the serial number from value (lower 16 bits). */
+        __host__ __device__ __forceinline__ uint32_t static serial(uint32_t value)
+        {
+            return (value >> 16) & 0x3ff;
+        }
+
+        /** Extract the serial number from value (lower 16 bits). */
+        __host__ __device__ __forceinline__ uint8_t static button(uint32_t value)
+        {
+            return (value >> 28);
+        }
+
+        /** Extract the counter portion from value (lower 16 bits). */
+        __host__ __device__ __forceinline__ uint16_t static counter(uint32_t value)
+        {
+            return (value & 0x0000FFFF);
         }
 
         /** Pretty-print one decoded entry, highlighting the matched slot. */

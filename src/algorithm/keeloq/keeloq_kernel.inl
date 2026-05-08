@@ -121,14 +121,16 @@ __device__ KeeloqLearning::ResultIndex analyze_single_result(const SingleResult&
     UNROLL
     for (uint8_t resIndex = 0; resIndex < KeeloqLearning::InvalidResultIndex; ++resIndex)
     {
-        // No if block
+        // Since `allowed` is uniform across the warp, an if block is cheaper
         const bool allowed = learnings_matrix.isEnabled(resIndex);
+        if (allowed)
+        {
+            const uint32_t srl = result.decrypted.srl(resIndex);
+            const uint8_t btn = result.decrypted.btn(resIndex);
 
-        const uint32_t srl = result.decrypted.srl(resIndex);
-        const uint32_t btn = result.decrypted.btn(resIndex);
-
-        const bool has_match = allowed && srl == exp_srl && srl != 0 && btn == exp_btn;
-        match_res_index = (has_match * resIndex + !has_match * match_res_index);
+            const bool has_match = srl == exp_srl && srl != 0 && btn == exp_btn;
+            match_res_index = (has_match * resIndex + !has_match * match_res_index);
+        }
     }
 
     return match_res_index;
@@ -283,7 +285,7 @@ template<bool IsDecrypt, Modifier::Input IMod, Modifier::Algo AMod, LearningType
 __device__ __host__ __forceinline__ void keeloq_encdec_multi_cond(uint32_t data, uint32_t fix, const Decryptor& decryptor,
     const Matrix& learnings_matrix, DecryptedResults& results, LearningTypesSet<LTypes...>)
 {
-    ((learnings_matrix.isEnabled(LTypes, IMod, AMod) ? keeloq_encdec_single<IsDecrypt, LTypes, IMod, AMod>(data, fix, decryptor, results) : void()), ...);
+    ((learnings_matrix.template isEnabled<LTypes, IMod, AMod>() ? keeloq_encdec_single<IsDecrypt, LTypes, IMod, AMod>(data, fix, decryptor, results) : void()), ...);
 }
 
 /**
@@ -494,6 +496,7 @@ __device__ void inline keeloq_decryption_run(const CudaContext& ctx, KeeloqKerne
 
     const auto inputsCount = input.inputsCount;
     const auto& decryptors = *input.decryptors;
+    const auto& learning_matrix = input.GetLearningMatrix();
 
     auto& all_results = *input.results;
 
@@ -511,12 +514,12 @@ __device__ void inline keeloq_decryption_run(const CudaContext& ctx, KeeloqKerne
         if constexpr (UseSlowCheck)
         {
             // only multiple input - decrypt all and then check
-            keeloq_decrypt_and_analyze<NumInputs, LearningMode, First>(ctx, decryptor, input.GetLearningMatrix(), results);
+            keeloq_decrypt_and_analyze<NumInputs, LearningMode, First>(ctx, decryptor, learning_matrix, results);
         }
         else
         {
             // Single input
-            keeloq_decrypt_and_quick_analyze<LearningMode, First>(ctx, decryptor, input.GetLearningMatrix(), results);
+            keeloq_decrypt_and_quick_analyze<LearningMode, First>(ctx, decryptor, learning_matrix, results);
 
             // Multiple input
             if constexpr (NumInputs > 1)
@@ -529,13 +532,13 @@ __device__ void inline keeloq_decryption_run(const CudaContext& ctx, KeeloqKerne
                     if constexpr (NumInputs > 2)
                     {
                         // Calling decrypt and fast check on next input
-                        keeloq_decrypt_and_quick_analyze<LearningMode, Second>(ctx, decryptor, input.GetLearningMatrix(), results);
+                        keeloq_decrypt_and_quick_analyze<LearningMode, Second>(ctx, decryptor, learning_matrix, results);
 
                         if (results[Second].match != KeeloqLearning::NoMatch)
                         {
                             // since 1-st and 2-nd was already decrypted - starting index is 2
                             // This will also reset the `result.match`
-                            keeloq_decrypt_and_analyze<NumInputs, LearningMode, Third>(ctx, decryptor, input.GetLearningMatrix(), results);
+                            keeloq_decrypt_and_analyze<NumInputs, LearningMode, Third>(ctx, decryptor, learning_matrix, results);
                         }
                         else
                         {
@@ -550,7 +553,7 @@ __device__ void inline keeloq_decryption_run(const CudaContext& ctx, KeeloqKerne
                     {
                         // since 1-st was already decrypted - starting index is 1
                         // This will also reset the `result.match`
-                        keeloq_decrypt_and_analyze<NumInputs, LearningMode, Second>(ctx, decryptor, input.GetLearningMatrix(), results);
+                        keeloq_decrypt_and_analyze<NumInputs, LearningMode, Second>(ctx, decryptor, learning_matrix, results);
                     }
                 }
                 else

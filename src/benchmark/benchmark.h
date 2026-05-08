@@ -16,13 +16,16 @@ struct BruteforceConfig;
  */
 namespace benchmark
 {
-    /** Run a single configuration at specific block/thread counts. */
-    bool run(const std::vector<EncParcel>& inputs, const KeeloqLearning::Matrix& learningMatrix,
-        const BruteforceConfig& benchmarkConfig, uint16_t CudaBlocks, uint16_t CudaThreads);
+    /**
+     *  Run a single configuration at specific block/thread counts.
+     * Returns avg. speed (bigger-better, negative - failure, 0 - cancel request)
+     */
+    int run(const std::vector<EncParcel>& inputs, const KeeloqLearning::Matrix& learningMatrix,
+        const BruteforceConfig& benchmarkConfig, uint32_t CudaBlocks, uint16_t CudaThreads, uint32_t TargetKeysCount);
 
     /** Sweep over several block/thread configurations for a single bruteforce config. */
     void run(const std::vector<EncParcel>& inputs, const KeeloqLearning::Matrix& learningMatrix,
-        const BruteforceConfig& benchmarkConfig);
+        const BruteforceConfig& benchmarkConfig, uint32_t TargetKeysCount);
 
     /** "Real" captures benchmark: runs known keeloq targets (DH, Sommer) and verifies matches. */
     void real();

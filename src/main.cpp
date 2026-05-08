@@ -107,7 +107,7 @@ void bruteforce(const CommandLineArgs& args)
 
     for (size_t configIndex = 0; configIndex < numConfigs; ++configIndex)
     {
-        printf("\n*********************************************[CONFIG %0zd/%02zd]********************************************\n", configIndex + 1, numConfigs);
+        printf("\n*********************************************[CONFIG %02zd/%02zd]********************************************\n", configIndex + 1, numConfigs);
 
         const auto& config = args.brute_configs[configIndex];
         auto learningMatrix = KeeloqLearning::Matrix(args.selected_learning, args.selected_input_mods, args.selected_algo_mods);

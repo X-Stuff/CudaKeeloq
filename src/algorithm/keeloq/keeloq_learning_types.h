@@ -630,9 +630,27 @@ public:
     }
 
     /**
-     *  Matrix access as double indexation [type][mod]
+     *  If specific bit at index encode as [Learning][InputMod][AldoMod] is enabled
      */
-    __host__ __device__ __inline__ bool isEnabled(LearningType type, Modifier::Input imod, Modifier::Algo amod) const
+    template<LearningType LType, Modifier::Input IMod, Modifier::Algo AMod>
+    __host__ __device__ __inline__ bool isEnabled() const
+    {
+        constexpr auto index = DecryptedResults::getIndex<LType, IMod, AMod>();
+        if constexpr (index == InvalidResultIndex)
+        {
+            return false;
+        }
+        else
+        {
+            return isEnabled(index);
+        }
+    }
+
+    /**
+     *  If specific bit at index encode as [Learning][InputMod][AldoMod] is enabled
+     * Host only version since uses quite expensive getIndex() method, it is better to use template version if you know learning/modification types at compile time
+     */
+    __host__ __inline__ bool isEnabled(LearningType type, Modifier::Input imod, Modifier::Algo amod) const
     {
         const auto index = DecryptedResults::getIndex(type, imod, amod);
         const bool valid = index != InvalidResultIndex;

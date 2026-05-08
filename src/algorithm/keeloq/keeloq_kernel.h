@@ -30,6 +30,11 @@
     auto m = (x & 0x42080101); \
     g = (0b11111 & ( m | (m >> 7) | (m >> 17) | ( m >> 22) | (m >> 26)))
 
+// 1, 9, 20, 26, 31 == 0x84100202
+#define g5enc(x, g) \
+    auto m = (x & 0x84100202); \
+    g = (0b11111 & ((m >> 1) | (m >> 8) | (m >> 18) | (m >> 23) | (m >> 27)))
+
 
 
 namespace keeloq::common
@@ -62,12 +67,30 @@ __device__ __host__ inline uint32_t decrypt(const uint32_t data, const uint64_t 
     return x;
 }
 
-__device__ __host__ inline uint32_t encrypt(const uint32_t data, const uint64_t key) {
-    uint32_t x = data, r;
-    for (r = 0; r < 528; r++)
-        x = (x >> 1) ^ ((bit(x, 0) ^ bit(x, 16) ^ (uint32_t)bit(key, r & 63) ^
-            bit(NLF_LOOKUP_CONSTANT, g5(x, 1, 9, 20, 26, 31)))
-            << 31);
+__device__ __host__ inline uint32_t encrypt(const uint32_t data, const uint64_t key)
+{
+    uint32_t x = data, g, k, f;
+    uint32_t r = 0;
+
+    // outer 33 cycles
+    for (uint8_t outer = 0; outer < 33; ++outer)
+    {
+        // Inner 16 cycles which could be unrolled (improves performance in release - decreases in debug)
+        UNROLL
+        for (uint8_t inner = 0; inner < 16; ++inner)
+        {
+            uint32_t key_bit = r & 0b111111;
+
+            g5enc(x, g);
+
+            k = (uint32_t)(key >> key_bit);
+            f = (x ^ (x >> 16) ^ (NLF_LOOKUP_CONSTANT >> g) ^ k) & 1;
+            x = (x >> 1) ^ (f << 31);
+
+            ++r;
+        }
+    }
+
     return x;
 }
 
