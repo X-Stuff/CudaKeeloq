@@ -89,22 +89,25 @@ TEST_CASE("filters: filtered generator produces the target filtered key")
     const CudaConfig config = CudaConfig::Tests();
 
     constexpr auto NumToGenerate = 0xFFFFF;
-    constexpr auto FilteredKey   = 0xAADEADBEEFA63ED2;
+    constexpr auto FilteredKey = 0xAADEADBEEFA63ED2;
+    constexpr auto NumInputs = 3;
 
+    const auto inputsMutation = InputsMutation::None;
     auto first_decryptor = Decryptor::Make(0xAADEADBEEFA00000, 0, true);
 
-    auto testConfig = BruteforceConfig::GetBruteforce(first_decryptor, NumToGenerate,
+    auto testConfig = BruteforceConfig::GetBruteforce(first_decryptor, inputsMutation, NumToGenerate,
         BruteforceFilters{
             BruteforceFilters::Flags::All,
             BruteforceFilters::Flags::BytesIncremental | BruteforceFilters::Flags::BytesRepeat4,
         });
 
     CudaVector<Decryptor> decryptors(NumToGenerate);
-    auto inputs = tests::keeloq::genInputs(FilteredKey);
+
+    auto inputs = tests::keeloq::genInputs(FilteredKey, NumInputs, inputsMutation);
 
     KeeloqKernelInput generatorInputs;
     generatorInputs.decryptors = decryptors.gpu();
-    generatorInputs.Initialize(testConfig, inputs, KeeloqLearning::Matrix(KeeloqLearning::Matrix::kEverything));
+    generatorInputs.Initialize(testConfig, inputs);
 
     REQUIRE(GeneratorBruteforce::PrepareDecryptors(generatorInputs, config) == cudaSuccess);
 

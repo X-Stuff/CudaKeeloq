@@ -8,44 +8,49 @@
 #include "bruteforce/bruteforce_type.h"
 
 
-BruteforceConfig BruteforceConfig::GetDictionary(std::vector<Decryptor>&& dictionary)
+BruteforceConfig BruteforceConfig::GetDictionary(std::vector<Decryptor>&& dictionary, InputsMutation inputsMutation)
 {
-    BruteforceConfig result(Decryptor::Invalid(), BruteforceType::Dictionary, dictionary.size());
+    BruteforceConfig result(Decryptor::Invalid(), BruteforceType::Dictionary, inputsMutation, dictionary.size());
     result.decryptors = std::move(dictionary);
     return result;
 };
 
-BruteforceConfig BruteforceConfig::GetBruteforce(Decryptor first, size_t size)
+BruteforceConfig BruteforceConfig::GetBruteforce(Decryptor first, InputsMutation inputsMutation, size_t size)
 {
-    return BruteforceConfig(first, BruteforceType::Simple, size);
+    return BruteforceConfig(first, BruteforceType::Simple, inputsMutation, size);
 }
 
-BruteforceConfig BruteforceConfig::GetBruteforce(Decryptor first, size_t size, const BruteforceFilters& filters)
+BruteforceConfig BruteforceConfig::GetBruteforce(Decryptor first, InputsMutation inputsMutation, size_t size, const BruteforceFilters& filters)
 {
-    BruteforceConfig result(first, BruteforceType::Filtered, size);
+    BruteforceConfig result(first, BruteforceType::Filtered, inputsMutation, size);
     result.filters = filters;
     return result;
 }
 
-BruteforceConfig BruteforceConfig::GetSeedBruteforce(Decryptor first, uint32_t size)
+BruteforceConfig BruteforceConfig::GetSeedBruteforce(Decryptor first, InputsMutation inputsMutation, uint32_t size)
 {
-    return BruteforceConfig(first, BruteforceType::Seed, size);
+    return BruteforceConfig(first, BruteforceType::Seed, inputsMutation, size);
 }
 
-BruteforceConfig BruteforceConfig::GetAlphabet(Decryptor first, const MultibaseDigit& alphabet, size_t num, const std::string& name)
+BruteforceConfig BruteforceConfig::GetXorFixBruteforce(Decryptor first, InputsMutation inputsMutation, uint32_t size /*= static_cast<uint32_t>(-1)*/)
 {
-    auto result = GetPattern(first, BruteforcePattern(alphabet, name.empty() ? str::format<std::string>("Alphabet. Size: %d", alphabet.count()) : name), num);
+    return BruteforceConfig(first, BruteforceType::XorFix, inputsMutation | InputsMutation::XorFix, size);
+}
+
+BruteforceConfig BruteforceConfig::GetAlphabet(Decryptor first, InputsMutation inputsMutation, const MultibaseDigit& alphabet, size_t num, const std::string& name)
+{
+    auto result = GetPattern(first, inputsMutation, BruteforcePattern(alphabet, name.empty() ? str::format<std::string>("Alphabet. Size: %d", alphabet.count()) : name), num);
     result.type = BruteforceType::Alphabet;
     return result;
 }
 
-BruteforceConfig BruteforceConfig::GetPattern(Decryptor first, const BruteforcePattern& pattern, size_t num)
+BruteforceConfig BruteforceConfig::GetPattern(Decryptor first, InputsMutation inputsMutation, const BruteforcePattern& pattern, size_t num)
 {
     num = std::min(pattern.size() - 1, num);
 
     first = Decryptor::Make(pattern.init(first.man()).number(), first.seed(), first.has_seed());
 
-    BruteforceConfig result(first, BruteforceType::Pattern, num);
+    BruteforceConfig result(first, BruteforceType::Pattern, inputsMutation, num);
     result.pattern = pattern;
     return result;
 }
@@ -104,20 +109,60 @@ bool BruteforceConfig::hasSeed() const
     }
 }
 
+
+bool BruteforceConfig::hasMutation(InputsMutation m) const
+{
+    if (type == BruteforceType::XorFix)
+    {
+        // only mutation with XorFix flag
+        return !!(m & InputsMutation::XorFix);
+    }
+
+    // Including None
+    return (m & allowedMutations) == m;
+}
+
+std::vector<InputsMutation> BruteforceConfig::getMutations() const
+{
+    std::vector<InputsMutation> mutations;
+    for (uint8_t i = 0; i < InputsMutationVariantsCount; ++i)
+    {
+        const auto flag = static_cast<InputsMutation>(i);
+        if (hasMutation(flag))
+        {
+            mutations.push_back(flag);
+        }
+    }
+    return mutations;
+}
+
+std::string BruteforceConfig::mutationsToString() const
+{
+    char result[512] = {};
+    size_t at = 0;
+
+    for (const auto& mutation : getMutations())
+    {
+        at += snprintf(result + at, sizeof(result) - at, "%s%s", at == 0 ? "" : ", ", name(mutation));
+    }
+
+    return std::string(result);
+}
+
 std::string BruteforceConfig::toString() const
 {
-    const char* pGeneratorName = BruteforceType::name(type);
+    const char* bruteTypeName = BruteforceType::name(type);
     switch (type)
     {
     case BruteforceType::Simple:
     {
         return str::format<std::string>("Type: %s. First: 0x%llX (seed:%u). Last: 0x%llX",
-            pGeneratorName, start.man(), start.seed(), start.man() + bruteSize());
+            bruteTypeName, start.man(), start.seed(), start.man() + bruteSize());
     }
     case BruteforceType::Filtered:
     {
         return str::format<std::string>("Type: %s. Initial: 0x%llX (seed:%u). Brute count: %zd.\n\tFilters: %s",
-            pGeneratorName, start.man(), start.seed(), bruteSize(), filters.toString().c_str());
+            bruteTypeName, start.man(), start.seed(), bruteSize(), filters.toString().c_str());
     }
     case BruteforceType::Alphabet:
     case BruteforceType::Pattern:
@@ -126,7 +171,7 @@ std::string BruteforceConfig::toString() const
         MultibaseNumber end = pattern.next(begin, bruteSize());
 
         auto result =  str::format<std::string>("Type: %s. First: 0x%llX (seed:%u). Last: 0x%llX. (Count: %zd)  All invariants: %zd",
-            pGeneratorName, begin.number(), start.seed(), end.number(), bruteSize(), pattern.size());
+            bruteTypeName, begin.number(), start.seed(), end.number(), bruteSize(), pattern.size());
 
         if (type == BruteforceType::Alphabet)
         {
@@ -141,13 +186,18 @@ std::string BruteforceConfig::toString() const
     }
     case BruteforceType::Dictionary:
     {
-        return str::format<std::string>("Type: %s. Words num: %zd", pGeneratorName, dictSize());
+        return str::format<std::string>("Type: %s. Words num: %zd", bruteTypeName, dictSize());
     }
     case BruteforceType::Seed:
     {
         return str::format<std::string>("Type: %s. Manufacturer key: 0x%llX Start Seed:%u",
-            pGeneratorName, start.man(), start.seed());
+            bruteTypeName, start.man(), start.seed());
+    }
+    case BruteforceType::XorFix:
+    {
+        return str::format<std::string>("Type: %s. Manufacturer key: 0x%llX Start Xor:%u",
+            bruteTypeName, start.man(), start.seed());
     }
     }
-    return str::format<std::string>("UNSUPPORTED Type (%d): %s", (int)type, pGeneratorName);
+    return str::format<std::string>("UNSUPPORTED Type (%d): %s", (int)type, bruteTypeName);
 }

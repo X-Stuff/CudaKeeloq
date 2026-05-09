@@ -8,6 +8,7 @@
 #include "common.h"
 
 #include "algorithm/keeloq/keeloq_decryptor.h"
+#include "kernels/inputs_mutation.h"
 
 #include "bruteforce/bruteforce_filters.h"
 #include "bruteforce/bruteforce_pattern.h"
@@ -23,6 +24,7 @@ struct BruteforceConfig
     static constexpr size_t MaxDecryptorsNum = static_cast<size_t>(-1);
 
 public:
+
     // HOST SET. ONCE. Which generator to use.
     BruteforceType::Type type;
 
@@ -47,29 +49,32 @@ public:
 
 public:
 
-    BruteforceConfig() : BruteforceConfig(Decryptor::Invalid(), BruteforceType::LAST, 0)
+    BruteforceConfig() : BruteforceConfig(Decryptor::Invalid(), BruteforceType::LAST, InputsMutation::None, 0)
     {
     }
 
 public:
 
     /** Dictionary attack over an explicit list of decryptors. */
-    static BruteforceConfig GetDictionary(std::vector<Decryptor>&& dictionary);
+    static BruteforceConfig GetDictionary(std::vector<Decryptor>&& dictionary, InputsMutation inputsMutation);
 
     /** Plain +1 bruteforce over a contiguous key range. */
-    static BruteforceConfig GetBruteforce(Decryptor first, size_t size);
+    static BruteforceConfig GetBruteforce(Decryptor first, InputsMutation inputsMutation, size_t size);
 
     /** +1 bruteforce with include/exclude filters applied. */
-    static BruteforceConfig GetBruteforce(Decryptor first, size_t size, const BruteforceFilters& filters);
+    static BruteforceConfig GetBruteforce(Decryptor first, InputsMutation inputsMutation, size_t size, const BruteforceFilters& filters);
 
     /** +1 bruteforce over the 32-bit seed space for a fixed manufacturer key. */
-    static BruteforceConfig GetSeedBruteforce(Decryptor first, uint32_t size = static_cast<uint32_t>(-1));
+    static BruteforceConfig GetSeedBruteforce(Decryptor first, InputsMutation inputsMutation, uint32_t size = static_cast<uint32_t>(-1));
+
+    /** +1 bruteforce over the 32-bit space for a xor key for fixed part in ota. InputsMutation will be forced set to XorFix */
+    static BruteforceConfig GetXorFixBruteforce(Decryptor first, InputsMutation inputsMutation, uint32_t size = static_cast<uint32_t>(-1));
 
     /** Alphabet (same byte set on every position) bruteforce. */
-    static BruteforceConfig GetAlphabet(Decryptor first, const MultibaseDigit& alphabet, size_t num = MaxDecryptorsNum, const std::string& name = "");
+    static BruteforceConfig GetAlphabet(Decryptor first, InputsMutation inputsMutation, const MultibaseDigit& alphabet, size_t num = MaxDecryptorsNum, const std::string& name = "");
 
     /** Pattern bruteforce (per-position byte sets). */
-    static BruteforceConfig GetPattern(Decryptor first, const BruteforcePattern& pattern, size_t num = MaxDecryptorsNum);
+    static BruteforceConfig GetPattern(Decryptor first, InputsMutation inputsMutation, const BruteforcePattern& pattern, size_t num = MaxDecryptorsNum);
 
 public:
 
@@ -96,11 +101,32 @@ public:
     /** Human-readable one-line description of the configuration. */
     std::string toString() const;
 
+public:
+    /** returns current inputs mutation mask */
+    void setMutationMask(InputsMutation mask) { allowedMutations = static_cast<InputsMutation>(static_cast<uint8_t>(mask) & InputsMutationMask); }
+
+    /** returns current inputs mutation mask */
+    InputsMutation getMutationMask() const { return allowedMutations; }
+
+    /** Checks if specific inputs mutation is allowed in config. `None` is always allowed (if not XorFix bruteforce) */
+    bool hasMutation(InputsMutation m) const;
+
+    /** Get all allowed mutation as vector (useful for iteration) */
+    std::vector<InputsMutation> getMutations() const;
+
+    /** Human-readable description of the given mutation mask. */
+    std::string mutationsToString() const;
+
 private:
-    BruteforceConfig(Decryptor start, BruteforceType::Type t, size_t num) :
-        type(t), start(start), size(num), decryptors(), filters(), pattern(), last(start)
+    BruteforceConfig(Decryptor start, BruteforceType::Type t, InputsMutation im, size_t num) :
+        type(t), start(start), size(num), decryptors(), filters(), pattern(), last(start), allowedMutations(im)
     {
     }
+
+private:
+    // HOST SET. ONCE. Additional mutation flags to expand into CPU-side kernel relaunch variants.
+    // The unmutated input path is always included.
+    InputsMutation allowedMutations = InputsMutation::None;
 };
 
 inline std::vector<uint8_t> operator "" _b(const char* ascii, size_t num)

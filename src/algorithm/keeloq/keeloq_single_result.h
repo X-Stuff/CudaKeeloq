@@ -9,6 +9,7 @@
 #include "algorithm/keeloq/keeloq_decryptor.h"
 #include "algorithm/keeloq/keeloq_encrypted.h"
 #include "algorithm/keeloq/keeloq_learning_types.h"
+#include "kernels/inputs_mutation.h"
 
 
 /**
@@ -82,8 +83,8 @@ struct SingleResult
         void print() const;
     };
 
-    // Input encrypted data
-    uint8_t inputIndex = 0xFF;
+    // Packed: [7:4] = inputsMutation, [3:0] = inputIndex
+    uint8_t inputData = 0xFF;
 
     // used manufacturer key and seed for this result
     Decryptor decryptor = {};
@@ -96,12 +97,16 @@ struct SingleResult
     KeeloqLearning::ResultIndex match = KeeloqLearning::NoMatch;
 
 public:
+    __host__ __device__ __forceinline__ uint8_t inputIndex() const { return inputData & 0x0F; }
+    __host__ __device__ __forceinline__ InputsMutation inputsMutation() const { return static_cast<InputsMutation>(inputData >> 4); }
+
+    __host__ __device__ __forceinline__ void setInputIndex(uint8_t index) { inputData = (inputData & 0xF0) | (index & 0x0F); }
+    __host__ __device__ __forceinline__ void setInputsMutation(InputsMutation m) { inputData = (inputData & 0x0F) | (static_cast<uint8_t>(m) << 4); }
+
     static SingleResult Invalid() { return SingleResult(); }
 
-    /** True if this result has match to inputs with the internal decryptor */
     bool hasMatch() const { return match != KeeloqLearning::NoMatch; }
 
-    /** Prints decrypted results, all learnings (may be multiple matches) */
 	void print(const std::vector<EncParcel>& inputs) const;
 };
 

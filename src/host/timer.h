@@ -22,6 +22,15 @@ struct Timer
         return std::chrono::duration_cast<TDuration>(TClock::now() - start_point);
     }
 
+    /** Reset the timer and return the elapsed time. */
+    template <typename TDuration = std::chrono::milliseconds>
+    inline TDuration reset()
+    {
+        const auto elapsedTime = this->template elapsed<TDuration>();
+        start_point = TClock::now();
+        return elapsedTime;
+    }
+
     /** Elapsed time in whole seconds. */
     inline std::chrono::seconds elapsedSeconds()
     {

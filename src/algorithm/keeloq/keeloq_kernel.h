@@ -7,6 +7,7 @@
 #include "device/cuda_config.h"
 #include "device/cuda_context.h"
 #include "kernels/kernel_result.h"
+#include "kernels/inputs_mutation.h"
 
 #include "algorithm/keeloq/keeloq_kernel_input.h"
 #include "algorithm/keeloq/keeloq_learning_types.h"
@@ -204,10 +205,7 @@ namespace keeloq::learning
     }
 }
 
-
-namespace keeloq
-{
-namespace kernels
+namespace keeloq::kernels
 {
 
 // launch simple keeloq calculation on GPU to check if everything working
@@ -217,19 +215,18 @@ __host__ bool cuda_is_working();
 __host__ KernelResult cuda_brute(KeeloqKernelInput& mainInputs, const CudaConfig& config);
 
 // Single decrypt round with all learning types and modifications, used for testing and debugging
-__host__ SingleResult cuda_encdec(uint64_t ota, uint64_t man, uint32_t seed, bool isDecrypt);
+__host__ SingleResult cuda_encdec(uint64_t ota, uint64_t man, uint32_t seed, bool isDecrypt, InputsMutation inputsMutation);
 
 // Single decrypt round with all learning types and modifications, used for testing and debugging
-__host__ __forceinline__ SingleResult cuda_enc(uint64_t ota, uint64_t man, uint32_t seed)
+__host__ __forceinline__ SingleResult cuda_enc(uint64_t ota, uint64_t man, uint32_t seed, InputsMutation inputsMutation)
 {
-    return cuda_encdec(ota, man, seed, false);
+    return cuda_encdec(ota, man, seed, false, inputsMutation);
 }
 
 // Single decrypt round with all learning types and modifications, used for testing and debugging
-__host__ __forceinline__ SingleResult cuda_dec(uint64_t ota, uint64_t man, uint32_t seed)
+__host__ __forceinline__ SingleResult cuda_dec(uint64_t ota, uint64_t man, uint32_t seed, InputsMutation inputsMutation)
 {
-    return cuda_encdec(ota, man, seed, true);
+    return cuda_encdec(ota, man, seed, true, inputsMutation);
 }
 
-} // namespace kernels
-} // namespace keeloq
+} // namespace keeloq::kernels

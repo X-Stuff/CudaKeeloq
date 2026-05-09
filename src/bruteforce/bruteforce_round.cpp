@@ -12,7 +12,7 @@
 #include "kernels/kernel_result.h"
 
 
-BruteforceRound::BruteforceRound(const std::vector<EncParcel>& inputs, const BruteforceConfig& config, const KeeloqLearning::Matrix& learning_matrix, const CudaConfig& cuda)
+BruteforceRound::BruteforceRound(const std::vector<EncParcel>& inputs, const BruteforceConfig& config, const CudaConfig& cuda)
     : cudaConfig(cuda)
 {
 #if NO_INNER_LOOPS
@@ -21,7 +21,7 @@ BruteforceRound::BruteforceRound(const std::vector<EncParcel>& inputs, const Bru
 
     num_decryptors_per_batch = cudaConfig.blocks * cudaConfig.threads * cudaConfig.substeps;
 
-    kernel_inputs.Initialize(config, inputs, learning_matrix);
+    kernel_inputs.Initialize(config, inputs);
     encrypted_data_num = static_cast<uint8_t>(inputs.size());
 }
 
@@ -115,17 +115,26 @@ std::string BruteforceRound::toString() const
 {
     assert(inited);
 
-    return str::format<std::string>("Setup:\n"
-        "\tCUDA: Blocks:%u Threads:%u Substeps:%u\n"
-        "\tCUDA: Used memory: %.1f GB\n"
-        "\tInputs num: %u\n"
-        "\tResults per batch: %zd\n"
-        "\tDecryptors per batch:%zd\n"
-        "\tConfig: %s\n"
-        "\tLearning: %s\n",
+    return str::format<std::string>(
+        "----------------------------------------\n"
+        "CUDA:\n"
+        "\t- Blocks:%u\n"
+        "\t- Threads:%u\n"
+        "\t- Substeps:%u\n"
+        "\t- Allocated GPU memory: %-2.1f GB\n"
+        "----------------------------------------\n"
+        "Inputs:\n"
+        "\tCount: %u\n"
+        "\tMutations:   %s\n"
+        "----------------------------------------\n"
+        "Results per batch:   %8zd\n"
+        "Decryptors per batch:%8zd\n"
+        "----------------------------------------\n"
+        "Config: %s\n"
+        "----------------------------------------",
         cudaConfig.blocks, cudaConfig.threads, cudaConfig.substeps, (getMemSize(false) / static_cast<float>(1024 * 1024 * 1024)),
-        encrypted_data_num, resultsPerBatch(), keysPerBatch(), config().toString().c_str(),
-        kernel_inputs.GetLearningMatrix().toString(&config()).c_str());
+        encrypted_data_num, config().mutationsToString().c_str(),
+        resultsPerBatch(), keysPerBatch(), config().toString().c_str());
 }
 
 

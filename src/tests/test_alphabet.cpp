@@ -20,15 +20,17 @@ TEST_CASE("alphabet generator: produces expected decryptor sequence")
 
     // 4^8 since we have 8 bytes and each byte can be 4 values
     const auto fullTurn = static_cast<uint32_t>(std::pow(pattern.size(), 8)); // 65536
+    const auto inputsMutation = InputsMutation::None;
 
-    auto testConfig = BruteforceConfig::GetAlphabet(Decryptor::Make(0, 0, true), pattern, 0xFFFFFFFF);
-    auto inputs = tests::keeloq::genInputs(0x6161616161616161);
+    auto testConfig = BruteforceConfig::GetAlphabet(Decryptor::Make(0, 0, true), inputsMutation, pattern, 0xFFFFFFFF);
+
+    auto inputs = tests::keeloq::genInputs(0x6161616161616161, 3, inputsMutation);
 
     CudaVector<Decryptor> decryptors(Cuda.total());
 
     KeeloqKernelInput generatorInputs;
     generatorInputs.decryptors = decryptors.gpu();
-    generatorInputs.Initialize(testConfig, inputs, KeeloqLearning::Matrix(KeeloqLearning::Matrix::kEverything));
+    generatorInputs.Initialize(testConfig, inputs);
 
     const auto fullCyclesNum = fullTurn / Cuda.total();
 

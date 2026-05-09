@@ -10,6 +10,8 @@
 #include "algorithm/keeloq/keeloq_encrypted.h"
 #include "algorithm/keeloq/keeloq_learning_types.h"
 
+#include "kernels/inputs_mutation.h"
+
 #include "bruteforce/bruteforce_config.h"
 
 
@@ -24,9 +26,9 @@
 #define ARG_LOOPS "cuda-loops"
 #define ARG_MODE "mode"
 #define ARG_LTYPE "learning-type"
-#define ARG_NO_REGKEYS "no-reg-keys"
 #define ARG_NO_NRMALGS "no-reg-algs"
 #define ARG_CHECKREV "check-rev"
+#define ARG_CHECKXORFIX "check-xorfix"
 #define ARG_CHECKINV "check-inv"
 #define ARG_WORDDICT "word-dict"
 #define ARG_BINDICT "bin-dict"
@@ -56,8 +58,8 @@ struct CommandLineArgs
     // Do not do all 19 calculations, use predefined one
     std::vector<KeeloqLearning::LearningType> selected_learning = {};
 
-    // Select specific modifications for inputs
-    std::vector<KeeloqLearning::Modifier::Input> selected_input_mods = {};
+    // Select additional input mutation flags. None is always checked.
+    InputsMutation inputsMutation = InputsMutation::None;
 
     // Select specific modifications for algorithm
     std::vector<KeeloqLearning::Modifier::Algo> selected_algo_mods = {};

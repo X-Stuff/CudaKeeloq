@@ -14,7 +14,7 @@ Matrix::Matrix(const std::initializer_list<LearningItem>& params)
     {
         for (const auto& param : params)
         {
-            enable(param.learning, param.imod, param.amod);
+            enable(param.learning, param.amod);
         }
     }
     else
@@ -23,9 +23,9 @@ Matrix::Matrix(const std::initializer_list<LearningItem>& params)
     }
 }
 
-Matrix::Matrix(const std::vector<LearningType>& types, const std::vector<Modifier::Input>& iMods, const std::vector<Modifier::Algo>& aMods)
+Matrix::Matrix(const std::vector<LearningType>& types, const std::vector<Modifier::Algo>& aMods)
 {
-    if (types.empty() && iMods.empty() && aMods.empty())
+    if (types.empty() && aMods.empty())
     {
         matrix = kEverything;
         return;
@@ -35,16 +35,13 @@ Matrix::Matrix(const std::vector<LearningType>& types, const std::vector<Modifie
 
     const auto& typesToEnable = types.empty() ? std::vector<LearningType>(EveryLearning.begin(), EveryLearning.end()) : types;
 
-    assert(!iMods.empty() && !aMods.empty() && "Input modifiers and Algo Modifiers must be provided");
+    assert( !aMods.empty() && "Input modifiers and Algo Modifiers must be provided");
 
     for (auto type : typesToEnable)
     {
-        for (auto imod : iMods)
+        for (auto amod : aMods)
         {
-            for (auto amod : aMods)
-            {
-                enable(type, imod, amod);
-            }
+            enable(type, amod);
         }
     }
 }
@@ -59,42 +56,42 @@ std::string Matrix::toString(const BruteforceConfig* bruteConfig) const
 
     uint8_t enabledCount = 0;
 
-    at += snprintf(&buffer[at], sizeof(buffer) - at, "Matrix:\n" "                     |  Simple |  Normal |  Secure |   Xor   |   Faac  | Serial1 | Serial2 | Serial3 |\n");
-    at += snprintf(&buffer[at], sizeof(buffer) - at,             "_____________________|_________|_________|_________|_________|_________|_________|_________|_________|\n");
+    at += snprintf(&buffer[at], sizeof(buffer) - at, "Learning matrix:\n"
+        "           _______________________________________________________________________________\n"
+        "          |  Simple |  Normal |  Secure |   Xor   |   Faac  | Serial1 | Serial2 | Serial3 |\n");
+    at += snprintf(&buffer[at], sizeof(buffer) - at,
+        "__________|_________|_________|_________|_________|_________|_________|_________|_________|\n");
 
-    for (auto i = 0; i < Modifier::InputModCount; ++i)
+    for (auto a = 0; a < Modifier::AlgoModCount; ++a)
     {
-        for (auto a = 0; a < Modifier::AlgoModCount; ++a)
+        auto amod = static_cast<Modifier::Algo>(a);
+
+        at += snprintf(&buffer[at], sizeof(buffer) - at, "%8s: |", KeeloqLearning::name(amod));
+
+        for (auto learning : EveryLearningType{})
         {
-            auto imod = static_cast<Modifier::Input>(i);
-            auto amod = static_cast<Modifier::Algo>(a);
+            bool isLearningEnabled = isEnabled(learning, amod);
 
-            at += snprintf(&buffer[at], sizeof(buffer) - at, "%8s - %8s: |", KeeloqLearning::name(imod), KeeloqLearning::name(amod));
-
-            for (auto learning : EveryLearningType{})
+            if (hasSeed(learning))
             {
-                bool isLearningEnabled = isEnabled(learning, imod, amod);
-
-                if (hasSeed(learning))
-                {
-                    if (!withSeed)
-                    {
-                        isLearningEnabled = false;
-                    }
-                }
-                else if (seedOnly)
+                if (!withSeed)
                 {
                     isLearningEnabled = false;
                 }
-
-                enabledCount += static_cast<uint8_t>(isLearningEnabled);
-                at += snprintf(&buffer[at], sizeof(buffer) - at, "    %s    |", isLearningEnabled ? "+" : " ");
             }
-            at += snprintf(&buffer[at], sizeof(buffer) - at, "\n");
+            else if (seedOnly)
+            {
+                isLearningEnabled = false;
+            }
+
+            enabledCount += static_cast<uint8_t>(isLearningEnabled);
+            at += snprintf(&buffer[at], sizeof(buffer) - at, "    %s    |", isLearningEnabled ? "+" : " ");
         }
+        at += snprintf(&buffer[at], sizeof(buffer) - at, "\n");
     }
-    at += snprintf(&buffer[at], sizeof(buffer) - at,            "¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯\n");
-    at += snprintf(&buffer[at], sizeof(buffer) - at, "Total enabled calculations: %u\n", enabledCount);
+
+    at += snprintf(&buffer[at], sizeof(buffer) - at,            "¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯\n");
+    at += snprintf(&buffer[at], sizeof(buffer) - at, "Total enabled learnings: %u\n", enabledCount);
 
     return std::string(buffer);
 }
@@ -119,19 +116,9 @@ const char* name(Modifier::Algo amod)
 {
     switch (amod)
     {
-    case Modifier::Algo::Normal:    return "Usual";
+    case Modifier::Algo::Normal:    return "Regular";
     case Modifier::Algo::Inverted:  return "Inverted";
     default: return "Unknown";
-    }
-}
-
-const char* name(Modifier::Input imod)
-{
-    switch (imod)
-    {
-        case Modifier::Input::Normal:       return "Nrm Key";
-        case Modifier::Input::ReversedKey:  return "Rev Key";
-        default: return "Unknown";
     }
 }
 

@@ -4,6 +4,7 @@
 
 #include "algorithm/keeloq/keeloq_encrypted.h"
 #include "algorithm/keeloq/keeloq_learning_types.h"
+#include "kernels/inputs_mutation.h"
 
 
 /**
@@ -43,10 +44,10 @@ public:
 
 public:
     /** Generates an OTA parcel and bumps the counter (simulates a button click). */
-    EncParcel click(KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Input imod, KeeloqLearning::Modifier::Algo amod);
+    EncParcel click(InputsMutation inputsMutation, KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Algo amod);
 
     /** Derives the effective manufacturer key for the given learning type and modifiers. */
-    uint64_t man(KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Input imod, KeeloqLearning::Modifier::Algo amod) const;
+    uint64_t man(InputsMutation inputsMutation, KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Algo amod) const;
 
     /** Assembled hopping-code value prior to encryption. */
     inline uint32_t unencrypted() const { return (uint32_t)button << 28 | ((serial & 0x3FF) << 16) | count; }
@@ -63,16 +64,16 @@ public:
 private:
 
     /** CPU encryption result — raw, not bit-reversed, not OTA. */
-    uint32_t cpuEncrypt(KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Input imod, KeeloqLearning::Modifier::Algo amod) const;
+    uint32_t cpuEncrypt(InputsMutation inputsMutation, KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Algo amod) const;
 
     /** CPU decryption of an OTA value with the given learning/modifier. */
-    uint32_t cpuDecrypt(uint64_t enc, KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Input imod, KeeloqLearning::Modifier::Algo amod) const;
+    uint32_t cpuDecrypt(uint64_t enc, InputsMutation inputsMutation, KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Algo amod) const;
 
     /** GPU encryption result — raw, not bit-reversed, not OTA. */
-    uint32_t gpuEncrypt(KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Input imod, KeeloqLearning::Modifier::Algo amod) const;
+    uint32_t gpuEncrypt(InputsMutation inputsMutation, KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Algo amod) const;
 
     /** GPU decryption of an OTA value with the given learning/modifier. */
-    uint32_t gpuDecrypt(uint64_t enc, KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Input imod, KeeloqLearning::Modifier::Algo amod) const;
+    uint32_t gpuDecrypt(uint64_t enc, InputsMutation inputsMutation, KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Algo amod) const;
 
 private:
 

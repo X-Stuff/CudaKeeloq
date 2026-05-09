@@ -39,24 +39,17 @@ void console::progressBar(double percent, const std::chrono::seconds& elapsed)
 
 void console::clearLine(int width /*= 0*/)
 {
-    int tWidth = 0;
-    int tHeight = 0;
-
-    s_term.get_term_size(tHeight, tWidth);
-    printf("\r%*s", width > 0 ? width : (tWidth - 1), "");
-    printf("\r");
+    console_clear_line();
 }
 
 
 void console::clearLinesUp(int numlines, int width /*= 0*/)
 {
-    console_cursor_ret_up(numlines);
     for (int i = 0; i < numlines; ++i)
     {
+        console_cursor_ret_up(1);
         console::clearLine(width);
-        printf("\n");
     }
-    console_cursor_ret_up(numlines);
 }
 
 int console::readEscPress()

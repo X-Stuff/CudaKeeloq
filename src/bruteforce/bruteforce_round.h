@@ -27,16 +27,7 @@
  */
 struct BruteforceRound
 {
-    /** Construct a round using every learning type (default). */
-    BruteforceRound(const std::vector<EncParcel>& data, const BruteforceConfig& gen, const CudaConfig& config) :
-        BruteforceRound(data, gen, KeeloqLearning::Matrix::Everything(), config) {}
-
-    /** Construct a round restricted to a single learning type. */
-    BruteforceRound(const std::vector<EncParcel>& data, const BruteforceConfig& gen, KeeloqLearning::LearningItem single, const CudaConfig& config) :
-        BruteforceRound(data, gen, KeeloqLearning::Matrix({ single }), config) {}
-
-    /** Construct a round with an explicit learning matrix. */
-    BruteforceRound(const std::vector<EncParcel>& data, const BruteforceConfig& gen, const KeeloqLearning::Matrix& learning_matrix, const CudaConfig& config);
+    BruteforceRound(const std::vector<EncParcel>& data, const BruteforceConfig& gen, const CudaConfig& config);
 
     ~BruteforceRound()
     {

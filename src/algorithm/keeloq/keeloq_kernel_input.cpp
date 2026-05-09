@@ -55,13 +55,22 @@ void KeeloqKernelInput::NextDecryptor()
 	config.nextDecryptor();
 }
 
-void KeeloqKernelInput::Initialize(const BruteforceConfig& inConfig, const std::vector<EncParcel>& inInputs, const KeeloqLearning::Matrix& inLearnings)
+void KeeloqKernelInput::Initialize(const BruteforceConfig& inConfig, const std::vector<EncParcel>& inInputs)
 {
     config = inConfig;
+    InitInputsCache(inInputs);
+}
+
+void KeeloqKernelInput::BruteforcePrepare(const KeeloqLearning::Matrix& inLearnings, InputsMutation mutations)
+{
+    assert(is_valid(mutations) && "Invalid input mutation mask");
+    assert(config.type != BruteforceType::XorFix || !!(mutations & InputsMutation::XorFix) &&
+        "In XorFix bruteforce you should have always XorFix mutation enabled");
+
     learnings = inLearnings;
     allLearnings = learnings.isAllEnabled();
-
-    InitInputsCache(inInputs);
+    mutationsMask = mutations;
+    readyForBrute = true;
 }
 
 void KeeloqKernelInput::BeforeGenerateDecryptors()
@@ -85,7 +94,7 @@ void KeeloqKernelInput::AfterGeneratedDecryptors()
     config.last = decryptors->hostLast();
 }
 
-size_t KeeloqKernelInput::NumInputs() const
+uint8_t KeeloqKernelInput::NumInputs() const
 {
     return inputsCount;
 }

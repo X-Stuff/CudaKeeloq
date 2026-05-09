@@ -44,6 +44,10 @@ struct KeeloqKernelInput : TGenericGpuObject<KeeloqKernelInput>
         results = other.results;
         config = other.config;
         learnings = other.learnings;
+        allLearnings = other.allLearnings;
+        inputsFixMatch = other.inputsFixMatch;
+        mutationsMask = other.mutationsMask;
+        readyForBrute = other.readyForBrute;
     }
 
     KeeloqKernelInput& operator=(KeeloqKernelInput&& other) = delete;
@@ -57,10 +61,13 @@ public:
     __device__ __host__ __inline__ bool AllLearningsEnabled() const { return allLearnings; }
 
     /** Active bruteforce configuration (device-side access). */
-    __device__ __inline__ const BruteforceConfig& GetConfig() const { return config; }
+    __device__ __host__ __inline__ const BruteforceConfig& GetConfig() const { return config; }
+
+    /** Active input mutation for the next kernel launch. */
+    __device__ __host__ __inline__ InputsMutation InputsMutationMask() const { return mutationsMask; }
 
     /** Uploads encrypted inputs to the device-side constant cache. */
-    __device__ void InitInputsCache(const std::vector<EncParcel>& inputs);
+    void InitInputsCache(const std::vector<EncParcel>& inputs);
 
     /** Bytes allocated by the decryptor and result buffers (for metrics). */
     size_t BytesAllocated() const;
@@ -73,7 +80,10 @@ public:
     void NextDecryptor();
 
     /** One-time setup: captures config, learning matrix, and uploads inputs. */
-    void Initialize(const BruteforceConfig& inConfig, const std::vector<EncParcel>& inInputs, const KeeloqLearning::Matrix& inLearnings);
+    void Initialize(const BruteforceConfig& inConfig, const std::vector<EncParcel>& inInputs);
+
+    /** Each time before bruteforce called, this method should be called */
+    void BruteforcePrepare(const KeeloqLearning::Matrix& inLearnings, InputsMutation mutations);
 
     /** Generator callback: prepares host-side state just before a decryptor batch is generated. */
     void BeforeGenerateDecryptors();
@@ -82,10 +92,20 @@ public:
     void AfterGeneratedDecryptors();
 
     /** Returns the OTA input count (performs a GPU→CPU copy). */
-    size_t NumInputs() const;
+    uint8_t NumInputs() const;
 
     /** True if every input in the batch shares the same fixed code. */
     bool InputsFixMatch() const { return inputsFixMatch; }
+
+    /** True if ready for bruteforce (prepare called) */
+    bool Ready() const { return readyForBrute; }
+
+public:
+    virtual void read() override
+    {
+        TGenericGpuObject<KeeloqKernelInput>::read();
+        readyForBrute = false;
+    }
 
 private:
     // Which type of learning use for decryption
@@ -99,4 +119,11 @@ private:
 
     // from this decryptor generation will start
     BruteforceConfig config;
+
+    // Inputs mutation mask
+    InputsMutation mutationsMask = InputsMutation::None;
+
+    // Flag resets every time kernel finished, and sets on Prepare
+    // Safety flag
+    bool readyForBrute = false;
 };

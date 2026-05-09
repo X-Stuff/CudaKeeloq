@@ -12,14 +12,15 @@ const char* BruteforceType::GeneratorTypeName[] = {
     "Filtered",
     "Alphabet",
     "Pattern",
-    "Seed"
+    "Seed",
+    "XorFix"
 };
 
 const size_t BruteforceType::GeneratorTypeNamesCount = sizeof(GeneratorTypeName) / sizeof(char*);
 
 const char* BruteforceType::name(Type type)
 {
-    if (type > GeneratorTypeNamesCount)
+    if (type >= GeneratorTypeNamesCount)
     {
         return "UNKNOWN";
     }

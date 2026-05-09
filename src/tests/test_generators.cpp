@@ -31,8 +31,10 @@ BruteforceConfig GetSingleKeyConfig(uint64_t key, bool rev = true)
         std::reverse(pattern.begin(), pattern.end());
     }
 
+    const auto inputModifier = rev ? InputsMutation::RevKey : InputsMutation::None;
+
     BruteforcePattern br_pattern(std::move(pattern), "Test");
-    return BruteforceConfig::GetPattern(Decryptor::Make(0, 0, true), br_pattern, 0xFFFFFFFF);
+    return BruteforceConfig::GetPattern(Decryptor::Make(0, 0, true), inputModifier, br_pattern, 0xFFFFFFFF);
 }
 }
 
@@ -45,7 +47,8 @@ TEST_CASE("generators: pattern produces the expected first decryptor")
     const CudaConfig cudaConfig = CudaConfig::Tests();
     const uint64_t   debugKey   = "hello_world"_u64;
 
-    auto inputs = tests::keeloq::genInputs(debugKey, NumInputs, LearningType::Simple);
+    auto inputsMutation = InputsMutation::None;
+    auto inputs = tests::keeloq::genInputs(debugKey, NumInputs, inputsMutation, LearningType::Simple);
 
     CudaVector<Decryptor>    decryptors(cudaConfig.total());
     CudaVector<SingleResult> results(decryptors.size() * inputs.size());
@@ -57,9 +60,11 @@ TEST_CASE("generators: pattern produces the expected first decryptor")
     KeeloqKernelInput generatorInputs;
     generatorInputs.decryptors = decryptors.gpu();
     generatorInputs.results    = results.gpu();
-    generatorInputs.Initialize(config, inputs, KeeloqLearning::Matrix::Everything());
+    generatorInputs.Initialize(config, inputs);
 
     GeneratorBruteforce::PrepareDecryptors(generatorInputs, cudaConfig);
+
+    generatorInputs.BruteforcePrepare(KeeloqLearning::Matrix::Everything(), inputsMutation);
     ::keeloq::kernels::cuda_brute(generatorInputs, cudaConfig);
 
     decryptors.read();
@@ -78,18 +83,19 @@ TEST_CASE("generators: seed produces a contiguous, monotonically increasing sequ
     const CudaConfig cudaConfig = CudaConfig::Tests();
     const uint64_t   debugKey   = "hello_world"_u64;
 
-    const auto inputs = tests::keeloq::genInputs(debugKey, NumInputs, LearningType::Secure);
+    auto inputsMutation = InputsMutation::None;
+    const auto inputs = tests::keeloq::genInputs(debugKey, NumInputs, inputsMutation, LearningType::Secure);
 
     CudaVector<Decryptor>    decryptors(cudaConfig.total());
     CudaVector<SingleResult> results(decryptors.size() * inputs.size());
 
-    BruteforceConfig config = BruteforceConfig::GetSeedBruteforce(Decryptor::Make(debugKey, 0, true));
+    BruteforceConfig config = BruteforceConfig::GetSeedBruteforce(Decryptor::Make(debugKey, 0, true), inputsMutation);
     REQUIRE(config.type == BruteforceType::Seed);
 
     KeeloqKernelInput generatorInputs;
     generatorInputs.decryptors = decryptors.gpu();
     generatorInputs.results    = results.gpu();
-    generatorInputs.Initialize(config, inputs, KeeloqLearning::Matrix::Everything());
+    generatorInputs.Initialize(config, inputs);
 
     uint64_t gen_seed_global = 0;
     for (int round = 0; round < NumTestRounds; ++round)

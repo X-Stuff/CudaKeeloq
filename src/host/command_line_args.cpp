@@ -159,7 +159,7 @@ inline void parse_dictionary_mode(CommandLineArgs& target, cxxopts::ParseResult&
 
         if (decryptors.size() > 0)
         {
-            target.brute_configs.push_back(BruteforceConfig::GetDictionary(std::move(decryptors)));
+            target.brute_configs.push_back(BruteforceConfig::GetDictionary(std::move(decryptors), target.inputsMutation));
         }
     }
 
@@ -179,7 +179,7 @@ inline void parse_dictionary_mode(CommandLineArgs& target, cxxopts::ParseResult&
 
             if (decryptors.size() > 0)
             {
-                target.brute_configs.push_back(BruteforceConfig::GetDictionary(std::move(decryptors)));
+                target.brute_configs.push_back(BruteforceConfig::GetDictionary(std::move(decryptors), target.inputsMutation));
             }
             else
             {
@@ -206,7 +206,7 @@ inline void parse_bruteforce_mode(CommandLineArgs& target, cxxopts::ParseResult&
 
     auto count_key = result[ARG_COUNT].as<size_t>();
 
-    target.brute_configs.push_back(BruteforceConfig::GetBruteforce(first_decryptor, count_key));
+    target.brute_configs.push_back(BruteforceConfig::GetBruteforce(first_decryptor, target.inputsMutation, count_key));
 }
 
 inline void parse_seed_mode(CommandLineArgs& target, cxxopts::ParseResult& result, const Reporter& report)
@@ -223,7 +223,24 @@ inline void parse_seed_mode(CommandLineArgs& target, cxxopts::ParseResult& resul
 
     Decryptor first_decryptor = Decryptor::Make(start_key, seed, seed_valid);
 
-    target.brute_configs.push_back(BruteforceConfig::GetSeedBruteforce(first_decryptor));
+    target.brute_configs.push_back(BruteforceConfig::GetSeedBruteforce(first_decryptor, target.inputsMutation));
+}
+
+inline void parse_xorfix_mode(CommandLineArgs& target, cxxopts::ParseResult& result, const Reporter& report)
+{
+    if (result.count(ARG_START) == 0)
+    {
+        report.error("For XorFix mode, it's necessary to specify a manufacturer key with '--" ARG_START "' argument!");
+        return;
+    }
+
+    auto start_key = result[ARG_START].as<uint64_t>();
+    auto start_xor = result[ARG_SEED].as<uint32_t>();
+    constexpr auto seed_valid = true;
+
+    Decryptor first_decryptor = Decryptor::Make(start_key, start_xor, seed_valid);
+
+    target.brute_configs.push_back(BruteforceConfig::GetXorFixBruteforce(first_decryptor, target.inputsMutation));
 }
 
 inline void parse_bruteforce_filtered_mode(CommandLineArgs& target, cxxopts::ParseResult& result, const Reporter& /*report*/)
@@ -245,7 +262,7 @@ inline void parse_bruteforce_filtered_mode(CommandLineArgs& target, cxxopts::Par
         exclude_filter,
     };
 
-    target.brute_configs.push_back(BruteforceConfig::GetBruteforce(first_decryptor, count_key, filters));
+    target.brute_configs.push_back(BruteforceConfig::GetBruteforce(first_decryptor, target.inputsMutation, count_key, filters));
 }
 
 inline void parse_alphabet_mode(CommandLineArgs& target, cxxopts::ParseResult& result, const Reporter& /*report*/)
@@ -260,7 +277,7 @@ inline void parse_alphabet_mode(CommandLineArgs& target, cxxopts::ParseResult& r
 
     for (const auto& alphabet : target.alphabets)
     {
-        target.brute_configs.push_back(BruteforceConfig::GetAlphabet(first_decryptor, alphabet, count_key));
+        target.brute_configs.push_back(BruteforceConfig::GetAlphabet(first_decryptor, target.inputsMutation, alphabet, count_key));
     }
 }
 
@@ -357,7 +374,7 @@ inline void parse_pattern_mode(CommandLineArgs& target, cxxopts::ParseResult& re
         std::reverse(result.begin(), result.end());
 
         // Add pattern attack to config
-        target.brute_configs.push_back(BruteforceConfig::GetPattern(first_decryptor, BruteforcePattern(std::move(result), pattern_arg), count_key));
+        target.brute_configs.push_back(BruteforceConfig::GetPattern(first_decryptor, target.inputsMutation, BruteforcePattern(std::move(result), pattern_arg), count_key));
     }
 }
 
@@ -368,7 +385,7 @@ constexpr const char* Usage()
         "\t./" APP_NAME " --" ARG_INPUTS " xxx,yy,zzz"
         " --" ARG_MODE "=1 --" ARG_START "=0x9876543210 --" ARG_COUNT "=0xFFFFFFFF"
         "\n\n\tThis will launch simple bruteforce (+1) attack with 2^32 checks, starting from 0x9876543210. "
-        "Will check ALL 19 (14 if no seed specified) keeloq learning types with all modifications"
+        "Will check all enabled keeloq learning types with the selected input and algorithm mutations"
 
         "\nExample:\n"
         "\t./" APP_NAME " --" ARG_INPUTS " xxx,yy,zzz"
@@ -454,8 +471,8 @@ cxxopts::Options buildOptions()
             "Check also byte-reversed man keys during bruteforce, some manufacturers mixes up or do this intentionally. "
             "You need this setting set to false only if you are doing, full 2^64 bruteforce.\n",
             cxxopts::value<bool>()->default_value("true"), "true|false")
-        (ARG_NO_REGKEYS,
-            "Disable regular keys checking during bruteforce. Set if to 'true' only if you want force check ONLY reversed keys.\n",
+        (ARG_CHECKXORFIX,
+            "Check also the fixed-code XOR input mutation during bruteforce. Requires decryptors with a seed to be useful.\n",
             cxxopts::value<bool>()->default_value("false"), "true|false")
         (ARG_CHECKINV,
             "Check also inverted algorithms during bruteforce, some manufacturers mixes up or do this intentionally (multiplies time x2). "
@@ -584,6 +601,31 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv, Verbosity ve
     // Stop if need
     args.match_stop = result[ARG_FMATCH].as<bool>();
 
+    // Modifications
+    {
+        // By default we check normal keys
+        if (result[ARG_CHECKREV].as<bool>())
+        {
+            args.inputsMutation = args.inputsMutation | InputsMutation::RevKey;
+        }
+
+        if (result[ARG_CHECKXORFIX].as<bool>())
+        {
+            args.inputsMutation = args.inputsMutation | InputsMutation::XorFix;
+        }
+
+        // By default we use normal algos
+        if (!result.count(ARG_NO_NRMALGS) || !result[ARG_NO_NRMALGS].as<bool>())
+        {
+            args.selected_algo_mods.push_back(KeeloqLearning::Modifier::Algo::Normal);
+        }
+
+        if (result[ARG_CHECKINV].as<bool>())
+        {
+            args.selected_algo_mods.push_back(KeeloqLearning::Modifier::Algo::Inverted);
+        }
+    }
+
     // Alphabets
     read_alphabets(args, result, report);
 
@@ -619,6 +661,9 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv, Verbosity ve
                 break;
             case (uint8_t)BruteforceType::Seed:
                 parse_seed_mode(args, result, report);
+                break;
+            case (uint8_t)BruteforceType::XorFix:
+                parse_xorfix_mode(args, result, report);
                 break;
             default:
                 break;
@@ -657,31 +702,6 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv, Verbosity ve
             {
                 args.selected_learning.push_back(static_cast<KeeloqLearning::LearningType>(value));
             }
-        }
-    }
-
-    // Modifications
-    {
-        // By default we check normal keys
-        if (!result.count(ARG_NO_REGKEYS) || !result[ARG_NO_REGKEYS].as<bool>())
-        {
-            args.selected_input_mods.push_back(KeeloqLearning::Modifier::Input::Normal);
-        }
-
-        if (result[ARG_CHECKREV].as<bool>())
-        {
-            args.selected_input_mods.push_back(KeeloqLearning::Modifier::Input::ReversedKey);
-        }
-
-        // By default we use normal algos
-        if (!result.count(ARG_NO_NRMALGS) || !result[ARG_NO_NRMALGS].as<bool>())
-        {
-            args.selected_algo_mods.push_back(KeeloqLearning::Modifier::Algo::Normal);
-        }
-
-        if (result[ARG_CHECKINV].as<bool>())
-        {
-            args.selected_algo_mods.push_back(KeeloqLearning::Modifier::Algo::Inverted);
         }
     }
 

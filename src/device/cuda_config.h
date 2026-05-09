@@ -85,7 +85,13 @@ public:
 
         // Usually each thread has 1 decryptor and 3 results (usually need 3 inputs)
         const auto thread_memory = threadsPerBlock * (sizeof(Decryptor) + sizeof(SingleResult) * 3);
+    #if _DEBUG
+        // Limit to 5GB in debug
+        static constexpr size_t MaxMeoryInDebug = (1024 * 1024 * 1024) * static_cast<size_t>(5);
+        const auto max_memory = std::min(prop.totalGlobalMem, MaxMeoryInDebug);
+    #else
         const auto max_memory = prop.totalGlobalMem;
+    #endif
 
         const auto possible_blocks = max_memory / thread_memory;
         const auto power = static_cast<int>(std::log2(possible_blocks));

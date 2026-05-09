@@ -231,7 +231,6 @@ TEST_CASE("cli: mode-5 variation selects only the single chosen input/algo modif
         "--" ARG_START      "=0xAABBCCDD00112233",
         "--" ARG_CHECKINV  "=true",
         "--" ARG_CHECKREV  "=true",
-        "--" ARG_NO_REGKEYS"=true",
         "--" ARG_NO_NRMALGS"=true",
     };
 
@@ -240,7 +239,30 @@ TEST_CASE("cli: mode-5 variation selects only the single chosen input/algo modif
 
     REQUIRE(args.selected_algo_mods.size() == 1);
     CHECK(args.selected_algo_mods[0] == KeeloqLearning::Modifier::Algo::Inverted);
+    CHECK(args.inputsMutation == InputsMutation::RevKey);
+    REQUIRE(args.brute_configs.size() == 1);
+    CHECK(args.brute_configs[0].hasMutation(InputsMutation::RevKey));
+}
 
-    REQUIRE(args.selected_input_mods.size() == 1);
-    CHECK(args.selected_input_mods[0] == KeeloqLearning::Modifier::Input::ReversedKey);
+TEST_CASE("cli: --check-xorfix enables every selected input mutation permutation")
+{
+    const char* argv[] = {
+        APP_NAME,
+        "--" ARG_INPUTS      "=0xC65D52A0A81FD504,0xCCA9B335A81FD504,0xE0DA7372A81FD504",
+        "--" ARG_MODE        "=simple",
+        "--" ARG_START       "=0x1",
+        "--" ARG_CHECKREV    "=true",
+        "--" ARG_CHECKXORFIX "=true",
+    };
+
+    auto args = parseArgs(argv);
+    CHECK_FALSE(args.has_errors);
+
+    const auto allMutations = InputsMutation::RevKey | InputsMutation::XorFix;
+    CHECK(args.inputsMutation == allMutations);
+    REQUIRE(args.brute_configs.size() == 1);
+    CHECK(args.brute_configs[0].hasMutation(InputsMutation::None));
+    CHECK(args.brute_configs[0].hasMutation(InputsMutation::RevKey));
+    CHECK(args.brute_configs[0].hasMutation(InputsMutation::XorFix));
+    CHECK(args.brute_configs[0].hasMutation(allMutations));
 }

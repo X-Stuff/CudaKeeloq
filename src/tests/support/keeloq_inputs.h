@@ -14,26 +14,22 @@ namespace keeloq
 
 using namespace KeeloqLearning;
 
-inline std::vector<EncParcel> genInputs(Encryptor& encryptor, uint8_t num = 3,
-    LearningType LType = LearningType::Simple,
-    Modifier::Input iMod = Modifier::Input::Normal,
-    Modifier::Algo aMod = Modifier::Algo::Normal)
+inline std::vector<EncParcel> genInputs(Encryptor& encryptor, uint8_t num = 3, InputsMutation inputsMutation = InputsMutation::None,
+    LearningType LType = LearningType::Simple, Modifier::Algo aMod = Modifier::Algo::Normal)
 {
     std::vector<EncParcel> result;
     result.reserve(num);
 
     for (uint8_t i = 0; i < num; ++i)
     {
-        result.emplace_back(encryptor.click(LType, iMod, aMod));
+        result.emplace_back(encryptor.click(inputsMutation, LType, aMod));
     }
 
     return result;
 }
 
-std::vector<EncParcel> genInputs(uint64_t key, uint8_t num = 3,
-    LearningType lType = LearningType::Simple,
-    Modifier::Input iMod = Modifier::Input::Normal,
-    Modifier::Algo aMod = Modifier::Algo::Normal);
+std::vector<EncParcel> genInputs(uint64_t key, uint8_t num = 3, InputsMutation inputsMutation = InputsMutation::None,
+    LearningType lType = LearningType::Simple, Modifier::Algo aMod = Modifier::Algo::Normal);
 
 }
 }

@@ -18,7 +18,7 @@ struct BruteforceConfig;
  * Bitmask describing which decryption path the kernel takes and which optional
  * learning-type groups / modifiers are included in a single kernel launch.
  */
-enum class LearningDecryptionMode
+enum class KernelLearningMode
 {
     // Explicit defined learning types
     Invalid  = 0,
@@ -39,16 +39,21 @@ enum class LearningDecryptionMode
 
     /************************************************************************/
 
-    // Modifier: Disable Regular decryption
-    NoReg = 1 << 4,
+    // Algo Modifier: Disable Inverse calculation decryption
+    NoInv = 1 << 10,
 
-    // Modifier: Disable Reverse manufacturer key calculations
-    NoRev = 1 << 5,
+    ModMask = NoInv,
 
-    // Modifier: Disable Inverted algorithms calculations (for Normal, Secure, FAAC learning types)
-    NoInv = 1 << 6,
+    /************************************************************************/
 
-    ModMask = NoReg | NoRev | NoInv,
+    // Explicit 0 flag that won't affect other bits during bitwise OR
+    NoInputsMutation = 0,
+
+    // Inputs Modifier: Mirrors InputMutations enum
+    RevKey = 1 << 16,
+
+    // Inputs Modifier: Mirrors InputMutations enum
+    XorFix = 1 << 17,
 
     /************************************************************************/
 
@@ -71,19 +76,19 @@ enum class LearningDecryptionMode
     ExplicitAll = ExplicitNormal | ExplicitSeeded
 };
 
-__host__ __device__ __inline__ constexpr LearningDecryptionMode operator&(const LearningDecryptionMode& a, const LearningDecryptionMode& b)
+__host__ __device__ __inline__ constexpr KernelLearningMode operator&(const KernelLearningMode& a, const KernelLearningMode& b)
 {
-    return static_cast<LearningDecryptionMode>(static_cast<int>(a) & static_cast<int>(b));
+    return static_cast<KernelLearningMode>(static_cast<int>(a) & static_cast<int>(b));
 }
 
-__host__ __device__ __inline__ constexpr LearningDecryptionMode operator|(const LearningDecryptionMode& a, const LearningDecryptionMode& b)
+__host__ __device__ __inline__ constexpr KernelLearningMode operator|(const KernelLearningMode& a, const KernelLearningMode& b)
 {
-    return static_cast<LearningDecryptionMode>(static_cast<int>(a) | static_cast<int>(b));
+    return static_cast<KernelLearningMode>(static_cast<int>(a) | static_cast<int>(b));
 }
 
-__host__ __device__ __inline__ constexpr bool operator!(LearningDecryptionMode m)
+__host__ __device__ __inline__ constexpr bool operator!(KernelLearningMode m)
 {
-    return m == static_cast<LearningDecryptionMode>(0);
+    return m == static_cast<KernelLearningMode>(0);
 }
 
 namespace KeeloqLearning
@@ -95,19 +100,20 @@ namespace KeeloqLearning
  */
 enum LearningType : uint8_t
 {
-    // Simple Learning
+    // Simple Learning, No seed
     Simple = 0,
 
-    //###########################
-    // Normal Learning
+    // Normal Learning (No seed)
     // https://phreakerclub.com/forum/showpost.php?p=43557&postcount=37
     Normal,
 
+    // Secure Learning, (with seed)
     Secure,
 
-    // Magic xor type1 learning
+    // Magic xor type1 learning (no seed)
     Xor,
 
+    // FAAC learning (with seed)
     Faac,
 
     Serial1,
@@ -172,22 +178,12 @@ constexpr bool hasSeed(LearningType type)
     return false;
 }
 
-
 /**
  * Additional tweaks that can be applied on top of a learning algorithm.
  * Some learning types only support a subset of these modifiers.
  */
 struct Modifier
 {
-    enum class Input : uint8_t
-    {
-        // No input modification, use regular manufacturer key
-        Normal = 0,
-
-        // Reverse manufacturer key, use reversed byte order for manufacturer key in calculations
-        ReversedKey,
-    };
-
     enum class Algo : uint8_t
     {
         // Regular enc/dec logic, all learning types
@@ -200,42 +196,28 @@ struct Modifier
     /** Total number of algorithm modifications */
     static constexpr uint8_t AlgoModCount = static_cast<uint8_t>(Algo::Inverted) + 1;
 
-    /** Total number of input modifications */
-    static constexpr uint8_t InputModCount = static_cast<uint8_t>(Input::ReversedKey) + 1;
-
     using TypeSequence = std::make_index_sequence<AlgoModCount>;
 };
 
-/** Single cell (learning type + input/algo modifiers) in the learning matrix. */
+/** Single cell (learning type + algo modifiers) in the learning matrix. */
 struct LearningItem
 {
     constexpr LearningItem() = default;
 
-    constexpr __device__ __host__ LearningItem(LearningType l) : LearningItem(l, Modifier::Input::Normal, Modifier::Algo::Normal)
+    constexpr __device__ __host__ LearningItem(LearningType l) : LearningItem(l, Modifier::Algo::Normal)
     {
     }
 
-    constexpr __device__ __host__ LearningItem(LearningType l, Modifier::Input i) : LearningItem(l, i, Modifier::Algo::Normal)
-    {
-    }
-
-    constexpr __device__ __host__ LearningItem(LearningType l, Modifier::Algo a) : LearningItem(l, Modifier::Input::Normal, a)
-    {
-    }
-
-    constexpr __device__ __host__ LearningItem(LearningType l, Modifier::Input i, Modifier::Algo a) : learning(l), imod(i), amod(a)
+    constexpr __device__ __host__ LearningItem(LearningType l, Modifier::Algo a) : learning(l), amod(a)
     {
     }
 
     __device__ __host__ __inline__ constexpr uint8_t asIndex() const
     {
-        constexpr auto ImodRowSelector = LearningTypesCount * Modifier::AlgoModCount;
-        return (learning + (static_cast<uint8_t>(imod) * ImodRowSelector) + static_cast<uint8_t>(amod) * LearningTypesCount);
+        return (learning + static_cast<uint8_t>(amod) * LearningTypesCount);
     }
 
     LearningType learning = LearningType::Simple;
-
-    Modifier::Input imod = Modifier::Input::Normal;
 
     Modifier::Algo amod = Modifier::Algo::Normal;
 };
@@ -344,7 +326,7 @@ struct RegistryInfo
     static constexpr uint8_t RealAlgosNum = Registry::CountRealAlgos(LearningTypesSequence{});
 
     /** Real size of results array, only possible variation of algorithm modification counts */
-    static constexpr uint8_t RealResultsNum = Modifier::InputModCount * RealAlgosNum;
+    static constexpr uint8_t RealResultsNum = RealAlgosNum;
 
 public:
     template<std::size_t I, std::size_t LCount>
@@ -352,9 +334,6 @@ public:
 
     template<std::size_t I, std::size_t LCount>
     static constexpr LearningType LearningFromIndex() { return static_cast<LearningType>(I % LCount); }
-
-    template<std::size_t I, std::size_t LCount, uint8_t ICount, uint8_t ACount>
-    static constexpr Modifier::Input IModFromIndex() { return static_cast<Modifier::Input>((I / (LCount * ACount) % ICount)); }
 
     template<std::size_t I, std::size_t LCount, uint8_t ACount>
     static constexpr Modifier::Algo AModFromIndex() { return static_cast<Modifier::Algo>((I / LCount) % ACount); }
@@ -364,8 +343,8 @@ public:
 /** Alias for indexer type in DecryptedResults, from index you can easily restore the Learning-Mod pair */
 using ResultIndex = uint8_t;
 
-/** Size of the indices cache, all possible invariations including impossible */
-static constexpr const uint8_t IndicesCacheSize = LearningTypesCount * Modifier::AlgoModCount * Modifier::InputModCount;
+/** Size of the indices cache, all possible variations including impossible */
+static constexpr const uint8_t IndicesCacheSize = LearningTypesCount * Modifier::AlgoModCount;
 
 /** Size of the decrypted array (reduced only to real) */
 static constexpr const uint8_t DecryptedArraySize = RegistryInfo::RealResultsNum;
@@ -377,7 +356,7 @@ static constexpr const ResultIndex InvalidResultIndex = RegistryInfo::RealResult
 /** Value if the result index that represents no match, Invalid Index points to the last (additional) element in array, however it is considered invalid */
 static constexpr ResultIndex NoMatch = 0xFF;
 
-template<LearningType LType, Modifier::Input IMod, Modifier::Algo AMod>
+template<LearningType LType, Modifier::Algo AMod>
 struct IndexInResults
 {
     template<std::size_t... I>
@@ -387,9 +366,9 @@ struct IndexInResults
 
         if constexpr (RegElement::template HasMod<AMod>())
         {
-            constexpr auto BaseIndex = Registry::CountRealAlgos(Sequence); // (Registry::Element<I>::NumMods + ... + 0);
+            constexpr auto BaseIndex = Registry::CountRealAlgos(Sequence);
 
-            return (BaseIndex + RegElement::template ModIndex<AMod>()) + (static_cast<uint8_t>(IMod) * RegistryInfo::RealAlgosNum);
+            return (BaseIndex + RegElement::template ModIndex<AMod>());
         }
 
         return InvalidResultIndex;
@@ -406,7 +385,7 @@ extern __constant__ CudaFixedArray<ResultIndex, IndicesCacheSize> IndicesCache;
 
 /**
  * Fixed-size buffer of decrypted/encrypted values, one slot per valid
- * (LearningType × Input-mod × Algo-mod) combination plus one terminal "invalid" slot.
+ * (LearningType x Algo-mod) combination plus one terminal "invalid" slot.
  */
 struct DecryptedResults : public CudaFixedArray<uint32_t, DecryptedArraySize>
 {
@@ -426,12 +405,11 @@ private:
     /**
      *  Magic template alias that generates array of indices for all learning types and modifications, based on Registry::Available definition.
      */
-    template<std::size_t LCount, uint8_t IModCount, uint8_t AModCount, std::size_t... I>
+    template<std::size_t LCount, uint8_t AModCount, std::size_t... I>
     using TIndicesType = ResultIndices<
         (Registry::Element<RegistryInfo::ElementIndex<I, LCount>()>::HasMod(RegistryInfo::AModFromIndex<I, LCount, AModCount>())
             ? IndexInResults<
                 RegistryInfo::LearningFromIndex<I, LCount>(),
-                RegistryInfo::IModFromIndex<I, LCount, IModCount, AModCount>(),
                 RegistryInfo::AModFromIndex<I, LCount, AModCount>()
               >::value
             : InvalidResultIndex)...>;
@@ -439,17 +417,17 @@ private:
     /**
      *  Another magic template struct that helps generate sequence with ALL indices with simple definition through `make_index_sequence`
      */
-    template<std::size_t LCount, uint8_t IModCount, uint8_t AModCount, typename Seq>
+    template<std::size_t LCount,uint8_t AModCount, typename Seq>
     struct MakeTIndicesType;
 
     /**
      *  Partial specialization of MakeTIndicesType for index sequence,
      * generates TIndicesType with all indices for M learning types and N modifications.
      */
-    template<std::size_t LCount, uint8_t IModCount, uint8_t AModCount, std::size_t... I>
-    struct MakeTIndicesType<LCount, IModCount, AModCount, std::index_sequence<I...>>
+    template<std::size_t LCount, uint8_t AModCount, std::size_t... I>
+    struct MakeTIndicesType<LCount, AModCount, std::index_sequence<I...>>
     {
-        using type = TIndicesType<LCount, IModCount, AModCount, I...>;
+        using type = TIndicesType<LCount, AModCount, I...>;
     };
 
 public:
@@ -457,27 +435,24 @@ public:
      *  Magically defined type with indices in results collection for all learning types and modifications, based on Registry::Available definition.
      *
      * Looks like this:
-     *                     _____________________________________________________________________
-     *                    | Simple | Normal | Secure | Xor | Faac | Serial1 | Serial2 | Serial3 |
-     * ___________________|________|________|________|_____|______|_________|_________|_________|
-     * Nrm Key:| Normal:  |    0   |    1   |    3   |   5 |   6  |     8   |    9    |    10   |
-     *         | Inverted |   XX   |    2   |    4   |  XX |   7  |    XX   |   XX    |    XX   |
-     * --------|----------|--------|--------|--------|-----|------|---------|---------|---------|
-     * Rev Key:| Normal:  |   11   |   12   |   14   |  16 |  17  |    19   |   20    |    21   |
-     *         | Inverted |   XX   |   13   |   15   |  XX |  18  |    XX   |   XX    |    XX   |
-     * ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+     *             _____________________________________________________________________
+     *            | Simple | Normal | Secure | Xor | Faac | Serial1 | Serial2 | Serial3 |
+     * ___________|________|________|________|_____|______|_________|_________|_________|
+     * | Normal:  |    0   |    1   |    3   |   5 |   6  |     8   |    9    |    10   |
+     * | Inverted |   XX   |    2   |    4   |  XX |   7  |    XX   |   XX    |    XX   |
+     * ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
      *
-     * Where X == 22 (last index in DecryptedResults) - means invalid combination of learning type and modification
+     * Where X == 11 (last index in DecryptedResults) - means invalid combination of learning type and modification
      *
      */
-    using ResultIndicesCache = typename MakeTIndicesType<LearningTypesCount, Modifier::InputModCount, Modifier::AlgoModCount, std::make_index_sequence<IndicesCacheSize>>::type;
+    using ResultIndicesCache = typename MakeTIndicesType<LearningTypesCount, Modifier::AlgoModCount, std::make_index_sequence<IndicesCacheSize>>::type;
 
 public:
     /** Get index in DecryptedResults for specific learning type with modification */
-    template<LearningType LType, Modifier::Input IMod, Modifier::Algo AMod>
+    template<LearningType LType, Modifier::Algo AMod>
     __host__ __device__ __inline__ static constexpr uint8_t getIndex()
     {
-        return IndexInResults<LType, IMod, AMod>::value;
+        return IndexInResults<LType, AMod>::value;
     }
 
     /** Get index in DecryptedResults for specific learning type with modification */
@@ -491,9 +466,9 @@ public:
     }
 
     /** Get index in DecryptedResults for specific learning type with modification */
-    __host__ __device__ __forceinline__ static constexpr ResultIndex getIndex(LearningType type, Modifier::Input imod, Modifier::Algo amod)
+    __host__ __device__ __forceinline__ static constexpr ResultIndex getIndex(LearningType type, Modifier::Algo amod)
     {
-        return getIndex(LearningItem(type, imod, amod));
+        return getIndex(LearningItem(type, amod));
     }
 
     /** Does reverse lookup by index, not allowed on device! */
@@ -501,20 +476,16 @@ public:
     {
         for (auto iLearning = 0; iLearning < LearningTypesCount; ++iLearning)
         {
-            for (auto iMod = 0; iMod < Modifier::InputModCount; ++iMod)
+            for (auto aMod = 0; aMod < Modifier::AlgoModCount; ++aMod)
             {
-                for (auto aMod = 0; aMod < Modifier::AlgoModCount; ++aMod)
+                const auto l = static_cast<LearningType>(iLearning);
+                const auto amod = static_cast<Modifier::Algo>(aMod);
+
+                const auto item = LearningItem(l, amod);
+
+                if (ResultIndicesCache::get(item.asIndex()) == index)
                 {
-                    const auto l = static_cast<LearningType>(iLearning);
-                    const auto imod = static_cast<Modifier::Input>(iMod);
-                    const auto amod = static_cast<Modifier::Algo>(aMod);
-
-                    const auto item = LearningItem(l, imod, amod);
-
-                    if (ResultIndicesCache::get(item.asIndex()) == index)
-                    {
-                        return item;
-                    }
+                    return item;
                 }
             }
         }
@@ -546,54 +517,38 @@ struct Matrix
     __host__ __device__ __inline__ constexpr explicit Matrix(uint64_t value = 0) : matrix(value)
     {
 #if !__CUDA_ARCH__
-        static_assert(DecryptedResults::getIndex(LearningType::Simple, Modifier::Input::Normal, Modifier::Algo::Normal) == 0, "Invalid index for Simple/Normal/Normal");
-        static_assert(DecryptedResults::getIndex(LearningType::Simple, Modifier::Input::ReversedKey, Modifier::Algo::Normal) == 11, "Invalid index for Simple/RevKey/Normal");
-        static_assert(DecryptedResults::getIndex(LearningType::Simple, Modifier::Input::Normal, Modifier::Algo::Inverted) == InvalidResultIndex, "Simple learning should not have valid index for Inverted decode");
-        static_assert(DecryptedResults::getIndex(LearningType::Simple, Modifier::Input::ReversedKey, Modifier::Algo::Inverted) == InvalidResultIndex, "Simple learning should not have valid index for RevKey/Inverted");
+        static_assert(DecryptedResults::getIndex(LearningType::Simple, Modifier::Algo::Normal) == 0, "Invalid index for Simple/Normal");
+        static_assert(DecryptedResults::getIndex(LearningType::Simple, Modifier::Algo::Inverted) == InvalidResultIndex, "Simple learning should not have valid index for Inverted decode");
 
 
-        static_assert(DecryptedResults::getIndex(LearningType::Normal, Modifier::Input::Normal, Modifier::Algo::Normal) == 1, "Invalid index for Normal/Normal/Normal");
-        static_assert(DecryptedResults::getIndex(LearningType::Normal, Modifier::Input::Normal, Modifier::Algo::Inverted) == 2, "Invalid index for Normal/Normal/Inverted");
-        static_assert(DecryptedResults::getIndex(LearningType::Normal, Modifier::Input::ReversedKey, Modifier::Algo::Normal) == 12, "Invalid index for Normal/RevKey/Normal");
-        static_assert(DecryptedResults::getIndex(LearningType::Normal, Modifier::Input::ReversedKey, Modifier::Algo::Inverted) == 13, "Invalid index for Normal/RevKey/Inverted");
+        static_assert(DecryptedResults::getIndex(LearningType::Normal, Modifier::Algo::Normal) == 1, "Invalid index for Normal/Normal");
+        static_assert(DecryptedResults::getIndex(LearningType::Normal, Modifier::Algo::Inverted) == 2, "Invalid index for Normal/Inverted");
 
-        static_assert(DecryptedResults::getIndex(LearningType::Secure, Modifier::Input::Normal, Modifier::Algo::Normal) == 3, "Invalid index for Secure/Normal/Normal");
-        static_assert(DecryptedResults::getIndex(LearningType::Secure, Modifier::Input::Normal, Modifier::Algo::Inverted) == 4, "Invalid index for Secure/Normal/Inverted");
-        static_assert(DecryptedResults::getIndex(LearningType::Secure, Modifier::Input::ReversedKey, Modifier::Algo::Normal) == 14, "Invalid index for Secure/RevKey/Normal");
-        static_assert(DecryptedResults::getIndex(LearningType::Secure, Modifier::Input::ReversedKey, Modifier::Algo::Inverted) == 15, "Invalid index for Secure/RevKey/Inverted");
+        static_assert(DecryptedResults::getIndex(LearningType::Secure, Modifier::Algo::Normal) == 3, "Invalid index for Secure/Normal");
+        static_assert(DecryptedResults::getIndex(LearningType::Secure, Modifier::Algo::Inverted) == 4, "Invalid index for Secure/Inverted");
 
-        static_assert(DecryptedResults::getIndex(LearningType::Xor, Modifier::Input::Normal, Modifier::Algo::Normal) == 5, "Invalid index for Xor/Normal/Normal");
-        static_assert(DecryptedResults::getIndex(LearningType::Xor, Modifier::Input::ReversedKey, Modifier::Algo::Normal) == 16, "Invalid index for Xor/RevKey/Normal");
-        static_assert(DecryptedResults::getIndex(LearningType::Xor, Modifier::Input::Normal, Modifier::Algo::Inverted) == InvalidResultIndex, "Xor learning should not have valid index for Inverted decode");
-        static_assert(DecryptedResults::getIndex(LearningType::Xor, Modifier::Input::ReversedKey, Modifier::Algo::Inverted) == InvalidResultIndex, "Xor learning should not have valid index for RevKey/Inverted");
+        static_assert(DecryptedResults::getIndex(LearningType::Xor, Modifier::Algo::Normal) == 5, "Invalid index for Xor/Normal");
+        static_assert(DecryptedResults::getIndex(LearningType::Xor, Modifier::Algo::Inverted) == InvalidResultIndex, "Xor learning should not have valid index for Inverted decode");
 
-        static_assert(DecryptedResults::getIndex(LearningType::Faac, Modifier::Input::Normal, Modifier::Algo::Normal) == 6, "Invalid index for Faac/Normal/Normal");
-        static_assert(DecryptedResults::getIndex(LearningType::Faac, Modifier::Input::ReversedKey, Modifier::Algo::Normal) == 17, "Invalid index for Faac/RevKey/Normal");
-        static_assert(DecryptedResults::getIndex(LearningType::Faac, Modifier::Input::Normal, Modifier::Algo::Inverted) == 7, "Invalid index for Faac/Normal/Inverted");
-        static_assert(DecryptedResults::getIndex(LearningType::Faac, Modifier::Input::ReversedKey, Modifier::Algo::Inverted) == 18, "Invalid index for Faac/RevKey/Inverted");
+        static_assert(DecryptedResults::getIndex(LearningType::Faac, Modifier::Algo::Normal) == 6, "Invalid index for Faac/Normal");
+        static_assert(DecryptedResults::getIndex(LearningType::Faac, Modifier::Algo::Inverted) == 7, "Invalid index for Faac/Inverted");
 
-        static_assert(DecryptedResults::getIndex(LearningType::Serial1, Modifier::Input::Normal, Modifier::Algo::Normal) == 8, "Invalid index for Serial1/Normal/Normal");
-        static_assert(DecryptedResults::getIndex(LearningType::Serial2, Modifier::Input::Normal, Modifier::Algo::Normal) == 9, "Invalid index for Serial2/Normal/Normal");
-        static_assert(DecryptedResults::getIndex(LearningType::Serial3, Modifier::Input::Normal, Modifier::Algo::Normal) == 10, "Invalid index for Serial3/Normal/Normal");
-        static_assert(DecryptedResults::getIndex(LearningType::Serial1, Modifier::Input::ReversedKey, Modifier::Algo::Normal) == 19, "Invalid index for Serial1/RevKey/Normal");
-        static_assert(DecryptedResults::getIndex(LearningType::Serial2, Modifier::Input::ReversedKey, Modifier::Algo::Normal) == 20, "Invalid index for Serial2/RevKey/Normal");
-        static_assert(DecryptedResults::getIndex(LearningType::Serial3, Modifier::Input::ReversedKey, Modifier::Algo::Normal) == 21, "Invalid index for Serial3/RevKey/Normal");
+        static_assert(DecryptedResults::getIndex(LearningType::Serial1, Modifier::Algo::Normal) == 8, "Invalid index for Serial1/Normal");
+        static_assert(DecryptedResults::getIndex(LearningType::Serial2, Modifier::Algo::Normal) == 9, "Invalid index for Serial2/Normal");
+        static_assert(DecryptedResults::getIndex(LearningType::Serial3, Modifier::Algo::Normal) == 10, "Invalid index for Serial3/Normal");
 
-        static_assert(DecryptedResults::getIndex(LearningType::Serial1, Modifier::Input::Normal, Modifier::Algo::Inverted) == InvalidResultIndex, "Serial1 learning should not have valid index for Inverted decode");
-        static_assert(DecryptedResults::getIndex(LearningType::Serial2, Modifier::Input::Normal, Modifier::Algo::Inverted) == InvalidResultIndex, "Serial2 learning should not have valid index for Inverted decode");
-        static_assert(DecryptedResults::getIndex(LearningType::Serial3, Modifier::Input::Normal, Modifier::Algo::Inverted) == InvalidResultIndex, "Serial3 learning should not have valid index for Inverted decode");
-        static_assert(DecryptedResults::getIndex(LearningType::Serial1, Modifier::Input::ReversedKey, Modifier::Algo::Inverted) == InvalidResultIndex, "Serial1 learning should not have valid index for RevKey/Inverted");
-        static_assert(DecryptedResults::getIndex(LearningType::Serial2, Modifier::Input::ReversedKey, Modifier::Algo::Inverted) == InvalidResultIndex, "Serial2 learning should not have valid index for RevKey/Inverted");
-        static_assert(DecryptedResults::getIndex(LearningType::Serial3, Modifier::Input::ReversedKey, Modifier::Algo::Inverted) == InvalidResultIndex, "Serial3 learning should not have valid index for RevKey/Inverted");
+        static_assert(DecryptedResults::getIndex(LearningType::Serial1, Modifier::Algo::Inverted) == InvalidResultIndex, "Serial1 learning should not have valid index for Inverted decode");
+        static_assert(DecryptedResults::getIndex(LearningType::Serial2, Modifier::Algo::Inverted) == InvalidResultIndex, "Serial2 learning should not have valid index for Inverted decode");
+        static_assert(DecryptedResults::getIndex(LearningType::Serial3, Modifier::Algo::Inverted) == InvalidResultIndex, "Serial3 learning should not have valid index for Inverted decode");
 
         static_assert(
-            DecryptedResults::getIndex(LearningType::Normal, Modifier::Input::Normal, Modifier::Algo::Normal) ==
-            DecryptedResults::getIndex<LearningType::Normal, Modifier::Input::Normal, Modifier::Algo::Normal>(),
+            DecryptedResults::getIndex(LearningType::Normal, Modifier::Algo::Normal) ==
+            DecryptedResults::getIndex<LearningType::Normal, Modifier::Algo::Normal>(),
             "getIndex() methods returned non-equal values");
 
         static_assert(
-            DecryptedResults::getIndex(LearningType::Simple, Modifier::Input::Normal, Modifier::Algo::Inverted) ==
-            DecryptedResults::getIndex<LearningType::Simple, Modifier::Input::Normal, Modifier::Algo::Inverted>(),
+            DecryptedResults::getIndex(LearningType::Simple, Modifier::Algo::Inverted) ==
+            DecryptedResults::getIndex<LearningType::Simple, Modifier::Algo::Inverted>(),
             "getIndex() methods returned non-equal values");
 
         static_assert(RegistryInfo::RealResultsNum == InvalidResultIndex, "TotalNum should match InvalidResultIndex it's basically the same");
@@ -606,18 +561,18 @@ struct Matrix
 
     /** Creates a learning matrix with specific learning types enabled and all modifications */
     Matrix(const std::initializer_list<LearningType>& types) :
-        Matrix(types, { Modifier::Input::Normal, Modifier::Input::ReversedKey }, { Modifier::Algo::Normal, Modifier::Algo::Inverted })
+        Matrix(types, { Modifier::Algo::Normal, Modifier::Algo::Inverted })
     {
     }
 
     /** Creates a learning matrix with specific learning and modifications */
-    __host__ Matrix(const std::vector<LearningType>& types, const std::vector<Modifier::Input>& iMods, const std::vector<Modifier::Algo>& aMods);
+    __host__ Matrix(const std::vector<LearningType>& types, const std::vector<Modifier::Algo>& aMods);
 
     /** Creates a learning matrix with everything enabled */
     __host__ __device__ __inline__ static constexpr auto Everything() { return Matrix(kEverything); }
 
-    /** Creates a learning matrix with all learnings and all input modifications but only with inverted algorithm enabled */
-    __host__ static auto Inverted() { return Matrix({}, { Modifier::Input::Normal, Modifier::Input::ReversedKey }, { Modifier::Algo::Inverted }); }
+    /** Creates a learning matrix with all learnings but only with inverted algorithm enabled */
+    __host__ static auto Inverted() { return Matrix({}, { Modifier::Algo::Inverted }); }
 
 public:
     /**
@@ -630,12 +585,12 @@ public:
     }
 
     /**
-     *  If specific bit at index encode as [Learning][InputMod][AldoMod] is enabled
+     *  If specific bit at index encode as [Learning][AldoMod] is enabled
      */
-    template<LearningType LType, Modifier::Input IMod, Modifier::Algo AMod>
+    template<LearningType LType, Modifier::Algo AMod>
     __host__ __device__ __inline__ bool isEnabled() const
     {
-        constexpr auto index = DecryptedResults::getIndex<LType, IMod, AMod>();
+        constexpr auto index = DecryptedResults::getIndex<LType, AMod>();
         if constexpr (index == InvalidResultIndex)
         {
             return false;
@@ -647,12 +602,12 @@ public:
     }
 
     /**
-     *  If specific bit at index encode as [Learning][InputMod][AldoMod] is enabled
+     *  If specific bit at index encode as [Learning][AlgoMod] is enabled
      * Host only version since uses quite expensive getIndex() method, it is better to use template version if you know learning/modification types at compile time
      */
-    __host__ __inline__ bool isEnabled(LearningType type, Modifier::Input imod, Modifier::Algo amod) const
+    __host__ __inline__ bool isEnabled(LearningType type, Modifier::Algo amod) const
     {
-        const auto index = DecryptedResults::getIndex(type, imod, amod);
+        const auto index = DecryptedResults::getIndex(type, amod);
         const bool valid = index != InvalidResultIndex;
         return valid && isEnabled(index);
     }
@@ -676,9 +631,9 @@ public:
     /**
      *  Set specific bit to 1 according to learning type and modification
      */
-    __host__ __inline__ void enable(LearningType type, Modifier::Input imod = Modifier::Input::Normal, Modifier::Algo aMod = Modifier::Algo::Normal)
+    __host__ __inline__ void enable(LearningType type, Modifier::Algo aMod = Modifier::Algo::Normal)
     {
-        const auto bitIndex = DecryptedResults::getIndex(type, imod, aMod);
+        const auto bitIndex = DecryptedResults::getIndex(type, aMod);
         matrix |= (1ULL << bitIndex);
     }
 
@@ -686,16 +641,14 @@ public:
     __host__ std::string toString(const BruteforceConfig* config = nullptr) const;
 
 private:
-    //  64 bits are too much, we have only 24 possible combinations,
-    // however we use only 19 since some combinations are invalid (e.g. Simple learning with InvertedDec modification).
+    //  64 bits are too much, we have only 16 possible learning/algo combinations,
+    // and only 11 are valid (e.g. Simple learning has no inverted algorithm variant).
     //
     // Matrix can look like this:
     //
-    //                    Simple Normal  Secure  Xor  Faac  Serial1 Serial2 Serial3
-    // Nrm Key: Normal  :    0      0       0      0     0      0       0      1
-    // Nrm Key: Inverted:    1      0       0      0     0      0       0      1
-    // Rev Key: Normal  :    0      0       0      0     0      0       0      1
-    // Rev Key: Inverted:    0      0       1      0     0      0       0      1
+    //            Simple Normal  Secure  Xor  Faac  Serial1 Serial2 Serial3
+    // Normal  :    0      0       0      0     0      0       0      1
+    // Inverted:    1      0       0      0     0      0       0      1
     //
     //
     uint64_t matrix = 0;
@@ -706,9 +659,6 @@ const char* name(LearningType type);
 
 /** Human-readable name of an algorithm modifier. */
 const char* name(Modifier::Algo amod);
-
-/** Human-readable name of an input modifier. */
-const char* name(Modifier::Input imod);
 
 /** Parses a learning-type name (case-insensitive) or its numeric index. */
 bool parse(const char* name, LearningType& out);

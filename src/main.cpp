@@ -34,9 +34,9 @@ CommandLineArgs demoTestCommandlineArgs(int num_gen_input = 3)
     Decryptor first_decryptor_ptrn = Decryptor::Make(0, encryptor.getSeed(), true);
 
     CommandLineArgs cmd;
-    cmd.inputs.emplace_back(encryptor.click(KeeloqLearning::Faac, KeeloqLearning::Modifier::Input::Normal, KeeloqLearning::Modifier::Algo::Normal));
-    cmd.inputs.emplace_back(encryptor.click(KeeloqLearning::Faac, KeeloqLearning::Modifier::Input::Normal, KeeloqLearning::Modifier::Algo::Normal));
-    cmd.inputs.emplace_back(encryptor.click(KeeloqLearning::Faac, KeeloqLearning::Modifier::Input::Normal, KeeloqLearning::Modifier::Algo::Normal));
+    cmd.inputs.emplace_back(encryptor.click(InputsMutation::None, KeeloqLearning::LearningType::Faac, KeeloqLearning::Modifier::Algo::Normal));
+    cmd.inputs.emplace_back(encryptor.click(InputsMutation::None, KeeloqLearning::LearningType::Faac, KeeloqLearning::Modifier::Algo::Normal));
+    cmd.inputs.emplace_back(encryptor.click(InputsMutation::None, KeeloqLearning::LearningType::Faac, KeeloqLearning::Modifier::Algo::Normal));
 
     // Dictionary
     cmd.brute_configs.emplace_back(BruteforceConfig::GetDictionary({
@@ -44,19 +44,19 @@ CommandLineArgs demoTestCommandlineArgs(int num_gen_input = 3)
         Decryptor::Make(encryptor.getKey() - 1, encryptor.getSeed(), true),
         Decryptor::Make(encryptor.getKey(),     encryptor.getSeed(), true),
         Decryptor::Make(encryptor.getKey() + 1, encryptor.getSeed(), true)
-    }));
+    }, InputsMutation::None));
 
     // Alphabet
     cmd.alphabets.emplace_back(MultibaseDigit("abcdef"_b));
     cmd.alphabets.emplace_back(MultibaseDigit({ 0xC0, 0xFF, 0xEE, 0x00, 0xDE, 0xAD, 0x66 }));
-    cmd.brute_configs.emplace_back(BruteforceConfig::GetAlphabet(first_decryptor_ptrn, cmd.alphabets[1], BruteforceConfig::MaxDecryptorsNum, "Match alphabet"));
-    cmd.brute_configs.emplace_back(BruteforceConfig::GetAlphabet(first_decryptor_ptrn, cmd.alphabets[0], BruteforceConfig::MaxDecryptorsNum, "Wrong alphabet"));
+    cmd.brute_configs.emplace_back(BruteforceConfig::GetAlphabet(first_decryptor_ptrn, InputsMutation::None, cmd.alphabets[1], BruteforceConfig::MaxDecryptorsNum, "Match alphabet"));
+    cmd.brute_configs.emplace_back(BruteforceConfig::GetAlphabet(first_decryptor_ptrn, InputsMutation::None, cmd.alphabets[0], BruteforceConfig::MaxDecryptorsNum, "Wrong alphabet"));
 
     // Seed
-    cmd.brute_configs.emplace_back(BruteforceConfig::GetSeedBruteforce(Decryptor::Make(encryptor.getKey(), 0, true)));
+    cmd.brute_configs.emplace_back(BruteforceConfig::GetSeedBruteforce(Decryptor::Make(encryptor.getKey(), 0, true), InputsMutation::None));
 
     // Pattern (reversed)
-    cmd.brute_configs.emplace_back(BruteforceConfig::GetPattern(first_decryptor_ptrn, BruteforcePattern(
+    cmd.brute_configs.emplace_back(BruteforceConfig::GetPattern(first_decryptor_ptrn, InputsMutation::None, BruteforcePattern(
         {
             BruteforcePattern::parseBytes("c0|c1|c2|c3"),
             BruteforcePattern::parseBytes("F0-FF"),
@@ -70,10 +70,10 @@ CommandLineArgs demoTestCommandlineArgs(int num_gen_input = 3)
 
     // Simple
     Decryptor first_decryptor_brtf = Decryptor::Make(first, encryptor.getSeed(), true);
-    cmd.brute_configs.emplace_back(BruteforceConfig::GetBruteforce(first_decryptor_brtf, count));
+    cmd.brute_configs.emplace_back(BruteforceConfig::GetBruteforce(first_decryptor_brtf, InputsMutation::None, count));
 
     // Filters
-    cmd.brute_configs.emplace_back(BruteforceConfig::GetBruteforce(first_decryptor_brtf, count, BruteforceFilters
+    cmd.brute_configs.emplace_back(BruteforceConfig::GetBruteforce(first_decryptor_brtf, InputsMutation::None, count, BruteforceFilters
         {
             // Include only
             BruteforceFilters::Flags::All,
@@ -95,9 +95,7 @@ void bruteforce(const CommandLineArgs& args)
 {
     if (args.selected_learning.size() == 0)
     {
-        printf("Bruteforcing without specific learning type (slower)"
-            "(1 KKey/s == %u Kkc (keeloq calcs) per second)\n"
-            "In case of full range there also redundant checks since using _REV learning types ( X-00:11:22 == X_REV-22:11:00 )\n", KeeloqLearning::DecryptedArraySize);
+        printf("Bruteforcing without specific learning type (slower)!\n");
     }
 
     const size_t numConfigs = args.brute_configs.size();
@@ -110,7 +108,7 @@ void bruteforce(const CommandLineArgs& args)
         printf("\n*********************************************[CONFIG %02zd/%02zd]********************************************\n", configIndex + 1, numConfigs);
 
         const auto& config = args.brute_configs[configIndex];
-        auto learningMatrix = KeeloqLearning::Matrix(args.selected_learning, args.selected_input_mods, args.selected_algo_mods);
+        auto learningMatrix = KeeloqLearning::Matrix(args.selected_learning, args.selected_algo_mods);
 
         SingleResult result = bruteforcer.run(config, args.cudaConfig(), learningMatrix);
         if (result.hasMatch())

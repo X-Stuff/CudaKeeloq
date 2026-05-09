@@ -14,6 +14,7 @@ constexpr char WAIT_SPIN[] = "|/-\\";
 #define CONSOLE_WIDTH 180
 
 #define console_clear() printf("\033[H\033[J")
+#define console_clear_line() printf("\033[2K\r")
 
 #define console_cursor_up(lines) printf("\033[%dA", (lines))
 #define console_set_width(col) printf("\033[%du", (col))

@@ -20,12 +20,14 @@ Bruteforcer::Bruteforcer(const std::vector<EncParcel>& inputs) : inputs(inputs)
 
 SingleResult Bruteforcer::run(const BruteforceConfig& config, const CudaConfig& cuda, const KeeloqLearning::Matrix& learningMatrix)
 {
-    BruteforceRound attackRound(inputs, config, learningMatrix, cuda);
+    BruteforceRound attackRound(inputs, config, cuda);
+    const auto configInputMutations = config.getMutations();
+    const auto numInputMutations = configInputMutations.size();
 
     printf("\nAllocating...");
     attackRound.init();
 
-    printf("\rRunning...    \n%s\n", attackRound.toString().c_str());
+    printf("\rRunning...    \n%s\n%s\n", attackRound.toString().c_str(), learningMatrix.toString(&config).c_str());
 
     KernelResult lastResult;
 
@@ -33,11 +35,15 @@ SingleResult Bruteforcer::run(const BruteforceConfig& config, const CudaConfig& 
     const size_t keysInBatch = attackRound.keysPerBatch();
 
     auto roundTimer = Timer<std::chrono::steady_clock>::start();
+    auto stop = false;
 
-    for (size_t batch = 0; batch < batchesInRound; ++batch)
+    console::setCursorState(false);
+    printf("\n\n\n");
+
+    auto batchTimer = Timer<std::chrono::steady_clock>::start();
+
+    for (size_t batch = 0; !stop && batch < batchesInRound; ++batch)
     {
-        auto batchTimer = Timer<std::chrono::steady_clock>::start();
-
         KeeloqKernelInput& kernelInput = attackRound.inputs();
 
         if (attackRound.type() != BruteforceType::Dictionary)
@@ -63,32 +69,31 @@ SingleResult Bruteforcer::run(const BruteforceConfig& config, const CudaConfig& 
             kernelInput.WriteDecryptors(config.decryptors, batch * keysInBatch, keysInBatch);
         }
 
-        // do the bruteforce
-        lastResult = keeloq::kernels::cuda_brute(kernelInput, cuda);
-        if (attackRound.checkResults(lastResult))
+        for (auto m = 0; !stop && m < numInputMutations; ++m)
         {
-            break;
+            // Setup learning matrix and inputs mutation for this batch
+            kernelInput.BruteforcePrepare(learningMatrix, configInputMutations[m]);
+
+            // do the bruteforce
+            lastResult = keeloq::kernels::cuda_brute(kernelInput, cuda);
+            stop = attackRound.checkResults(lastResult);
+
+            {
+                const auto bruteCallDuration = batchTimer.reset().count();
+
+                const auto kResultPerSecond = bruteCallDuration == 0 ? 0 : keysInBatch / bruteCallDuration;
+                const auto progressPercent = (double)(batch + 1) / batchesInRound;
+
+                const Decryptor& lastUsedDecryptor = kernelInput.GetConfig().last;
+
+                console_cursor_ret_up(2);
+
+                // Overwrite lines
+                printf("[%c][%zd/%zd]    %" PRIu64 "(ms)/batch, Speed: %" PRIu64 " KKeys/s   Last key:0x%" PRIX64 " (%u)  Last mutation: %s         \n",
+                    WAIT_CHAR(batch), batch, batchesInRound, bruteCallDuration, kResultPerSecond, lastUsedDecryptor.man(), lastUsedDecryptor.seed(), name(configInputMutations[m]));
+                console::progressBar(progressPercent, roundTimer.elapsedSeconds());
+            }
         }
-
-        if (batch == 0)
-        {
-            console::setCursorState(false);
-            printf("\n\n\n");
-        }
-
-        const auto batchDurationMs = batchTimer.elapsed().count();
-
-        const auto kResultPreSecond = batchDurationMs == 0 ? 0 : keysInBatch / batchDurationMs;
-        const auto progressPercent = (double)(batch + 1) / batchesInRound;
-
-        const Decryptor& lastUsedDecryptor = kernelInput.GetConfig().last;
-
-        console_cursor_ret_up(2);
-
-        // Overwrite lines
-        printf("[%c][%zd/%zd]    %" PRIu64 "(ms)/batch Speed: %" PRIu64 " KKeys/s   Last key:0x%" PRIX64 " (%u)           \n",
-            WAIT_CHAR(batch), batch, batchesInRound, batchDurationMs, kResultPreSecond, lastUsedDecryptor.man(), lastUsedDecryptor.seed());
-        console::progressBar(progressPercent, roundTimer.elapsedSeconds());
     }
 
     console::clearLinesUp(2);

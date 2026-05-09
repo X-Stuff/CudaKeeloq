@@ -195,6 +195,7 @@
     <ClInclude Include="src\host\console.h" />
     <ClInclude Include="src\host\host_utils.h" />
     <ClInclude Include="src\host\timer.h" />
+    <ClInclude Include="src\kernels\inputs_mutation.h" />
     <ClInclude Include="src\kernels\kernel_result.h" />
     <ClInclude Include="src\benchmark\benchmark.h" />
   </ItemGroup>

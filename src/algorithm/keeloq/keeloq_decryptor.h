@@ -56,6 +56,20 @@ public:
         }
     }
 
+    /** Use seed value as Xor for the input value, only for XORed input modifier*/
+    template<bool IsXored>
+    __host__ __device__ __forceinline__ uint32_t getXored(uint32_t value) const
+    {
+        if constexpr (IsXored)
+        {
+            return value ^ seed();
+        }
+        else
+        {
+            return value;
+        }
+    }
+
     /** Whether this decryptor carries a meaningful seed (for seeded learning types). */
     __host__ __device__ __forceinline__ bool has_seed() const { return seed_valid; }
 
