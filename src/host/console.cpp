@@ -58,6 +58,17 @@ int console::readEscPress()
 }
 
 
+void console::setWidth(int width)
+{
+#if defined(_WIN32)
+    char cmd[64];
+    sprintf_s(cmd, "mode con: cols=%d", width);
+    system(cmd);
+#else
+    printf("\033[%du", width)
+#endif
+}
+
 void console::setCursorState(bool visible)
 {
     s_term.write(visible ? Term::cursor_on() : Term::cursor_off());

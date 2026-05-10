@@ -126,22 +126,24 @@ void Bruteforcer::printBruteforceProgress(const BruteforceRound& round, const in
     const size_t keysInBatch = round.keysPerBatch();
 
     // Incremental, each mutation cycle will be increased
-    const auto batchElapsed = batchTime;
+    const auto batchElapsedMs = batchTime;
     const auto calculatedNum = keysInBatch * (mutationIndex + 1);
-    const auto avgPerBatchSpeed = batchElapsed / (mutationIndex + 1);
+    const auto avgPerBatchSpeed = batchElapsedMs / (mutationIndex + 1);
 
-    const auto kResultPerSecond = batchElapsed == 0 ? 0 : calculatedNum / batchElapsed;
     const auto calculationIndex = (batchIndex * mutationsNum + (mutationIndex + 1));
     const auto progressPercent = calculationIndex / static_cast<double>(batchesInRound * mutationsNum);
     assert(progressPercent <= 1.0 && "Invalid percentage!");
 
     const Decryptor& lastUsedDecryptor = round.inputs().GetConfig().last;
 
+    const double mResultPerSecond = batchElapsedMs == 0 ? 0 : calculatedNum / (batchElapsedMs * 1000.0);
+
     console_cursor_ret_up(2);
 
     // Overwrite lines
-    printf("[%c][%zd/%zd]    %" PRIu64 "(ms)/batch, Speed: %" PRIu64 " KKeys/s   Last key:0x%" PRIX64 " (%u)  Last mutation: %s         \n",
-        WAIT_CHAR(calculationIndex), batchIndex, batchesInRound, avgPerBatchSpeed, kResultPerSecond, lastUsedDecryptor.man(), lastUsedDecryptor.seed(), name(mutation));
+    printf("[%c][%zd/%zd]  %" PRIu64 "(ms)/batch, %4.1f Mk/s,  Last key:0x%" PRIX64 " (%u)  Last mutation: %-20s\n",
+        WAIT_CHAR(calculationIndex), batchIndex, batchesInRound,
+        avgPerBatchSpeed, mResultPerSecond, lastUsedDecryptor.man(), lastUsedDecryptor.seed(), name(mutation));
     console::progressBar(progressPercent, roundTime);
 }
 

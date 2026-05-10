@@ -17,7 +17,6 @@ constexpr char WAIT_SPIN[] = "|/-\\";
 #define console_clear_line() printf("\033[2K\r")
 
 #define console_cursor_up(lines) printf("\033[%dA", (lines))
-#define console_set_width(col) printf("\033[%du", (col))
 
 #define console_cursor_ret_up(lines) printf("\033[%dF", (lines))
 #define console_set_cursor(x,y) printf("\033[%d;%dH", (y), (x))
@@ -43,6 +42,8 @@ void clearLinesUp(int numlines, int width = 0);
 
 /** Poll for an Escape key press; returns non-zero if pressed since last call. */
 int readEscPress();
+
+void setWidth(int width);
 
 /** Show or hide the terminal cursor. */
 void setCursorState(bool visible);
