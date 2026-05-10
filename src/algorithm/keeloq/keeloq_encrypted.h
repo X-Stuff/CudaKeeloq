@@ -46,6 +46,9 @@ struct EncParcel
     /** 4-bit button id extracted from the fixed code (used in some learning algorithms). */
     __device__ __host__ inline uint32_t btn() const { return fixed >> 28; }
 
+    /** 28-bit serial extracted from the fixed part of OTA. In hopping only 10 bit of serial is encoded */
+    __device__ __host__ inline uint32_t serial() const { return fixed & 0x0FFFFFFF; }
+
 private:
 
     // Fixed part of the parcel ( 28-bit serial | 4-bit button )

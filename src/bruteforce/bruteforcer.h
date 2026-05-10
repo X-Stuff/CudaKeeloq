@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <chrono>
+#include <functional>
 
 #include "common.h"
 
@@ -16,14 +17,22 @@
 #include "bruteforce/bruteforce_round.h"
 
 
+using RoundCompleteCallback = std::function<void(const BruteforceRound& round, const KernelResult& result)>;
+
+
 /**
  * Top-level driver that runs bruteforce rounds against a set of captured OTA inputs.
  * Each call to `run()` executes a full round described by a BruteforceConfig.
  */
 struct Bruteforcer
 {
+    /**
+     *  Special struct to capture various performance and outcome metrics for a single bruteforce round.
+     */
     struct Stats
     {
+        friend struct Bruteforcer;
+
         enum ResultType : uint8_t
         {
             NoMatch = 0,
@@ -34,6 +43,7 @@ struct Bruteforcer
 
             UserCancelled,
         };
+
     public:
         /** Whole round time */
         std::chrono::milliseconds roundTime = std::chrono::milliseconds(0);
@@ -66,20 +76,31 @@ struct Bruteforcer
 
         /** Average batch speed in Kkeys/s */
         inline double avgBatchSpeed() const { return batchAverageMs != 0.0 ? batchCalcs / batchAverageMs : 0.0; }
+
+    private:
+        void setResult(const KernelResult& round, bool stopped);
     };
 
     /** Capture the OTA inputs that subsequent runs will attempt to decrypt. */
-    Bruteforcer(const std::vector<EncParcel>& inputs, bool breakOnEsc = false, bool silent = false);
+    Bruteforcer(const std::vector<EncParcel>& inputs, bool breakOnEsc = false, AppVerbosity verbosity = AppVerbosity::Debug);
 
 public:
     /** Run one bruteforce round and return a matching result (or `SingleResult::Invalid()`). */
     SingleResult run(const BruteforceConfig& config, const CudaConfig& cuda, const KeeloqLearning::Matrix& learningMatrix);
+
+    /** Set callback for round completion event*/
+    void setOnRoundComplete(RoundCompleteCallback&& callback) { onRoundComplete = std::move(callback); }
 
     /** Returns bruteforce stats for the last run */
     const Stats& getStats() const { return stats; }
 
 private:
     SingleResult getMatchResult(const BruteforceRound& round, bool first = true);
+
+    void printBruteforceProgress(const BruteforceRound& round, const int64_t batchTime, const std::chrono::seconds& roundTime,
+        const size_t batchIndex, const uint8_t mutationIndex, const uint8_t mutationsNum, InputsMutation mutation);
+
+    void printGpuMemorySearchProgress(const size_t index, const size_t count, const std::chrono::seconds& time);
 
 private:
     // Input data for bruteforce (captured encoded)
@@ -92,5 +113,8 @@ private:
     bool breakOnEsc = false;
 
     // Flag enables silent mode (less output)
-    bool silent = false;
+    AppVerbosity verbosity = AppVerbosity::Debug;
+
+    // Optional callback to call on full round completion, allows access GPU memory before it will be freed. Useful for benchmarks and tests.
+    RoundCompleteCallback onRoundComplete = nullptr;
 };

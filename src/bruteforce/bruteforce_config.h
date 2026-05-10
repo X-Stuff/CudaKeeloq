@@ -102,11 +102,8 @@ public:
     std::string toString() const;
 
 public:
-    /** returns current inputs mutation mask */
-    void setMutationMask(InputsMutation mask) { allowedMutations = static_cast<InputsMutation>(static_cast<uint8_t>(mask) & InputsMutationMask); }
-
-    /** returns current inputs mutation mask */
-    InputsMutation getMutationMask() const { return allowedMutations; }
+    /** override mutation mask, allow set it not as mask but as value - basically run only single mutation */
+    void overrideMutationMask(InputsMutation mask, bool alone = false);
 
     /** Checks if specific inputs mutation is allowed in config. `None` is always allowed (if not XorFix bruteforce) */
     bool hasMutation(InputsMutation m) const;
@@ -124,9 +121,12 @@ private:
     }
 
 private:
-    // HOST SET. ONCE. Additional mutation flags to expand into CPU-side kernel relaunch variants.
+    // HOST SET. Additional mutation flags to expand into CPU-side kernel launch variants.
     // The unmutated input path is always included.
     InputsMutation allowedMutations = InputsMutation::None;
+
+    // Flag allows force disable all other mutations except one
+    bool maskAsSingleMutation = false;
 };
 
 inline std::vector<uint8_t> operator "" _b(const char* ascii, size_t num)

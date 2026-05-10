@@ -4,26 +4,18 @@
 
 #include "device/cuda_common.h"
 
-void SingleResult::LearningsArray::print(const KeeloqLearning::LearningItem& item, uint32_t srl, KeeloqLearning::ResultIndex match) const
+void SingleResult::LearningsArray::print(const KeeloqLearning::LearningItem& item, uint32_t serial, KeeloqLearning::ResultIndex match, InputsMutation mutation) const
 {
     const auto resIndex = KeeloqLearning::DecryptedResults::getIndex(item);
     const bool ismatch = match == resIndex;
 
-    printf("[%-8s: %-8s] Btn:0x%02X | Serial:0x%08X (0x%08" PRIX32 ") | Counter:0x%04X | %7s |\n",
-        KeeloqLearning::name(item.learning), KeeloqLearning::name(item.amod),
+    printf("[%-8s: %-8s: %-8s] Btn:0x%02X | Serial:0x%08X (0x%08" PRIX32 ") | Counter:0x%04X | %7s |\n",
+        KeeloqLearning::name(item.amod), KeeloqLearning::name(item.learning), name(mutation),
         (data[resIndex] >> 28),         // Button
-        (data[resIndex] >> 16) & 0x3ff, // Serial
-        srl,                            // Serial (OTA)
+        serial,                         // Serial (OTA 28 bits)
+        (data[resIndex] >> 16) & 0x3ff, // Serial (10 bits)
         data[resIndex] & 0xFFFF,        // Counter
         (ismatch ? "(MATCH)" : ""));
-}
-
-void SingleResult::LearningsArray::print() const
-{
-    for (auto resIndex = 0; resIndex < KeeloqLearning::InvalidResultIndex; ++resIndex)
-    {
-        print(KeeloqLearning::DecryptedResults::getByIndex(resIndex), -1, KeeloqLearning::NoMatch);
-    }
 }
 
 void SingleResult::print(const std::vector<EncParcel>& inputs) const
@@ -32,9 +24,9 @@ void SingleResult::print(const std::vector<EncParcel>& inputs) const
         inputs[inputIndex()].ota, name(inputsMutation()), decryptor.man(), decryptor.seed());
 
     printf("-----------------------------------------------------------------------------------------------------\n");
-    for (auto iLearning = 0; iLearning < KeeloqLearning::LearningTypesCount; ++iLearning)
+    for (auto aMod = 0; aMod < KeeloqLearning::Modifier::AlgoModCount; ++aMod)
     {
-        for (auto aMod = 0; aMod < KeeloqLearning::Modifier::AlgoModCount; ++aMod)
+        for (auto iLearning = 0; iLearning < KeeloqLearning::LearningTypesCount; ++iLearning)
         {
             const auto l = static_cast<KeeloqLearning::LearningType>(iLearning);
             const auto amod = static_cast<KeeloqLearning::Modifier::Algo>(aMod);
@@ -43,7 +35,7 @@ void SingleResult::print(const std::vector<EncParcel>& inputs) const
 
             if (KeeloqLearning::DecryptedResults::isValid(item))
             {
-                decrypted.print(item, inputs[inputIndex()].srl(), match);
+                decrypted.print(item, inputs[inputIndex()].serial(), match, inputsMutation());
             }
         }
     }

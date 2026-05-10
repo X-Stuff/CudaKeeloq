@@ -12,46 +12,45 @@
 #include "host/console.h"
 #include "host/timer.h"
 
+#define LOG_INFO(fmt, ...) APP_LOG_INFO(verbosity, fmt, ##__VA_ARGS__)
+#define LOG_PROGRESS(fmt, ...) APP_LOG_PROGRESS(verbosity, fmt, ##__VA_ARGS__)
 
-Bruteforcer::Bruteforcer(const std::vector<EncParcel>& inputs, bool breakOnEsc, bool silent) : inputs(inputs), breakOnEsc(breakOnEsc), silent(silent)
+
+Bruteforcer::Bruteforcer(const std::vector<EncParcel>& inputs, bool breakOnEsc, AppVerbosity verbosity) : inputs(inputs), breakOnEsc(breakOnEsc), verbosity(verbosity)
 {
 
 }
 
 SingleResult Bruteforcer::run(const BruteforceConfig& config, const CudaConfig& cuda, const KeeloqLearning::Matrix& learningMatrix)
 {
+    auto hideCursor = console::ScopedHideCursor();
     stats = Stats();
 
     BruteforceRound attackRound(inputs, config, cuda);
     const auto configInputMutations = config.getMutations();
-    const auto numInputMutations = configInputMutations.size();
+    const auto numInputMutations = static_cast<uint8_t>(configInputMutations.size());
 
-    printf("\nAllocating...");
+    LOG_INFO("\nAllocating...");
     attackRound.init();
     stats.allocatedBytesGPU = attackRound.getMemSize();
-    printf("\rRunning...   ");
-
-    if (!silent)
-    {
-        printf("\n%s\n%s\n\n", attackRound.toString().c_str(), learningMatrix.toString(&config).c_str());
-    }
+    LOG_INFO("\rRunning...");
+    LOG_INFO("\n%s\n%s\n\n", attackRound.toString().c_str(), learningMatrix.toString(&config).c_str());
 
     KernelResult lastResult;
 
     const size_t batchesInRound = attackRound.numBatches();
+    assert(batchesInRound > 0 && "Invalid number of batches for attack round");
+
     const size_t keysInBatch = attackRound.keysPerBatch();
 
     // Total calculations per batch is keys in batch multiplied by number of input mutations
     stats.batchCalcs = keysInBatch * numInputMutations;
 
-    auto roundTimer = Timer<std::chrono::steady_clock>::start();
     auto stop = false;
-
-    console::setCursorState(false);
-    printf("\n\n");
-
+    auto roundTimer = Timer<std::chrono::steady_clock>::start();
     auto batchTimer = Timer<std::chrono::steady_clock>::start();
 
+    LOG_PROGRESS("\n\n");
     for (size_t batch = 0; !stop && batch < batchesInRound; ++batch)
     {
         if (!attackRound.prepareInputs(batch))
@@ -69,74 +68,98 @@ SingleResult Bruteforcer::run(const BruteforceConfig& config, const CudaConfig& 
 
             // do the bruteforce
             lastResult = keeloq::kernels::cuda_brute(kernelInput, cuda);
-            stop = attackRound.checkResults(lastResult);
+            stop = attackRound.checkResults(lastResult, verbosity);
 
+            printBruteforceProgress(attackRound, batchTimer.elapsed().count(), roundTimer.elapsedSeconds(), batch, m, numInputMutations, configInputMutations[m]);
+
+            if (breakOnEsc && console::readEscPress())
             {
-                // Incremental, each mutation cycle will be increased
-                const auto batchElapsed = batchTimer.elapsed().count();
-                const auto calculatedNum = keysInBatch * (m + 1);
-                const auto avgPerBatchSpeed = batchElapsed / (m + 1);
+                LOG_PROGRESS("Bruteforce stopped by user\n");
+                stats.result = Stats::UserCancelled;
 
-                const auto kResultPerSecond = batchElapsed == 0 ? 0 : calculatedNum / batchElapsed;
-                const auto calculationIndex = (batch * numInputMutations + (m + 1));
-                const auto progressPercent = calculationIndex / static_cast<double>(batchesInRound * numInputMutations);
-                assert(progressPercent <= 1.0 && "Invalid percentage!");
-
-                const Decryptor& lastUsedDecryptor = kernelInput.GetConfig().last;
-
-                console_cursor_ret_up(2);
-
-                // Overwrite lines
-                printf("[%c][%zd/%zd]    %" PRIu64 "(ms)/batch, Speed: %" PRIu64 " KKeys/s   Last key:0x%" PRIX64 " (%u)  Last mutation: %s         \n",
-                    WAIT_CHAR(calculationIndex), batch, batchesInRound, avgPerBatchSpeed, kResultPerSecond, lastUsedDecryptor.man(), lastUsedDecryptor.seed(), name(configInputMutations[m]));
-                console::progressBar(progressPercent, roundTimer.elapsedSeconds());
-
-                if (breakOnEsc && console::readEscPress())
-                {
-                    console::clearLinesUp(2);
-                    printf("Bruteforce stopped by user\n");
-                    stats.result = Stats::UserCancelled;
-
-                    return SingleResult::Invalid();
-                }
+                return SingleResult::Invalid();
             }
         }
 
         const double batchDuration = batchTimer.reset().count() / 1.0;
         stats.numBatches++;
         stats.batchAverageMs += (batchDuration - stats.batchAverageMs) / stats.numBatches;
+    }
 
-        if (stats.batchAverageMs > 1000000000)
-        {
-            int ib = 4;
-            ib++;
-        }
+    if (verbosity <= AppVerbosity::Progress)
+    {
+        console::clearLinesUp(2);
     }
 
     stats.roundTime = roundTimer.elapsed();
+    stats.setResult(lastResult, stop);
 
-    console::clearLinesUp(2);
+    if (onRoundComplete)
+    {
+        onRoundComplete(attackRound, lastResult);
+    }
 
     if (lastResult.hasMatch())
     {
-        stats.result = Stats::Success;
         return getMatchResult(attackRound);
     }
 
     if (stop && !lastResult.hasMatch())
     {
         // print was in `checkResults`
-        stats.result = Stats::KernelFailure;
         return SingleResult::Invalid();
     }
 
-    stats.result = Stats::NoMatch;
-    if (!silent)
+    LOG_INFO("\n\nAfter: %zd batches no results was found. Keys checked:%zd\n\n", batchesInRound, batchesInRound * keysInBatch * numInputMutations);
+    return SingleResult::Invalid();
+}
+
+void Bruteforcer::printBruteforceProgress(const BruteforceRound& round, const int64_t batchTime, const std::chrono::seconds& roundTime,
+    const size_t batchIndex, const uint8_t mutationIndex, const uint8_t mutationsNum, InputsMutation mutation)
+{
+    if (verbosity > AppVerbosity::Progress)
     {
-        printf("\n\nAfter: %zd batches no results was found. Keys checked:%zd\n\n", batchesInRound, batchesInRound * keysInBatch * numInputMutations);
+        return;
     }
 
-    return SingleResult::Invalid();
+    const size_t batchesInRound = round.numBatches();
+    const size_t keysInBatch = round.keysPerBatch();
+
+    // Incremental, each mutation cycle will be increased
+    const auto batchElapsed = batchTime;
+    const auto calculatedNum = keysInBatch * (mutationIndex + 1);
+    const auto avgPerBatchSpeed = batchElapsed / (mutationIndex + 1);
+
+    const auto kResultPerSecond = batchElapsed == 0 ? 0 : calculatedNum / batchElapsed;
+    const auto calculationIndex = (batchIndex * mutationsNum + (mutationIndex + 1));
+    const auto progressPercent = calculationIndex / static_cast<double>(batchesInRound * mutationsNum);
+    assert(progressPercent <= 1.0 && "Invalid percentage!");
+
+    const Decryptor& lastUsedDecryptor = round.inputs().GetConfig().last;
+
+    console_cursor_ret_up(2);
+
+    // Overwrite lines
+    printf("[%c][%zd/%zd]    %" PRIu64 "(ms)/batch, Speed: %" PRIu64 " KKeys/s   Last key:0x%" PRIX64 " (%u)  Last mutation: %s         \n",
+        WAIT_CHAR(calculationIndex), batchIndex, batchesInRound, avgPerBatchSpeed, kResultPerSecond, lastUsedDecryptor.man(), lastUsedDecryptor.seed(), name(mutation));
+    console::progressBar(progressPercent, roundTime);
+}
+
+void Bruteforcer::printGpuMemorySearchProgress(const size_t index, const size_t count, const std::chrono::seconds& time)
+{
+    if (verbosity > AppVerbosity::Progress)
+    {
+        return;
+    }
+
+    // Progress bar
+    console_cursor_ret_up(2);
+
+    printf("[%c][%zd/%zd] Searching match in GPU memory...                                                                 \n",
+        WAIT_CHAR(index), index, count);
+
+    const auto progressPercent = (double)(index + 1) / count;
+    console::progressBar(progressPercent, time);
 }
 
 SingleResult Bruteforcer::getMatchResult(const BruteforceRound& round, bool first)
@@ -151,15 +174,7 @@ SingleResult Bruteforcer::getMatchResult(const BruteforceRound& round, bool firs
 
     for (size_t index = 0, count = 0; index < results.num; index += MaxElements, ++count)
     {
-        // Progress bar
-        console_cursor_ret_up(2);
-
-        printf("[%c][%zd/%zd] Searching match in GPU memory...                                                                 \n",
-            WAIT_CHAR(count), count, numIterations);
-
-        const auto progressPercent = (double)(count + 1) / numIterations;
-        console::progressBar(progressPercent, searchTimer.elapsedSeconds());
-
+        printGpuMemorySearchProgress(count, numIterations, searchTimer.elapsedSeconds());
 
         // Read decryptors in batches, just to save RAM on host, using static method since we already copied object to host
         auto copied_results = CudaArray<SingleResult>::read(results, index, MaxElements);
@@ -168,14 +183,28 @@ SingleResult Bruteforcer::getMatchResult(const BruteforceRound& round, bool firs
         {
             if (result.match != KeeloqLearning::NoMatch)
             {
-                console::clearLinesUp(2);
-                printf("Found!\n");
+                LOG_INFO("Found!\n");
                 return result;
             }
         }
     }
 
-    console::clearLinesUp(2);
-    printf("NOT FOUND!\n");
+    LOG_INFO("NOT FOUND!\n");
     return SingleResult::Invalid();
+}
+
+void Bruteforcer::Stats::setResult(const KernelResult& kResult, bool stopped)
+{
+    if (kResult.hasMatch())
+    {
+        result = Stats::Success;
+    }
+    else if (stopped)
+    {
+        result = Stats::KernelFailure;
+    }
+    else
+    {
+        result = Stats::NoMatch;
+    }
 }

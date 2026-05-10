@@ -43,15 +43,15 @@ __host__ __device__ __forceinline__ constexpr bool is_valid(InputsMutation value
 
 constexpr auto name(InputsMutation mutation) -> const char*
 {
-    switch (mutation)
+    switch (static_cast<uint8_t>(mutation))
     {
-    case InputsMutation::None:
+    case static_cast<uint8_t>(InputsMutation::None):
         return "Normal";
-    case InputsMutation::RevKey:
+    case static_cast<uint8_t>(InputsMutation::RevKey):
         return "RevKey";
-    case InputsMutation::XorFix:
+    case static_cast<uint8_t>(InputsMutation::XorFix):
         return "XorFix";
-    case InputsMutation::RevKey | InputsMutation::XorFix:
+    case static_cast<uint8_t>(InputsMutation::RevKey | InputsMutation::XorFix):
         return "RevKey | XorFix";
     default:
         return "Unknown";

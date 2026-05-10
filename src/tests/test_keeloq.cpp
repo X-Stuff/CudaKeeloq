@@ -8,6 +8,7 @@
 #include "algorithm/keeloq/keeloq_learning_types.h"
 #include "algorithm/keeloq/keeloq_single_result.h"
 
+#include "bruteforce/bruteforcer.h"
 #include "bruteforce/bruteforce_config.h"
 #include "bruteforce/bruteforce_pattern.h"
 #include "bruteforce/generators/generator_bruteforce.h"
@@ -38,7 +39,7 @@ void runEveryLearningWithMod(const BruteforceConfig& config)
 {
     static const CudaConfig cudaConfig = CudaConfig::Tests();
 
-    const bool isCorrectSizeForTests = config.bruteSize() <= 1 && config.dictSize() <= 1;
+    const bool isCorrectSizeForTests = config.bruteSize() == 1 || config.dictSize() == 1;
     REQUIRE_MESSAGE(isCorrectSizeForTests, "config must produce exactly one real run (use benchmark tests otherwise)");
 
     uint16_t totalMatches = 0;
@@ -82,49 +83,44 @@ void runEveryLearningWithMod(const BruteforceConfig& config)
                     Encryptor encryptor(kDebugKey, kDebugSeed);
                     const auto inputs = tests::keeloq::genInputs(encryptor, numInputs, mutation, learningType, algoModifier);
 
-                    CudaVector<Decryptor>    decryptors(cudaConfig.total());
-                    CudaVector<SingleResult> results(decryptors.size() * inputs.size());
-
-                    KeeloqKernelInput generatorInputs;
-                    generatorInputs.decryptors = decryptors.gpu();
-                    generatorInputs.results    = results.gpu();
-                    generatorInputs.Initialize(config, inputs);
-
-                    if (config.type != BruteforceType::Dictionary)
+                    Bruteforcer bruteforcer(inputs, false, AppVerbosity::Error);
+                    auto ccopy = config;
+                    ccopy.overrideMutationMask(mutation, true);
+                    bruteforcer.setOnRoundComplete([&](const BruteforceRound& round, const KernelResult& kernelResult)
                     {
-                        GeneratorBruteforce::PrepareDecryptors(generatorInputs, cudaConfig);
-                    }
-                    else
-                    {
-                        generatorInputs.WriteDecryptors(config.decryptors, 0, config.decryptors.size());
-                    }
+                        auto& kernelInputs = round.inputs();
 
-                    generatorInputs.BruteforcePrepare(KeeloqLearning::Matrix::Everything(), mutation);
-                    auto kernelResult = ::keeloq::kernels::cuda_brute(generatorInputs, cudaConfig);
+                        auto decryptors = kernelInputs.decryptors;
+                        REQUIRE(decryptors != nullptr);
 
-                    decryptors.read();
-                    results.read();
+                        auto results = kernelInputs.results;
+                        REQUIRE(results != nullptr);
 
-                    REQUIRE(kernelResult.cudaError == cudaSuccess);
-                    REQUIRE(kernelResult.threadsFinished() == cudaConfig.threadsCount());
+                        auto copiedDecryptors = decryptors->read();
+                        auto copiedResults = results->read();
 
-                    if (canMatch)
-                    {
-                        REQUIRE(kernelResult.hasMatch());
-                        totalMatches++;
+                        REQUIRE(kernelResult.cudaError == cudaSuccess);
+                        REQUIRE(kernelResult.threadsFinished() == cudaConfig.threadsCount());
 
-                        // First decryptor must carry the MAN key we seeded the test with
-                        CHECK(decryptors.cpu()[0].man() == kDebugKey);
+                        if (canMatch)
+                        {
+                            REQUIRE(kernelResult.hasMatch());
+                            totalMatches++;
 
-                        // Last input's result index must match the learning combination
-                        const auto& matched_result = results.cpu()[numInputs - 1];
-                        CHECK(matched_result.match == resIndex);
-                        CHECK(matched_result.inputsMutation() == mutation);
+                            // First decryptor must carry the MAN key we seeded the test with
+                            CHECK(copiedDecryptors[0].man() == kDebugKey);
 
-                        // click() advances the counter, roll it back before comparing
-                        encryptor.setCounter(encryptor.getCounter() - 1);
-                        CHECK(matched_result.decrypted[resIndex] == encryptor.unencrypted());
-                    }
+                            // Last input's result index must match the learning combination
+                            const auto& matched_result = copiedResults[numInputs - 1];
+                            CHECK(matched_result.match == resIndex);
+                            CHECK(matched_result.inputsMutation() == mutation);
+
+                            // click() advances the counter, roll it back before comparing
+                            encryptor.setCounter(encryptor.getCounter() - 1);
+                            CHECK(matched_result.decrypted[resIndex] == encryptor.unencrypted());
+                        }
+                    });
+                    bruteforcer.run(ccopy, cudaConfig, KeeloqLearning::Matrix::Everything());
                 }
             }
         }

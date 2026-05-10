@@ -46,7 +46,7 @@ BruteforceConfig BruteforceConfig::GetAlphabet(Decryptor first, InputsMutation i
 
 BruteforceConfig BruteforceConfig::GetPattern(Decryptor first, InputsMutation inputsMutation, const BruteforcePattern& pattern, size_t num)
 {
-    num = std::min(pattern.size() - 1, num);
+    num = std::min(pattern.size(), num);
 
     first = Decryptor::Make(pattern.init(first.man()).number(), first.seed(), first.has_seed());
 
@@ -112,13 +112,18 @@ bool BruteforceConfig::hasSeed() const
 
 bool BruteforceConfig::hasMutation(InputsMutation m) const
 {
+    if (maskAsSingleMutation)
+    {
+        return m == allowedMutations;
+    }
+
     if (type == BruteforceType::XorFix)
     {
         // only mutation with XorFix flag
         return !!(m & InputsMutation::XorFix);
     }
 
-    // Including None
+    // Including None if allowed
     return (m & allowedMutations) == m;
 }
 
@@ -168,7 +173,7 @@ std::string BruteforceConfig::toString() const
     case BruteforceType::Pattern:
     {
         MultibaseNumber begin = pattern.init(start.man());
-        MultibaseNumber end = pattern.next(begin, bruteSize());
+        MultibaseNumber end = pattern.next(begin, bruteSize() - 1);
 
         auto result =  str::format<std::string>("Type: %s. First: 0x%llX (seed:%u). Last: 0x%llX. (Count: %zd)  All invariants: %zd",
             bruteTypeName, begin.number(), start.seed(), end.number(), bruteSize(), pattern.size());
@@ -200,4 +205,10 @@ std::string BruteforceConfig::toString() const
     }
     }
     return str::format<std::string>("UNSUPPORTED Type (%d): %s", (int)type, bruteTypeName);
+}
+
+void BruteforceConfig::overrideMutationMask(InputsMutation mask, bool alone)
+{
+    allowedMutations = static_cast<InputsMutation>(static_cast<uint8_t>(mask) & InputsMutationMask);
+    maskAsSingleMutation = alone;
 }

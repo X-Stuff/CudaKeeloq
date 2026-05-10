@@ -15,21 +15,22 @@ struct Encryptor
 {
     static constexpr uint32_t kRandomSeed = 987654321;
 
-    static constexpr uint8_t kRandmonButton = 0x3;
+    static constexpr uint8_t kRandomButton = 0x3;
 
-    static constexpr uint16_t kRandmoCounter = 0x123;
+    static constexpr uint16_t kRandomCounter = 0x123;
 
     static constexpr uint32_t kRandomSerial = 0xDEADBEEF;
 
 public:
-    Encryptor(uint64_t key) : Encryptor(key, kRandomSeed, kRandomSerial, kRandmonButton, kRandmoCounter)
+    Encryptor(uint64_t key) : Encryptor(key, kRandomSeed, kRandomSerial, kRandomButton, kRandomCounter)
     {
     }
 
-    Encryptor(uint64_t key, uint32_t seed) : Encryptor(key, seed, kRandomSerial, kRandmonButton, kRandmoCounter)
+    Encryptor(uint64_t key, uint32_t seed) : Encryptor(key, seed, kRandomSerial, kRandomButton, kRandomCounter)
     {
     }
 
+private:
     Encryptor(uint64_t key, uint32_t seed, uint32_t serial, uint8_t button, uint16_t count) :
         key(key), seed(seed), serial(serial), button(button), count(count)
     {

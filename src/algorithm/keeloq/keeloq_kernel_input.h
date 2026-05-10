@@ -101,11 +101,7 @@ public:
     bool Ready() const { return readyForBrute; }
 
 public:
-    virtual void read() override
-    {
-        TGenericGpuObject<KeeloqKernelInput>::read();
-        readyForBrute = false;
-    }
+    virtual void read() override;
 
 private:
     // Which type of learning use for decryption

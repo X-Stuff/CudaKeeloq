@@ -558,9 +558,9 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv, Verbosity ve
     args.initCuda(result[ARG_BLOCKS].as<uint16_t>(), result[ARG_THREADS].as<uint16_t>(),
         result.count(ARG_LOOPS) > 0 ? result[ARG_LOOPS].as<uint16_t>() : 1);
 
-    if (result.count(ARG_HELP) || result.arguments().size() == 0 || result.count(ARG_INPUTS) == 0 || args.print_version)
+    if (result.count(ARG_HELP) || result.count(ARG_INPUTS) == 0 || result.arguments().size() == 0 || args.print_version)
     {
-        args.has_errors = result.arguments().size() == 0 || result.count(ARG_INPUTS) == 0;
+        args.has_errors = result.arguments().size() == 0;
 
         // Caller decides whether to show usage (app: yes; tests: no).
         args.print_help = !args.run_bench && !args.print_version;
@@ -595,6 +595,7 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv, Verbosity ve
     {
         report.error("No inputs! Nothing to brute!");
         args.print_help = true;
+        args.has_errors = true;
         return args;
     }
 

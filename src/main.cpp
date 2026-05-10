@@ -56,7 +56,7 @@ CommandLineArgs demoTestCommandlineArgs(int num_gen_input = 3)
     cmd.brute_configs.emplace_back(BruteforceConfig::GetSeedBruteforce(Decryptor::Make(encryptor.getKey(), 0, true), InputsMutation::None));
 
     // Pattern (reversed)
-    cmd.brute_configs.emplace_back(BruteforceConfig::GetPattern(first_decryptor_ptrn, InputsMutation::None, BruteforcePattern(
+    cmd.brute_configs.emplace_back(BruteforceConfig::GetPattern(first_decryptor_ptrn, InputsMutation::RevKey, BruteforcePattern(
         {
             BruteforcePattern::parseBytes("c0|c1|c2|c3"),
             BruteforcePattern::parseBytes("F0-FF"),
@@ -164,11 +164,7 @@ int main(int argc, const char** argv)
     if (args.print_help)
     {
         CommandLineArgs::printHelp();
-    }
-
-    if (args.has_errors)
-    {
-        return 1;
+        return 0;
     }
 
     if (args.print_version)
@@ -180,6 +176,11 @@ int main(int argc, const char** argv)
     if (args.run_bench)
     {
         benchmark::all(args);
+    }
+
+    if (args.has_errors)
+    {
+        return 1;
     }
 
     if (args.canBruteforce())

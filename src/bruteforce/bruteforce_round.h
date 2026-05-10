@@ -42,7 +42,7 @@ public:
     bool readResultsGpu(std::vector<SingleResult>& container) const;
 
     /** Inspects a kernel result and returns true if the round should stop (match or fatal error). */
-    bool checkResults(const KernelResult& result);
+    bool checkResults(const KernelResult& result, AppVerbosity verbosity = AppVerbosity::Debug);
 
     /** Allocated memory (bytes) for CPU or GPU buffers. */
     size_t getMemSize(bool cpu = false) const;

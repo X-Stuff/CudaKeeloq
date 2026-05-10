@@ -50,4 +50,11 @@ void setCursorState(bool visible);
 /** Current terminal width in columns. */
 uint32_t getWidth();
 
+/** RAII cursor hiding */
+struct ScopedHideCursor
+{
+    ScopedHideCursor() { console::setCursorState(false); }
+    ~ScopedHideCursor() { console::setCursorState(true); }
+};
+
 }

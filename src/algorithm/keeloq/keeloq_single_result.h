@@ -77,10 +77,7 @@ struct SingleResult
         }
 
         /** Pretty-print one decoded entry, highlighting the matched slot. */
-        void print(const KeeloqLearning::LearningItem& item, uint32_t srl, KeeloqLearning::ResultIndex match) const;
-
-        /** Pretty-print every valid decoded entry. */
-        void print() const;
+        void print(const KeeloqLearning::LearningItem& item, uint32_t srl, KeeloqLearning::ResultIndex match, InputsMutation mutation) const;
     };
 
     // Packed: [7:4] = inputsMutation, [3:0] = inputIndex

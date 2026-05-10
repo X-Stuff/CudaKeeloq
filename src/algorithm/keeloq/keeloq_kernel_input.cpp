@@ -98,3 +98,9 @@ uint8_t KeeloqKernelInput::NumInputs() const
 {
     return inputsCount;
 }
+
+void KeeloqKernelInput::read()
+{
+    TGenericGpuObject<KeeloqKernelInput>::read();
+    readyForBrute = false;
+}

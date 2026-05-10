@@ -40,24 +40,24 @@ bool BruteforceRound::readResultsGpu(std::vector<SingleResult>& container) const
     return num_copied > 0;
 }
 
-bool BruteforceRound::checkResults(const KernelResult& result)
+bool BruteforceRound::checkResults(const KernelResult& result, AppVerbosity verbosity)
 {
     if (result.cudaError != cudaSuccess)
     {
-        printf("Kernel fatal error: %s: %s\n Round should be finished!\n", cudaGetErrorName(result.cudaError), cudaGetErrorString(result.cudaError));
+        APP_LOG_ERROR(verbosity, "Kernel fatal error: %s: %s\n Round should be finished!\n", cudaGetErrorName(result.cudaError), cudaGetErrorString(result.cudaError));
         return true;
     }
 
     if (result.threadsFinished() != cudaConfig.threadsCount())
     {
-        printf("Kernel fatal error: Silent kernel crash happened. Expected number of calculations: %u, actual: %u\n",
+        APP_LOG_ERROR(verbosity, "Kernel fatal error: Silent kernel crash happened. Expected number of calculations: %u, actual: %u\n",
             cudaConfig.threadsCount(), result.threadsFinished());
         return true;
     }
 
     if (result.hasMatch())
     {
-        printf("Matches count: %d\n", result.hasMatch());
+        APP_LOG_INFO(verbosity, "Matches count: %d\n", result.hasMatch());
         return true;
     }
 

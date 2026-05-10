@@ -29,21 +29,6 @@ struct Result
 
 namespace
 {
-uint64_t getAvg(const std::vector<uint64_t>& batchesNumKeysPerMs)
-{
-    if (batchesNumKeysPerMs.empty())
-    {
-        return 0;
-    }
-
-    uint64_t avg = 0;
-    for (const auto& num : batchesNumKeysPerMs)
-    {
-        avg += num;
-    }
-    return avg / batchesNumKeysPerMs.size();
-}
-
 std::vector<EncParcel> makeBenchmarkInputs(uint64_t key, uint8_t num, KeeloqLearning::LearningType lType)
 {
     // Benchmarks don't need a correct key — we just want something to run the kernels against.
@@ -120,11 +105,10 @@ void benchmark::real()
     }
 }
 
-
 int benchmark::run(const std::vector<EncParcel>& inputs, const KeeloqLearning::Matrix& learningMatrix,
     const BruteforceConfig& benchmarkConfig, uint32_t numCudaBlocks, uint16_t numCudaThreads)
 {
-    Bruteforcer bruteforcer(inputs, true, true);
+    Bruteforcer bruteforcer(inputs, true, AppVerbosity::Progress);
     CudaConfig cudaConfig{ numCudaBlocks, numCudaThreads, 1 };
 
     bruteforcer.run(benchmarkConfig, cudaConfig, learningMatrix);
@@ -139,13 +123,13 @@ int benchmark::run(const std::vector<EncParcel>& inputs, const KeeloqLearning::M
     {
         const auto resText = kernelFailure ? "FAILURE" : " CANCEL";
 
-        printf("| CUDA: %5" PRIu32 " x %-5" PRIu16 " | MKeys:%4" PRIu64 " | GPU Memory %4.1f GB | Round time: %s | Avg.: %s  | Batch avg. speed: %s  | \n",
+        printf("| CUDA: %5" PRIu32 " x %-5" PRIu16 " | MKeys:%4" PRIu64 " | GPU Memory %4.1f GB | Round time: %s | Avg.: %s  | Batch avg. speed: %s  |\n\n",
             numCudaBlocks, numCudaThreads, stats.totalCalcs() / 1000000, stats.allocatedGB(), resText, resText, resText);
 
         return kernelFailure ? -1 : 0;
     }
 
-    printf("| CUDA: %5" PRIu32 " x %-5" PRIu16 " | MKeys:%4" PRIu64 " | GPU Memory %4.1f GB | Round time:%6" PRIu64 "ms | Avg.:%6.1f Mk/s | Batch avg. speed:%6.1f Mk/s | \n",
+    printf("| CUDA: %5" PRIu32 " x %-5" PRIu16 " | MKeys:%4" PRIu64 " | GPU Memory %4.1f GB | Round time:%6" PRIu64 "ms | Avg.:%6.1f Mk/s | Batch avg. speed:%6.1f Mk/s |\n\n",
         numCudaBlocks, numCudaThreads,
         stats.totalCalcs() / 1000000,
         stats.allocatedGB(),
@@ -233,7 +217,7 @@ void benchmark::all(const CommandLineArgs& /*args*/)
 
         // HARDEST: Full brute 11 x 2 x 4 permutations
         learningMatrix = KeeloqLearning::Matrix::Everything();
-        benchConfigSimpleBrute.setMutationMask(InputsMutation::All);
+        benchConfigSimpleBrute.overrideMutationMask(InputsMutation::All);
         benchConfigSimpleBrute.size = TargetCalculationsNumber / 10;
 
         run(inputs, learningMatrix, benchConfigSimpleBrute);

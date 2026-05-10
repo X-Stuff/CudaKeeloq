@@ -84,6 +84,22 @@
 #define APP_VERSION_STRING STR(APP_VERSION_MAJOR) "." STR(APP_VERSION_MINOR) "." STR(APP_VERSION_PATCH)
 static constexpr auto AppVersion = APP_VERSION_STRING;
 
+enum AppVerbosity : uint8_t
+{
+    Debug = 0,
+
+    Info = 1,
+
+    Progress = 2,
+
+    Error = 5,
+};
+
+#define APP_LOG_DEBUG(s, format, ...)       if (s <= AppVerbosity::Debug) { printf(format, ##__VA_ARGS__); }
+#define APP_LOG_INFO(s, format, ...)        if (s <= AppVerbosity::Info) { printf(format, ##__VA_ARGS__); }
+#define APP_LOG_PROGRESS(s, format, ...)    if (s <= AppVerbosity::Progress) { printf(format, ##__VA_ARGS__); }
+#define APP_LOG_ERROR(s, format, ...)       if (s <= AppVerbosity::Error) { printf(format, ##__VA_ARGS__); }
+
 /**
  * Compile-time identity byte array — element[i] == i.
  * Primarily used to seed "accept every byte" alphabets without hand-writing the 0..255 list.

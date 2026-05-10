@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <limits>
 
 #include <cuda_runtime_api.h>
 
@@ -50,8 +51,8 @@ struct CudaArray
         return TCudaArray::copy(this, target);
     }
 
-    /** Download a slice `[index, index+num)` from GPU into a new host vector. */
-    inline std::vector<T> read(size_t index, size_t num) const
+    /** Download a slice (up to full array) `[index, index+num)` from GPU into a new host vector. */
+    inline std::vector<T> read(size_t index = 0, size_t num = std::numeric_limits<size_t>::max()) const
     {
         return TCudaArray::read(host(), index, num);
     }
@@ -94,7 +95,7 @@ public:
     /** Download a single element from a host-side header's payload. */
     static T read(const TCudaArray& HOST_Array, size_t index);
 
-    /** Download a slice from a host-side header's payload. */
+    /** Download a slice (up to full array) from a host-side header's payload. */
     static std::vector<T> read(const TCudaArray& HOST_Array, size_t index, size_t num);
 
     /** Download an entire array into the supplied host vector. */
