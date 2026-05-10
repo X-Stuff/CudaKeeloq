@@ -72,6 +72,9 @@ public:
     /** Const kernel inputs (requires init()). */
     inline const KeeloqKernelInput& inputs() const { assert(inited); return kernel_inputs; }
 
+    /** Launches decryptors generator kernels and returns true if succeeded. */
+    bool prepareInputs(uint64_t batchIdx);
+
 private:
 
     void alloc();

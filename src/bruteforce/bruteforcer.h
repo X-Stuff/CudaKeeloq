@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <chrono>
 
 #include "common.h"
 
@@ -21,12 +22,61 @@
  */
 struct Bruteforcer
 {
+    struct Stats
+    {
+        enum ResultType : uint8_t
+        {
+            NoMatch = 0,
+
+            Success,
+
+            KernelFailure,
+
+            UserCancelled,
+        };
+    public:
+        /** Whole round time */
+        std::chrono::milliseconds roundTime = std::chrono::milliseconds(0);
+
+        /** Number of total calculations per batch (including input mutations) */
+        uint64_t batchCalcs = 0;
+
+        /** Average time in ms elapsed per batch (moving average) */
+        double batchAverageMs = 0;
+
+        /** Number of calculated batches */
+        uint64_t numBatches = 0;
+
+        /** Number of allocated byte on GPU */
+        uint64_t allocatedBytesGPU = 0;
+
+        ResultType result = NoMatch;
+    public:
+        /** Elapsed milliseconds for whole bruteforce round */
+        inline uint64_t elapsedMs() const { return roundTime.count(); }
+
+        /** Allocated GPU memory size in GB */
+        inline float allocatedGB() const { return static_cast<float>(allocatedBytesGPU / (1024.0 * 1024.0 * 1024.0)); }
+
+        /** Total calculations for whole round */
+        inline uint64_t totalCalcs() const { return numBatches * batchCalcs; }
+
+        /** Average round speed in Kkeys/s */
+        inline double avgRoundSpeed() const { return static_cast<double>(totalCalcs() / roundTime.count()); }
+
+        /** Average batch speed in Kkeys/s */
+        inline double avgBatchSpeed() const { return batchAverageMs != 0.0 ? batchCalcs / batchAverageMs : 0.0; }
+    };
+
     /** Capture the OTA inputs that subsequent runs will attempt to decrypt. */
-    Bruteforcer(const std::vector<EncParcel>& inputs);
+    Bruteforcer(const std::vector<EncParcel>& inputs, bool breakOnEsc = false, bool silent = false);
 
 public:
     /** Run one bruteforce round and return a matching result (or `SingleResult::Invalid()`). */
     SingleResult run(const BruteforceConfig& config, const CudaConfig& cuda, const KeeloqLearning::Matrix& learningMatrix);
+
+    /** Returns bruteforce stats for the last run */
+    const Stats& getStats() const { return stats; }
 
 private:
     SingleResult getMatchResult(const BruteforceRound& round, bool first = true);
@@ -34,4 +84,13 @@ private:
 private:
     // Input data for bruteforce (captured encoded)
     std::vector<EncParcel> inputs;
+
+    // Last run stats
+    Stats stats;
+
+    // Flag allows skip on Esc press (usefull in benchmark)
+    bool breakOnEsc = false;
+
+    // Flag enables silent mode (less output)
+    bool silent = false;
 };

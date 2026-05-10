@@ -13,61 +13,54 @@
 #include "host/timer.h"
 
 
-Bruteforcer::Bruteforcer(const std::vector<EncParcel>& inputs) : inputs(inputs)
+Bruteforcer::Bruteforcer(const std::vector<EncParcel>& inputs, bool breakOnEsc, bool silent) : inputs(inputs), breakOnEsc(breakOnEsc), silent(silent)
 {
 
 }
 
 SingleResult Bruteforcer::run(const BruteforceConfig& config, const CudaConfig& cuda, const KeeloqLearning::Matrix& learningMatrix)
 {
+    stats = Stats();
+
     BruteforceRound attackRound(inputs, config, cuda);
     const auto configInputMutations = config.getMutations();
     const auto numInputMutations = configInputMutations.size();
 
     printf("\nAllocating...");
     attackRound.init();
+    stats.allocatedBytesGPU = attackRound.getMemSize();
+    printf("\rRunning...   ");
 
-    printf("\rRunning...    \n%s\n%s\n", attackRound.toString().c_str(), learningMatrix.toString(&config).c_str());
+    if (!silent)
+    {
+        printf("\n%s\n%s\n\n", attackRound.toString().c_str(), learningMatrix.toString(&config).c_str());
+    }
 
     KernelResult lastResult;
 
     const size_t batchesInRound = attackRound.numBatches();
     const size_t keysInBatch = attackRound.keysPerBatch();
 
+    // Total calculations per batch is keys in batch multiplied by number of input mutations
+    stats.batchCalcs = keysInBatch * numInputMutations;
+
     auto roundTimer = Timer<std::chrono::steady_clock>::start();
     auto stop = false;
 
     console::setCursorState(false);
-    printf("\n\n\n");
+    printf("\n\n");
 
     auto batchTimer = Timer<std::chrono::steady_clock>::start();
 
     for (size_t batch = 0; !stop && batch < batchesInRound; ++batch)
     {
+        if (!attackRound.prepareInputs(batch))
+        {
+            stats.result = Stats::KernelFailure;
+            return SingleResult::Invalid();
+        }
+
         KeeloqKernelInput& kernelInput = attackRound.inputs();
-
-        if (attackRound.type() != BruteforceType::Dictionary)
-        {
-            if (batch != 0)
-            {
-                // Make last decryptor from previous batch as first for this batch
-                kernelInput.NextDecryptor();
-            }
-
-            // Generate decryptors (if available)
-            auto cudaError = GeneratorBruteforce::PrepareDecryptors(kernelInput, cuda);
-            if (cudaError != cudaSuccess)
-            {
-                printf("Error: Key generation resulted with error: %s: %s\n", cudaGetErrorName(cudaError), cudaGetErrorString(cudaError));
-                assert(false);
-                return SingleResult::Invalid();
-            }
-        }
-        else
-        {
-            // Write next batch of keys from dictionary
-            kernelInput.WriteDecryptors(config.decryptors, batch * keysInBatch, keysInBatch);
-        }
 
         for (auto m = 0; !stop && m < numInputMutations; ++m)
         {
@@ -79,10 +72,15 @@ SingleResult Bruteforcer::run(const BruteforceConfig& config, const CudaConfig& 
             stop = attackRound.checkResults(lastResult);
 
             {
-                const auto bruteCallDuration = batchTimer.reset().count();
+                // Incremental, each mutation cycle will be increased
+                const auto batchElapsed = batchTimer.elapsed().count();
+                const auto calculatedNum = keysInBatch * (m + 1);
+                const auto avgPerBatchSpeed = batchElapsed / (m + 1);
 
-                const auto kResultPerSecond = bruteCallDuration == 0 ? 0 : keysInBatch / bruteCallDuration;
-                const auto progressPercent = (double)(batch + 1) / batchesInRound;
+                const auto kResultPerSecond = batchElapsed == 0 ? 0 : calculatedNum / batchElapsed;
+                const auto calculationIndex = (batch * numInputMutations + (m + 1));
+                const auto progressPercent = calculationIndex / static_cast<double>(batchesInRound * numInputMutations);
+                assert(progressPercent <= 1.0 && "Invalid percentage!");
 
                 const Decryptor& lastUsedDecryptor = kernelInput.GetConfig().last;
 
@@ -90,20 +88,53 @@ SingleResult Bruteforcer::run(const BruteforceConfig& config, const CudaConfig& 
 
                 // Overwrite lines
                 printf("[%c][%zd/%zd]    %" PRIu64 "(ms)/batch, Speed: %" PRIu64 " KKeys/s   Last key:0x%" PRIX64 " (%u)  Last mutation: %s         \n",
-                    WAIT_CHAR(batch), batch, batchesInRound, bruteCallDuration, kResultPerSecond, lastUsedDecryptor.man(), lastUsedDecryptor.seed(), name(configInputMutations[m]));
+                    WAIT_CHAR(calculationIndex), batch, batchesInRound, avgPerBatchSpeed, kResultPerSecond, lastUsedDecryptor.man(), lastUsedDecryptor.seed(), name(configInputMutations[m]));
                 console::progressBar(progressPercent, roundTimer.elapsedSeconds());
+
+                if (breakOnEsc && console::readEscPress())
+                {
+                    console::clearLinesUp(2);
+                    printf("Bruteforce stopped by user\n");
+                    stats.result = Stats::UserCancelled;
+
+                    return SingleResult::Invalid();
+                }
             }
         }
+
+        const double batchDuration = batchTimer.reset().count() / 1.0;
+        stats.numBatches++;
+        stats.batchAverageMs += (batchDuration - stats.batchAverageMs) / stats.numBatches;
+
+        if (stats.batchAverageMs > 1000000000)
+        {
+            int ib = 4;
+            ib++;
+        }
     }
+
+    stats.roundTime = roundTimer.elapsed();
 
     console::clearLinesUp(2);
 
     if (lastResult.hasMatch())
     {
+        stats.result = Stats::Success;
         return getMatchResult(attackRound);
     }
 
-    printf("\n\nAfter: %zd batches no results was found. Keys checked:%zd\n\n", batchesInRound, batchesInRound * keysInBatch);
+    if (stop && !lastResult.hasMatch())
+    {
+        // print was in `checkResults`
+        stats.result = Stats::KernelFailure;
+        return SingleResult::Invalid();
+    }
+
+    stats.result = Stats::NoMatch;
+    if (!silent)
+    {
+        printf("\n\nAfter: %zd batches no results was found. Keys checked:%zd\n\n", batchesInRound, batchesInRound * keysInBatch * numInputMutations);
+    }
 
     return SingleResult::Invalid();
 }

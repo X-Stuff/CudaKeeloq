@@ -352,7 +352,6 @@ static constexpr const uint8_t DecryptedArraySize = RegistryInfo::RealResultsNum
 /** Value that points to the last element in the indices cache (Invalid) */
 static constexpr const ResultIndex InvalidResultIndex = RegistryInfo::RealResultsNum;
 
-
 /** Value if the result index that represents no match, Invalid Index points to the last (additional) element in array, however it is considered invalid */
 static constexpr ResultIndex NoMatch = 0xFF;
 

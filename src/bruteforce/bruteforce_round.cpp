@@ -8,6 +8,8 @@
 #include "algorithm/keeloq/keeloq_learning_types.h"
 #include "algorithm/keeloq/keeloq_single_result.h"
 
+#include "generators/generator_bruteforce.h"
+
 #include "bruteforce/bruteforce_config.h"
 #include "kernels/kernel_result.h"
 
@@ -137,6 +139,34 @@ std::string BruteforceRound::toString() const
         resultsPerBatch(), keysPerBatch(), config().toString().c_str());
 }
 
+
+bool BruteforceRound::prepareInputs(uint64_t batchIdx)
+{
+    if (type() != BruteforceType::Dictionary)
+    {
+        if (batchIdx != 0)
+        {
+            // Make last decryptor from previous batch as first for this batch
+            kernel_inputs.NextDecryptor();
+        }
+
+        // Generate decryptors (if available)
+        auto cudaError = GeneratorBruteforce::PrepareDecryptors(kernel_inputs, cudaConfig);
+        if (cudaError != cudaSuccess)
+        {
+            printf("Error: Key generation resulted with error: %s: %s\n", cudaGetErrorName(cudaError), cudaGetErrorString(cudaError));
+            assert(false);
+            return false;
+        }
+    }
+    else
+    {
+        // Write next batch of keys from dictionary
+        kernel_inputs.WriteDecryptors(config().decryptors, batchIdx * keysPerBatch(), keysPerBatch());
+    }
+
+    return true;
+}
 
 void BruteforceRound::alloc()
 {
