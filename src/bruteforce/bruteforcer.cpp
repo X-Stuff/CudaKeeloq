@@ -59,7 +59,7 @@ SingleResult Bruteforcer::run(const BruteforceConfig& config, const CudaConfig& 
             return SingleResult::Invalid();
         }
 
-        KeeloqKernelInput& kernelInput = attackRound.inputs();
+        KeeloqKernelMultiLearningInput& kernelInput = attackRound.inputs();
 
         for (auto m = 0; !stop && m < numInputMutations; ++m)
         {

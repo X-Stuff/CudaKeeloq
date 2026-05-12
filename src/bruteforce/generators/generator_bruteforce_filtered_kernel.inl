@@ -4,7 +4,8 @@
 #include <device_atomic_functions.h>
 
 #include "kernels/kernel_result.h"
-#include "algorithm/keeloq/keeloq_kernel_input.h"
+#include "kernels/kernel_input_multi_learning.h"
+
 #include "algorithm/keeloq/keeloq_decryptor.h"
 
 #include "bruteforce/bruteforce_type.h"
@@ -16,7 +17,7 @@ __device__ inline uint64_t RequestNewBlock(TPtr* from, uint32_t size)
     return atomicAdd((unsigned long long int*)from, size);
 }
 
-__global__ void DEFINE_GENERATOR_KERNEL(GeneratorBruteforceFiltered, KeeloqKernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls)
+__global__ void DEFINE_GENERATOR_KERNEL(GeneratorBruteforceFiltered, IKeeloqKernelInputBase::Ptr input, KernelResult::TCudaPtr resuls)
 {
     const BruteforceConfig& config = input->GetConfig();
 

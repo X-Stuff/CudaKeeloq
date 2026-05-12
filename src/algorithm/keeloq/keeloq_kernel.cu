@@ -1,7 +1,7 @@
-#include "keeloq_kernel.h"
+#include "algorithm/keeloq/keeloq_kernel.h"
+#include "algorithm/keeloq/keeloq_kernel.inl"
 
-#include "keeloq_kernel.inl"
-#include "keeloq_kernel_input.h"
+#include "kernels/kernel_input_base.h"
 
 /**
  *  Definition of IndicesCache in CUDA

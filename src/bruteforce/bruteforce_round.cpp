@@ -162,7 +162,7 @@ bool BruteforceRound::prepareInputs(uint64_t batchIdx)
     else
     {
         // Write next batch of keys from dictionary
-        kernel_inputs.WriteDecryptors(config().decryptors, batchIdx * keysPerBatch(), keysPerBatch());
+        kernel_inputs.WriteDecryptors(config().dictDecryptors, batchIdx * keysPerBatch(), keysPerBatch());
     }
 
     return true;

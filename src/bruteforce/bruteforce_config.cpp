@@ -11,7 +11,7 @@
 BruteforceConfig BruteforceConfig::GetDictionary(std::vector<Decryptor>&& dictionary, InputsMutation inputsMutation)
 {
     BruteforceConfig result(Decryptor::Invalid(), BruteforceType::Dictionary, inputsMutation, dictionary.size());
-    result.decryptors = std::move(dictionary);
+    result.dictDecryptors = std::move(dictionary);
     return result;
 };
 
@@ -101,7 +101,7 @@ bool BruteforceConfig::hasSeed() const
     }
     else if (type == BruteforceType::Dictionary)
     {
-        return std::any_of(decryptors.begin(), decryptors.end(), [](const Decryptor& d) { return d.has_seed(); });
+        return std::any_of(dictDecryptors.begin(), dictDecryptors.end(), [](const Decryptor& d) { return d.has_seed(); });
     }
     else
     {

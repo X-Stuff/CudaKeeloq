@@ -168,7 +168,6 @@
     <ClInclude Include="src\algorithm\keeloq\keeloq_kernel.h" />
     <ClInclude Include="src\algorithm\keeloq\keeloq_decryptor.h" />
     <ClInclude Include="src\algorithm\keeloq\keeloq_encrypted.h" />
-    <ClInclude Include="src\algorithm\keeloq\keeloq_kernel_input.h" />
     <ClInclude Include="src\algorithm\keeloq\keeloq_learning_types.h" />
     <ClInclude Include="src\algorithm\keeloq\keeloq_single_result.h" />
     <ClInclude Include="src\algorithm\multibase_digit.h" />
@@ -196,12 +195,14 @@
     <ClInclude Include="src\host\host_utils.h" />
     <ClInclude Include="src\host\timer.h" />
     <ClInclude Include="src\kernels\inputs_mutation.h" />
+    <ClInclude Include="src\kernels\kernel_input_base.h" />
+    <ClInclude Include="src\kernels\kernel_input_multi_learning.h" />
+    <ClInclude Include="src\kernels\kernel_input_single_learning.h" />
     <ClInclude Include="src\kernels\kernel_result.h" />
     <ClInclude Include="src\benchmark\benchmark.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\algorithm\keeloq\keeloq_encryptor.cpp" />
-    <ClCompile Include="src\algorithm\keeloq\keeloq_kernel_input.cpp" />
     <ClCompile Include="src\algorithm\keeloq\keeloq_learning_types.cpp" />
     <ClCompile Include="src\algorithm\keeloq\keeloq_single_result.cpp" />
     <ClCompile Include="src\bruteforce\bruteforcer.cpp" />
@@ -215,6 +216,9 @@
     <ClCompile Include="src\host\console.cpp" />
     <ClCompile Include="src\host\host_utils.cpp" />
     <ClCompile Include="src\benchmark\benchmark.cpp" />
+    <ClCompile Include="src\kernels\kernel_input_base.cpp" />
+    <ClCompile Include="src\kernels\kernel_input_multi_learning.cpp" />
+    <ClCompile Include="src\kernels\kernel_input_single_learning.cpp" />
     <ClCompile Include="src\main.cpp" />
   </ItemGroup>
   <ItemGroup>

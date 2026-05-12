@@ -3,7 +3,8 @@
 #include <algorithm>
 
 #include "algorithm/keeloq/keeloq_kernel.h"
-#include "algorithm/keeloq/keeloq_kernel_input.h"
+
+#include "kernels/kernel_input_multi_learning.h"
 
 #include "bruteforce/bruteforcer.h"
 #include "bruteforce/bruteforce_config.h"
@@ -96,7 +97,7 @@ TEST_CASE("generators: seed produces a contiguous, monotonically increasing sequ
     BruteforceConfig config = BruteforceConfig::GetSeedBruteforce(Decryptor::Make(debugKey, 0, true), inputsMutation);
     REQUIRE(config.type == BruteforceType::Seed);
 
-    KeeloqKernelInput generatorInputs;
+    KeeloqKernelMultiLearningInput generatorInputs;
     generatorInputs.decryptors = decryptors.gpu();
     generatorInputs.results    = results.gpu();
     generatorInputs.Initialize(config, inputs);

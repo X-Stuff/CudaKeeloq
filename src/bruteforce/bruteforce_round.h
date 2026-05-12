@@ -6,10 +6,11 @@
 #include "common.h"
 
 #include "device/cuda_config.h"
+
 #include "kernels/kernel_result.h"
+#include "kernels/kernel_input_multi_learning.h"
 
 #include "algorithm/keeloq/keeloq_encrypted.h"
-#include "algorithm/keeloq/keeloq_kernel_input.h"
 #include "algorithm/keeloq/keeloq_learning_types.h"
 #include "algorithm/keeloq/keeloq_single_result.h"
 
@@ -67,10 +68,10 @@ public:
     inline BruteforceType::Type type() const { assert(inited); return config().type; }
 
     /** Mutable kernel inputs (requires init()). */
-    inline KeeloqKernelInput& inputs() { assert(inited); return kernel_inputs; }
+    inline KeeloqKernelMultiLearningInput& inputs() { assert(inited); return kernel_inputs; }
 
     /** Const kernel inputs (requires init()). */
-    inline const KeeloqKernelInput& inputs() const { assert(inited); return kernel_inputs; }
+    inline const KeeloqKernelMultiLearningInput& inputs() const { assert(inited); return kernel_inputs; }
 
     /** Launches decryptors generator kernels and returns true if succeeded. */
     bool prepareInputs(uint64_t batchIdx);
@@ -89,7 +90,7 @@ private:
     uint32_t num_decryptors_per_batch = 0;
 
     //
-    KeeloqKernelInput kernel_inputs;
+    KeeloqKernelMultiLearningInput kernel_inputs;
 
     uint8_t encrypted_data_num = 0;
 

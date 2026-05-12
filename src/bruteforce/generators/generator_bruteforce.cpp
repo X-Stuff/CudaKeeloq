@@ -3,10 +3,8 @@
 #include "device/cuda_config.h"
 #include "kernels/kernel_result.h"
 
-#include "algorithm/keeloq/keeloq_kernel_input.h"
 
-
-cudaError_t GeneratorBruteforce::PrepareDecryptors(KeeloqKernelInput& inputs, const CudaConfig& cuda)
+cudaError_t GeneratorBruteforce::PrepareDecryptors(IKeeloqKernelInputBase& inputs, const CudaConfig& cuda)
 {
     const BruteforceConfig& config = inputs.GetConfig();
     inputs.BeforeGenerateDecryptors();
@@ -15,24 +13,24 @@ cudaError_t GeneratorBruteforce::PrepareDecryptors(KeeloqKernelInput& inputs, co
     {
     case BruteforceType::Simple:
     {
-        GeneratorBruteforceSimple::LaunchKernel(cuda, inputs.ptr(), nullptr);
+        GeneratorBruteforceSimple::LaunchKernel(cuda, inputs.gpu(), nullptr);
         break;
     }
     case BruteforceType::Seed:
     case BruteforceType::XorFix:
     {
-        GeneratorBruteforceSeed::LaunchKernel(cuda, inputs.ptr(), nullptr);
+        GeneratorBruteforceSeed::LaunchKernel(cuda, inputs.gpu(), nullptr);
         break;
     }
     case BruteforceType::Filtered:
     {
-        GeneratorBruteforceFiltered::LaunchKernel(cuda, inputs.ptr(), nullptr);
+        GeneratorBruteforceFiltered::LaunchKernel(cuda, inputs.gpu(), nullptr);
         break;
     }
     case BruteforceType::Pattern:
     case BruteforceType::Alphabet:
     {
-        GeneratorBruteforcePattern::LaunchKernel(cuda, inputs.ptr(), nullptr);
+        GeneratorBruteforcePattern::LaunchKernel(cuda, inputs.gpu(), nullptr);
         break;
     }
     case BruteforceType::Dictionary:
@@ -48,8 +46,8 @@ cudaError_t GeneratorBruteforce::PrepareDecryptors(KeeloqKernelInput& inputs, co
     }
     }
 
-    inputs.read(); // it will not cause underneath arrays copy
+    const auto error = inputs.sync(); // it will not cause underneath arrays copy
     inputs.AfterGeneratedDecryptors();
 
-    return cudaSuccess;
+    return error;
 }

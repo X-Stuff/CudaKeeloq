@@ -47,9 +47,6 @@
     <ClInclude Include="src\algorithm\keeloq\keeloq_single_result.h">
       <Filter>algorithm\keeloq</Filter>
     </ClInclude>
-    <ClInclude Include="src\algorithm\keeloq\keeloq_kernel_input.h">
-      <Filter>algorithm\keeloq</Filter>
-    </ClInclude>
     <ClInclude Include="src\kernels\kernel_result.h">
       <Filter>kernels</Filter>
     </ClInclude>
@@ -101,6 +98,15 @@
     <ClInclude Include="src\kernels\inputs_mutation.h">
       <Filter>kernels</Filter>
     </ClInclude>
+    <ClInclude Include="src\kernels\kernel_input_base.h">
+      <Filter>kernels</Filter>
+    </ClInclude>
+    <ClInclude Include="src\kernels\kernel_input_single_learning.h">
+      <Filter>kernels</Filter>
+    </ClInclude>
+    <ClInclude Include="src\kernels\kernel_input_multi_learning.h">
+      <Filter>kernels</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp" />
@@ -134,9 +140,6 @@
     <ClCompile Include="src\algorithm\keeloq\keeloq_single_result.cpp">
       <Filter>algorithm\keeloq</Filter>
     </ClCompile>
-    <ClCompile Include="src\algorithm\keeloq\keeloq_kernel_input.cpp">
-      <Filter>algorithm\keeloq</Filter>
-    </ClCompile>
     <ClCompile Include="src\bruteforce\bruteforce_pattern.cpp">
       <Filter>bruteforce</Filter>
     </ClCompile>
@@ -148,6 +151,15 @@
     </ClCompile>
     <ClCompile Include="src\bruteforce\bruteforcer.cpp">
       <Filter>bruteforce</Filter>
+    </ClCompile>
+    <ClCompile Include="src\kernels\kernel_input_base.cpp">
+      <Filter>kernels</Filter>
+    </ClCompile>
+    <ClCompile Include="src\kernels\kernel_input_single_learning.cpp">
+      <Filter>kernels</Filter>
+    </ClCompile>
+    <ClCompile Include="src\kernels\kernel_input_multi_learning.cpp">
+      <Filter>kernels</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

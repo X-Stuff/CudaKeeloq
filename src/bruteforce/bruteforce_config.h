@@ -36,7 +36,7 @@ public:
 
     // Dictionary - HOST SET. ONCE.
     // Brute -      GPU SET. UPDATING.
-    std::vector<Decryptor> decryptors;
+    std::vector<Decryptor> dictDecryptors;
 
     // HOST SET. ONCE. for filtered type.
     BruteforceFilters filters;
@@ -116,7 +116,7 @@ public:
 
 private:
     BruteforceConfig(Decryptor start, BruteforceType::Type t, InputsMutation im, size_t num) :
-        type(t), start(start), size(num), decryptors(), filters(), pattern(), last(start), allowedMutations(im)
+        type(t), start(start), size(num), dictDecryptors(), filters(), pattern(), last(start), allowedMutations(im)
     {
     }
 

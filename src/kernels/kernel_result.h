@@ -40,7 +40,7 @@ public:
      * Called by each thread at the end of the kernel; contributes its match count
      * and a "finished" signal into the packed counters.
      */
-    __host__ __device__ __forceinline__ void onKernelFinish(uint8_t numMatches)
+    __host__ __device__ __forceinline__ void onKernelFinish(uint32_t numMatches)
     {
 #if __CUDA_ARCH__
         // Each thread in warp writes true if it has at least 1 match
@@ -68,7 +68,7 @@ public:
 
     /**
      * Count of threads that reached `onKernelFinish`. Compare against the configured
-     * (blocks × threads) to detect kernel crashes or early exits.
+     * (blocks x threads) to detect kernel crashes or early exits.
      */
     uint32_t threadsFinished() const
     {
@@ -76,14 +76,14 @@ public:
     }
 
 public:
-    virtual void read() override
+    virtual cudaError_t read() override
     {
         cudaError = cudaGetLastError();
         CUDA_CHECK(cudaError);
 
         CUDA_CHECK(cudaDeviceSynchronize());
 
-        TGenericGpuObject<KernelResult>::read();
+        return TGenericGpuObject<KernelResult>::read();
     }
 
 public:

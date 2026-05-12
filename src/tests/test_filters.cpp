@@ -105,7 +105,7 @@ TEST_CASE("filters: filtered generator produces the target filtered key")
 
     auto inputs = tests::keeloq::genInputs(FilteredKey, NumInputs, inputsMutation);
 
-    KeeloqKernelInput generatorInputs;
+    KeeloqKernelMultiLearningInput generatorInputs;
     generatorInputs.decryptors = decryptors.gpu();
     generatorInputs.Initialize(testConfig, inputs);
 

@@ -4,7 +4,6 @@
 #include "algorithm/keeloq/keeloq_encryptor.h"
 #include "algorithm/keeloq/keeloq_encrypted.h"
 #include "algorithm/keeloq/keeloq_kernel.h"
-#include "algorithm/keeloq/keeloq_kernel_input.h"
 #include "algorithm/keeloq/keeloq_learning_types.h"
 #include "algorithm/keeloq/keeloq_single_result.h"
 
@@ -16,6 +15,7 @@
 #include "device/cuda_vector.h"
 
 #include "kernels/kernel_result.h"
+#include "kernels/kernel_input_multi_learning.h"
 
 #include "tests/support/keeloq_inputs.h"
 
@@ -130,6 +130,55 @@ void runEveryLearningWithMod(const BruteforceConfig& config)
 }
 }  // namespace
 
+
+TEST_CASE("keeloq: flat")
+{
+    static const CudaConfig cudaConfig = CudaConfig::Tests();
+
+    static const auto config = BruteforceConfig::GetBruteforce(Decryptor::Make(kDebugKey, kDebugSeed, true), InputsMutation::All, 1);
+
+    uint16_t totalMatches = 0;
+
+    for (auto lType = 0; lType < LearningTypesCount; ++lType)
+    {
+        const auto learningType = static_cast<LearningType>(lType);
+
+        auto inputMutations = config.getMutations();
+
+        for (auto mutation : inputMutations)
+        {
+            for (auto aMod = 0; aMod < Modifier::AlgoModCount; ++aMod)
+            {
+                const auto algoModifier = static_cast<Modifier::Algo>(aMod);
+                const auto learningItem = LearningItem(learningType, algoModifier);
+
+                const auto resIndex = DecryptedResults::getIndex(learningItem);
+
+                for (auto numInputs = 1; numInputs <= 3; ++numInputs)
+                {
+                    Encryptor encryptor(kDebugKey, kDebugSeed);
+                    const auto inputs = tests::keeloq::genInputs(encryptor, numInputs, mutation, learningType);
+
+                    CudaVector<Decryptor> decryptors(cudaConfig.total());
+                    CudaVector<SingleLearningResult> results(decryptors.size() * inputs.size());
+
+                    KeeloqKernelSingleLearningInput kernelInputs;
+                    kernelInputs.decryptors = decryptors.gpu();
+                    kernelInputs.results = results.gpu();
+                    kernelInputs.Initialize(config, inputs);
+
+                    auto cudaError = GeneratorBruteforce::PrepareDecryptors(kernelInputs, cudaConfig);
+                    REQUIRE(cudaError == cudaSuccess);
+
+                    decryptors.read();
+
+                    kernelInputs.BruteforcePrepare(mutation, learningType, algoModifier);
+                    keeloq::kernels::cuda_brute(kernelInputs, cudaConfig);
+                }
+            }
+        }
+    }
+}
 
 TEST_CASE("keeloq: KernelResult accumulates match flag and thread count")
 {

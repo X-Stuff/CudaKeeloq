@@ -1,13 +1,13 @@
 #include "doctest/doctest.h"
 
 #include "algorithm/keeloq/keeloq_decryptor.h"
-#include "algorithm/keeloq/keeloq_kernel_input.h"
 
 #include "bruteforce/bruteforce_config.h"
 #include "bruteforce/generators/generator_bruteforce.h"
 
 #include "device/cuda_vector.h"
 #include "kernels/kernel_result.h"
+#include "kernels/kernel_input_multi_learning.h"
 
 #include "tests/support/keeloq_inputs.h"
 
@@ -28,7 +28,7 @@ TEST_CASE("alphabet generator: produces expected decryptor sequence")
 
     CudaVector<Decryptor> decryptors(Cuda.total());
 
-    KeeloqKernelInput generatorInputs;
+    KeeloqKernelMultiLearningInput generatorInputs;
     generatorInputs.decryptors = decryptors.gpu();
     generatorInputs.Initialize(testConfig, inputs);
 

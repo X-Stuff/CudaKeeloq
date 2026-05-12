@@ -7,9 +7,14 @@
 
 #include <cuda_runtime_api.h>
 
-constexpr uint8_t OneEncInput = 1;
-constexpr uint8_t TwoEncInputs = 2;
-constexpr uint8_t ThreeEncInputs = 3;
+static constexpr uint8_t OneEncInput = 1;
+static constexpr uint8_t TwoEncInputs = 2;
+static constexpr uint8_t ThreeEncInputs = 3;
+
+static constexpr uint8_t First = 0;
+static constexpr uint8_t Second = 1;
+static constexpr uint8_t Third = 2;
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -181,11 +186,12 @@ struct KernelModeInputMutation
  *      keeloq_decrypt_[seed,normal]
  *      keeloq_encdec
  */
-template<bool IsDecrypt, KernelLearningMode Mode, LearningType type, Modifier::Algo AMod>
-__device__ __host__ __forceinline__ uint32_t keeloq_encdec_single(uint32_t data, uint32_t fixed, const Decryptor& decryptor)
+template<bool IsDecrypt, InputsMutation InputsMut, LearningType type, Modifier::Algo AMod>
+__device__ __host__ __forceinline__ uint32_t keeloq_encdec_single(uint32_t hop, uint32_t fixed, const Decryptor& decryptor)
 {
-    const uint64_t key = decryptor.template getKey<!!(Mode & KernelLearningMode::RevKey)>();
-    const uint32_t fix = decryptor.template getXored<!!(Mode & KernelLearningMode::XorFix)>(fixed);
+    const uint64_t key = decryptor.template getKey<!!(InputsMut & InputsMutation::RevKey)>();
+    const uint32_t fix = decryptor.template getXored<!!(InputsMut & InputsMutation::XorFix)>(fixed);
+    const uint32_t data = hop;
     const uint32_t seed = decryptor.seed();
 
     static_assert(AMod == Modifier::Algo::Normal || AMod == Modifier::Algo::Inverted, "Unsupported/Unknown Keeloq Algorithm Modifier");
@@ -271,13 +277,13 @@ __device__ __host__ __forceinline__ uint32_t keeloq_encdec_single(uint32_t data,
  *      keeloq_decrypt_[seed,normal]
  *      keeloq_encdec
  */
-template<bool IsDecrypt, KernelLearningMode Mode, LearningType type, Modifier::Algo AMod>
+template<bool IsDecrypt, InputsMutation InputsMut, LearningType type, Modifier::Algo AMod>
 __device__ __host__ __forceinline__ void keeloq_encdec_single(uint32_t data, uint32_t fix, const Decryptor& decryptor, DecryptedResults& results)
 {
     static constexpr auto index = DecryptedResults::getIndex<type, AMod>();
     if constexpr (index != KeeloqLearning::InvalidResultIndex)
     {
-        results[index] = keeloq_encdec_single<IsDecrypt, Mode, type, AMod>(data, fix, decryptor);
+        results[index] = keeloq_encdec_single<IsDecrypt, InputsMut, type, AMod>(data, fix, decryptor);
     }
 }
 
@@ -290,11 +296,11 @@ __device__ __host__ __forceinline__ void keeloq_encdec_single(uint32_t data, uin
  *      keeloq_decrypt_[seed,normal]
  *      keeloq_encdec
  */
-template<bool IsDecrypt, KernelLearningMode Mode, Modifier::Algo AMod, LearningType... LTypes>
+template<bool IsDecrypt, InputsMutation InputsMut, Modifier::Algo AMod, LearningType... LTypes>
 __device__ __host__ __forceinline__ void keeloq_encdec_multi(uint32_t data, uint32_t fix, const Decryptor& decryptor,
     DecryptedResults& results, LearningTypesSet<LTypes...>)
 {
-    ((keeloq_encdec_single<IsDecrypt, Mode, LTypes, AMod>(data, fix, decryptor, results)), ...);
+    ((keeloq_encdec_single<IsDecrypt, InputsMut, LTypes, AMod>(data, fix, decryptor, results)), ...);
 }
 
 /**
@@ -307,11 +313,11 @@ __device__ __host__ __forceinline__ void keeloq_encdec_multi(uint32_t data, uint
  *      keeloq_decrypt_[seed,normal,all]
  *      keeloq_encdec
  */
-template<bool IsDecrypt, KernelLearningMode Mode, Modifier::Algo AMod, LearningType... LTypes>
+template<bool IsDecrypt, InputsMutation InputsMut, Modifier::Algo AMod, LearningType... LTypes>
 __device__ __host__ __forceinline__ void keeloq_encdec_multi_cond(uint32_t data, uint32_t fix, const Decryptor& decryptor,
     const Matrix& learnings_matrix, DecryptedResults& results, LearningTypesSet<LTypes...>)
 {
-    ((learnings_matrix.template isEnabled<LTypes, AMod>() ? keeloq_encdec_single<IsDecrypt, Mode, LTypes, AMod>(data, fix, decryptor, results) : void()), ...);
+    ((learnings_matrix.template isEnabled<LTypes, AMod>() ? keeloq_encdec_single<IsDecrypt, InputsMut, LTypes, AMod>(data, fix, decryptor, results) : void()), ...);
 }
 
 /**
@@ -324,17 +330,17 @@ __device__ __host__ __forceinline__ void keeloq_encdec_multi_cond(uint32_t data,
  *   -> keeloq_decrypt_[seed,normal,all]
  *      keeloq_encdec
  */
-template<bool IgnoreMatrix, bool IsDecrypt, KernelLearningMode Mode, Modifier::Algo AMod>
+template<bool IgnoreMatrix, bool IsDecrypt, InputsMutation InputsMut, Modifier::Algo AMod>
 __device__ __host__ __forceinline__ void keeloq_encdec_seed_all(uint32_t data, uint32_t fix, const Decryptor& decryptor,
     const Matrix& learnings_matrix, SingleResult::LearningsArray& decrypted)
 {
     if constexpr (IgnoreMatrix)
     {
-        keeloq_encdec_multi<IsDecrypt, Mode, AMod>(data, fix, decryptor, decrypted.data, SeededTypes{});
+        keeloq_encdec_multi<IsDecrypt, InputsMut, AMod>(data, fix, decryptor, decrypted.data, SeededTypes{});
     }
     else
     {
-        keeloq_encdec_multi_cond<IsDecrypt, Mode, AMod>(data, fix, decryptor, learnings_matrix, decrypted.data, SeededTypes{});
+        keeloq_encdec_multi_cond<IsDecrypt, InputsMut, AMod>(data, fix, decryptor, learnings_matrix, decrypted.data, SeededTypes{});
     }
 }
 
@@ -348,17 +354,17 @@ __device__ __host__ __forceinline__ void keeloq_encdec_seed_all(uint32_t data, u
  *   -> keeloq_decrypt_[seed,normal,all]
  *      keeloq_encdec
  */
-template<bool IgnoreMatrix, bool IsDecrypt, KernelLearningMode Mode, Modifier::Algo AMod>
+template<bool IgnoreMatrix, bool IsDecrypt, InputsMutation InputsMut, Modifier::Algo AMod>
 __device__ __host__ __forceinline__ void keeloq_encdec_all(uint32_t data, uint32_t fix, const Decryptor& decryptor,
     const Matrix& learnings_matrix, SingleResult::LearningsArray& decrypted)
 {
     if constexpr (IgnoreMatrix)
     {
-        keeloq_encdec_multi<IsDecrypt, Mode, AMod>(data, fix, decryptor, decrypted.data, EveryLearningType{});
+        keeloq_encdec_multi<IsDecrypt, InputsMut, AMod>(data, fix, decryptor, decrypted.data, EveryLearningType{});
     }
     else
     {
-        keeloq_encdec_multi_cond<IsDecrypt, Mode, AMod>(data, fix, decryptor, learnings_matrix, decrypted.data, EveryLearningType{});
+        keeloq_encdec_multi_cond<IsDecrypt, InputsMut, AMod>(data, fix, decryptor, learnings_matrix, decrypted.data, EveryLearningType{});
     }
 }
 
@@ -372,17 +378,17 @@ __device__ __host__ __forceinline__ void keeloq_encdec_all(uint32_t data, uint32
  *   -> keeloq_decrypt_[seed,normal]
  *      keeloq_encdec
  */
-template<bool IgnoreMatrix, bool IsDecrypt, KernelLearningMode Mode, Modifier::Algo AMod>
+template<bool IgnoreMatrix, bool IsDecrypt, InputsMutation InputsMut, Modifier::Algo AMod>
 __device__ __host__ __forceinline__ void keeloq_encdec_normal_all(uint32_t data, uint32_t fix, const Decryptor& decryptor,
     const Matrix& learnings_matrix, SingleResult::LearningsArray& decrypted)
 {
     if constexpr (IgnoreMatrix)
     {
-        keeloq_encdec_multi<IsDecrypt, Mode, AMod>(data, fix, decryptor, decrypted.data, NormalTypes{});
+        keeloq_encdec_multi<IsDecrypt, InputsMut, AMod>(data, fix, decryptor, decrypted.data, NormalTypes{});
     }
     else
     {
-        keeloq_encdec_multi_cond<IsDecrypt, Mode, AMod>(data, fix, decryptor, learnings_matrix, decrypted.data, NormalTypes{});
+        keeloq_encdec_multi_cond<IsDecrypt, InputsMut, AMod>(data, fix, decryptor, learnings_matrix, decrypted.data, NormalTypes{});
     }
 }
 
@@ -405,29 +411,29 @@ __device__ __host__ inline void keeloq_encdec(const EncParcel& enc, const Decryp
 
     // Modifiers that DISABLES specific calculations. Only used if not Force mode
     constexpr KernelLearningMode Modifiers = (Mode & (IgnoreMatrix ? static_cast<KernelLearningMode>(0) : KernelLearningMode::ModMask));
-
+    constexpr InputsMutation InputsMut = KernelModeInputMutation<Mode>::value;
 
     // Normal learning types (NO SEED)
     if constexpr (!!(Mode & KernelLearningMode::Normal))
     {
-        keeloq_encdec_normal_all<IgnoreMatrix, IsDecrypt, Mode, Modifier::Algo::Normal>(enc.hop(), enc.fix(), decryptor, learnings_matrix, results);
+        keeloq_encdec_normal_all<IgnoreMatrix, IsDecrypt, InputsMut, Modifier::Algo::Normal>(enc.hop(), enc.fix(), decryptor, learnings_matrix, results);
 
         // If inverted algo logic allowed
         if constexpr (!(Modifiers & KernelLearningMode::NoInv))
         {
-            keeloq_encdec_normal_all<IgnoreMatrix, IsDecrypt, Mode, Modifier::Algo::Inverted>(enc.hop(), enc.fix(), decryptor, learnings_matrix, results);
+            keeloq_encdec_normal_all<IgnoreMatrix, IsDecrypt, InputsMut, Modifier::Algo::Inverted>(enc.hop(), enc.fix(), decryptor, learnings_matrix, results);
         }
     }
 
     // Seeded learning types
     if constexpr (!!(Mode & KernelLearningMode::Seeded))
     {
-        keeloq_encdec_seed_all<IgnoreMatrix, IsDecrypt, Mode, Modifier::Algo::Normal>(enc.hop(), enc.fix(), decryptor, learnings_matrix, results);
+        keeloq_encdec_seed_all<IgnoreMatrix, IsDecrypt, InputsMut, Modifier::Algo::Normal>(enc.hop(), enc.fix(), decryptor, learnings_matrix, results);
 
         // If inverted algo logic allowed
         if constexpr (!(Modifiers & KernelLearningMode::NoInv))
         {
-            keeloq_encdec_seed_all<IgnoreMatrix, IsDecrypt, Mode, Modifier::Algo::Inverted>(enc.hop(), enc.fix(), decryptor, learnings_matrix, results);
+            keeloq_encdec_seed_all<IgnoreMatrix, IsDecrypt, InputsMut, Modifier::Algo::Inverted>(enc.hop(), enc.fix(), decryptor, learnings_matrix, results);
         }
     }
 }
@@ -494,6 +500,28 @@ __device__ inline void keeloq_decrypt_and_quick_analyze(const CudaContext& ctx, 
     result.match = analyze_single_result(result, enc.srl(), enc.btn(), learning_matrix);
 }
 
+template<uint8_t InputIndex, InputsMutation InputMut, LearningType LType, Modifier::Algo AMod>
+__device__ __forceinline__ bool keeloq_decrypt_single_learning(const CudaContext& ctx, const Decryptor& decryptor, SingleLearningResult& result)
+{
+    const EncParcel& enc = InputsCache[InputIndex];
+
+    result.decryptor = decryptor;
+    result.setInputIndex(InputIndex);
+    result.setInputsMutation(InputMut);
+
+    result.decryptor = decryptor;
+    result.setInputIndex(InputIndex);
+    result.setInputsMutation(InputMut);
+
+    static constexpr bool IsDecrypt = true;
+    result.decrypted = keeloq_encdec_single<IsDecrypt, InputMut, LType, AMod>(enc.hop(), enc.fix(), decryptor);
+
+    const bool match = result.srl() == enc.srl() && result.btn() == enc.btn();
+
+    result.setHasMatch(match);
+    return match;
+}
+
 
 /**
  *  Run decryption parallel per thread and find matches
@@ -502,12 +530,8 @@ __device__ inline void keeloq_decrypt_and_quick_analyze(const CudaContext& ctx, 
  * LearningMode - determines which learning calculation could be thrown away. (we could have no seed, that mean we don't need to even check ifs)
  */
 template<uint8_t NumInputs, KernelLearningMode LearningMode>
-__device__ void inline keeloq_decryption_run(const CudaContext& ctx, KeeloqKernelInput& input)
+__device__ void inline keeloq_decryption_run(const CudaContext& ctx, KeeloqKernelMultiLearningInput& input)
 {
-    constexpr uint8_t First = 0;
-    constexpr uint8_t Second = 1;
-    constexpr uint8_t Third = 2;
-
     static_assert(NumInputs > 0 && NumInputs <= 3, "Invalid inputs number!");
     static_assert(First < Second && Second < Third, "Static assert just to get rid of warning");
 
@@ -572,7 +596,7 @@ __device__ void inline keeloq_decryption_run(const CudaContext& ctx, KeeloqKerne
 
 // aggregate matches into count
 template<uint8_t NumInputs>
-__device__ uint8_t inline keeloq_check_matches(const CudaContext& ctx, const KeeloqKernelInput::TCudaPtr KernelInputs)
+__device__ uint8_t inline keeloq_check_matches(const CudaContext& ctx, const KeeloqKernelMultiLearningInput::TCudaPtr KernelInputs)
 {
     uint8_t num_matches = 0;
 
@@ -605,6 +629,7 @@ __device__ uint8_t inline keeloq_check_matches(const CudaContext& ctx, const Kee
 
 namespace
 {
+
 __global__ KERNEL_LAUNCH_BOUNDS void Kernel_keeloq_test(KernelResult::TCudaPtr ret)
 {
     CudaContext ctx = CudaContext::Get();
@@ -641,7 +666,7 @@ __global__ KERNEL_LAUNCH_BOUNDS void Kernel_keeloq_single_encdec(uint64_t ota, u
 }
 
 template<InputsMutation InputsMutation, uint8_t NumInputs, bool SeedOnly, bool ForceAll>
-__global__ KERNEL_LAUNCH_BOUNDS void Kernel_keeloq_bruteforce(KeeloqKernelInput::TCudaPtr KernelInputs, KernelResult::TCudaPtr ret)
+__global__ KERNEL_LAUNCH_BOUNDS void Kernel_keeloq_bruteforce(KeeloqKernelMultiLearningInput::TCudaPtr KernelInputs, KernelResult::TCudaPtr ret)
 {
     static_assert(is_valid(InputsMutation), "Invalid input mutation mask");
     static constexpr auto InputsMask = InputMutationKernelMode<InputsMutation>::value;
@@ -693,6 +718,72 @@ __global__ KERNEL_LAUNCH_BOUNDS void Kernel_keeloq_bruteforce(KeeloqKernelInput:
     uint8_t num_matches = keeloq_check_matches<NumInputs>(ctx, KernelInputs);
     ret->onKernelFinish(num_matches);
 }
+
+template<uint8_t NumInputs, InputsMutation InputMut, KeeloqLearning::LearningType LType, Modifier::Algo AMod>
+__global__ KERNEL_LAUNCH_BOUNDS void Kernel_keeloq_single_learning(KeeloqKernelSingleLearningInput::TCudaPtr KernelInputs, KernelResult::TCudaPtr ret)
+{
+
+    CudaContext ctx = CudaContext::Get();
+    assert(KernelInputs->decryptors->num % ctx.thread_max == 0 && "Number of decryptors must be equal or divisible by number of threads");
+
+    uint32_t num_full_matches = 0;
+
+    KEELOQ_INNER_LOOP(ctx, decryptor_index, KernelInputs->decryptors->num)
+    {
+        const Decryptor& decryptor = KernelInputs->GetDecryptor(decryptor_index);
+
+        // Single input
+        uint8_t num_matches = keeloq_decrypt_single_learning<First, InputMut, LType, AMod>(
+            ctx, decryptor, KernelInputs->template Result<First, NumInputs>(decryptor_index));
+
+        // if more than 1 input
+        if constexpr (NumInputs > 1)
+        {
+            // and first input has match - check next input
+            if (num_matches == 1)
+            {
+                num_matches += keeloq_decrypt_single_learning<Second, InputMut, LType, AMod>(
+                    ctx, decryptor, KernelInputs->template Result<Second, NumInputs>(decryptor_index));
+
+                // if more than 2 inputs
+                if constexpr (NumInputs > 2)
+                {
+                    // and second input also has match - check next input
+                    if (num_matches == 2)
+                    {
+                        num_matches += keeloq_decrypt_single_learning<Third, InputMut, LType, AMod>(
+                            ctx, decryptor, KernelInputs->template Result<Third, NumInputs>(decryptor_index));
+                    }
+                }
+            }
+        }
+
+        if constexpr (NumInputs > 1)
+        {
+            static constexpr uint8_t MaxCounterDeviation = NumInputs + 1;
+
+            const auto firstCnt = KernelInputs->template Result<First, NumInputs>(decryptor_index).cnt();
+
+            const auto secndCnt = KernelInputs->template Result<Second, NumInputs>(decryptor_index).cnt();
+
+            // We reduce number of matches if counter deviation is bigger than MaxCounterDeviation
+            num_matches -= __usad(firstCnt, secndCnt, 0u) > MaxCounterDeviation;
+
+            if constexpr (NumInputs > 2)
+            {
+                const auto thirdCnt = KernelInputs->template Result<Third, NumInputs>(decryptor_index).cnt();
+
+                // We reduce number of matches if counter deviation is bigger than MaxCounterDeviation
+                num_matches -= __usad(firstCnt, thirdCnt, 0u) > MaxCounterDeviation;
+            }
+        }
+
+        num_full_matches += (num_matches == NumInputs);
+    }
+
+    ret->onKernelFinish(num_full_matches);
+}
+
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -700,14 +791,14 @@ __global__ KERNEL_LAUNCH_BOUNDS void Kernel_keeloq_bruteforce(KeeloqKernelInput:
 namespace
 {
 
-using BruteforceKernelLauncherFunc = void(*)(const CudaConfig&, uint8_t numInputs, bool allLearnings, bool seedOnly, KeeloqKernelInput::TCudaPtr, KernelResult::TCudaPtr);
+using BruteforceKernelLauncherFunc = void(*)(const CudaConfig&, uint8_t numInputs, bool allLearnings, bool seedOnly, KeeloqKernelMultiLearningInput::TCudaPtr, KernelResult::TCudaPtr);
 
 using SingleKernelLauncherFunc = void(*)(uint64_t, uint64_t, uint32_t, bool, DecryptKernelResult::TCudaPtr);
 
-template<std::uint32_t RawMask>
-__host__ void LaunchBruteforceKernel(const CudaConfig& cuda, uint8_t numInputs, bool allLearnings, bool seedOnly, KeeloqKernelInput::TCudaPtr KernelInputs, KernelResult::TCudaPtr ret)
+template<std::uint32_t RawInputModMask>
+__host__ void LaunchBruteforceKernel(const CudaConfig& cuda, uint8_t numInputs, bool allLearnings, bool seedOnly, KeeloqKernelMultiLearningInput::TCudaPtr KernelInputs, KernelResult::TCudaPtr ret)
 {
-    static constexpr auto Mask = static_cast<InputsMutation>(RawMask);
+    static constexpr auto Mask = static_cast<InputsMutation>(RawInputModMask);
 
     static constexpr auto ForceSeedOnly = true;
     static constexpr auto NotSeedOnly = false;
@@ -746,10 +837,10 @@ __host__ void LaunchBruteforceKernel(const CudaConfig& cuda, uint8_t numInputs, 
     }
 }
 
-template<std::uint32_t RawMask>
+template<std::uint32_t RawInputModMask>
 __host__ void LaunchSingleTemplatedKernel(uint64_t ota, uint64_t man, uint32_t seed, bool isDecrypt, DecryptKernelResult::TCudaPtr ret)
 {
-    static constexpr auto Mask = static_cast<InputsMutation>(RawMask);
+    static constexpr auto Mask = static_cast<InputsMutation>(RawInputModMask);
     Kernel_keeloq_single_encdec<Mask> << <1, 1 >> > (ota, man, seed, isDecrypt, ret);
 }
 
@@ -771,9 +862,134 @@ __host__ constexpr auto MakeLaunchSingleTable(std::index_sequence<Is...>)
     };
 }
 
+} // namespace
+
+namespace flat
+{
+
+using BruteforceKernelLauncherFunc = void(*)(const CudaConfig&, uint8_t numInputs, KeeloqKernelSingleLearningInput::TCudaPtr, KernelResult::TCudaPtr);
+
+template<std::uint32_t RawInputModMask, std::uint32_t RawLearningType, std::uint32_t RawAlgoModifier>
+__host__ void LaunchFlatBruteforceKernel(const CudaConfig& cuda, uint8_t numInputs, KeeloqKernelSingleLearningInput::TCudaPtr KernelInputs, KernelResult::TCudaPtr ret)
+{
+    static constexpr auto LearningType = static_cast<KeeloqLearning::LearningType>(RawLearningType);
+    static constexpr auto AlgoModifier = static_cast<Modifier::Algo>(RawAlgoModifier);
+
+    static constexpr bool IsValidCombination = DecryptedResults::getIndex<LearningType, AlgoModifier>() != KeeloqLearning::InvalidResultIndex;
+
+    if constexpr (IsValidCombination)
+    {
+        static constexpr auto InputsMut = static_cast<InputsMutation>(RawInputModMask);
+
+        switch (numInputs)
+        {
+        case 1:
+        {
+            Kernel_keeloq_single_learning<1, InputsMut, LearningType, AlgoModifier> << <cuda.blocks, cuda.threads >> > (KernelInputs, ret);
+            break;
+        }
+        case 2:
+        {
+            Kernel_keeloq_single_learning<2, InputsMut, LearningType, AlgoModifier> << <cuda.blocks, cuda.threads >> > (KernelInputs, ret);
+            break;
+        }
+        case 3:
+        {
+            Kernel_keeloq_single_learning<3, InputsMut, LearningType, AlgoModifier> << <cuda.blocks, cuda.threads >> > (KernelInputs, ret);
+            break;
+        }
+        default:
+        {
+            assertf(false, "Invalid number of inputs for templated kernel launch: %d! CUDA launch skipped!\n", numInputs);
+            break;
+        }
+        }
+    }
 }
 
-__host__ KernelResult keeloq::kernels::cuda_brute(KeeloqKernelInput& mainInputs, const CudaConfig& cuda)
+
+template<typename ISeq, typename LSeq, typename MSeq>
+struct KernelTableBuilder;
+
+template<std::size_t... Is, std::size_t... Ls, std::size_t... Ms>
+struct KernelTableBuilder<std::index_sequence<Is...>, std::index_sequence<Ls...>, std::index_sequence<Ms...>>
+{
+    static constexpr std::size_t NumI = sizeof...(Is);
+    static constexpr std::size_t NumL = sizeof...(Ls);
+    static constexpr std::size_t NumM = sizeof...(Ms);
+    static constexpr std::size_t Total = NumI * NumL * NumM;
+
+    static constexpr std::size_t IVals[] = { Is... };
+    static constexpr std::size_t LVals[] = { Ls... };
+    static constexpr std::size_t MVals[] = { Ms... };
+
+    template<std::size_t Flat>
+    static constexpr auto GetFunc()
+    {
+        return &LaunchFlatBruteforceKernel<
+            static_cast<std::uint32_t>(IVals[Flat / (NumL * NumM)]),
+            static_cast<std::uint32_t>(LVals[(Flat / NumM) % NumL]),
+            static_cast<std::uint32_t>(MVals[Flat % NumM])>;
+    }
+
+    template<std::size_t... Flat>
+    static constexpr auto Build(std::index_sequence<Flat...>)
+    {
+        return std::array<BruteforceKernelLauncherFunc, Total>{ GetFunc<Flat>()... };
+    }
+};
+
+template<std::size_t... Is, std::size_t... Ls, std::size_t... Ms>
+__host__ constexpr auto MakeKernelsLaunchTable(std::index_sequence<Is...>, std::index_sequence<Ls...>, std::index_sequence<Ms...>)
+{
+    using Builder = KernelTableBuilder<std::index_sequence<Is...>, std::index_sequence<Ls...>, std::index_sequence<Ms...>>;
+    return Builder::Build(std::make_index_sequence<Builder::Total>{});
+}
+
+template<typename ISeq, typename LSeq, typename MSeq>
+struct KernelTableIndexer;
+
+template<std::size_t... Is, std::size_t... Ls, std::size_t... Ms>
+struct KernelTableIndexer<std::index_sequence<Is...>, std::index_sequence<Ls...>, std::index_sequence<Ms...>>
+{
+    static constexpr std::size_t NumI = sizeof...(Is);
+    static constexpr std::size_t NumL = sizeof...(Ls);
+    static constexpr std::size_t NumM = sizeof...(Ms);
+
+    static constexpr std::size_t IVals[] = { Is... };
+    static constexpr std::size_t LVals[] = { Ls... };
+    static constexpr std::size_t MVals[] = { Ms... };
+
+    template<std::size_t N, std::size_t Val, std::size_t... Vals>
+    static constexpr std::size_t IndexOf(const std::size_t(&arr)[N])
+    {
+        for (std::size_t i = 0; i < N; ++i)
+        {
+            if (arr[i] == Val) return i;
+        }
+        return N; // not found
+    }
+
+    static constexpr std::size_t GetFlatIndex(std::size_t inputsMut, std::size_t learningType, std::size_t algoMod)
+    {
+        std::size_t iIdx = NumI, lIdx = NumL, mIdx = NumM;
+        for (std::size_t i = 0; i < NumI; ++i) { if (IVals[i] == inputsMut) { iIdx = i; break; } }
+        for (std::size_t i = 0; i < NumL; ++i) { if (LVals[i] == learningType) { lIdx = i; break; } }
+        for (std::size_t i = 0; i < NumM; ++i) { if (MVals[i] == algoMod) { mIdx = i; break; } }
+        return iIdx * (NumL * NumM) + lIdx * NumM + mIdx;
+    }
+
+    static constexpr std::size_t Total = NumI * NumL * NumM;
+};
+
+using KernelIndexer = KernelTableIndexer<
+    std::make_index_sequence<static_cast<std::size_t>(InputsMutationVariantsCount)>,
+    KeeloqLearning::LearningTypesSequence,
+    KeeloqLearning::Modifier::TypeSequence>;
+
+} // namespace flat
+
+__host__ KernelResult keeloq::kernels::cuda_brute(KeeloqKernelMultiLearningInput& mainInputs, const CudaConfig& cuda)
 {
     static constexpr auto LaunchTable = MakeLaunchBruteTable(std::make_index_sequence<static_cast<std::size_t>(InputsMutationVariantsCount)>{});
 
@@ -793,7 +1009,7 @@ __host__ KernelResult keeloq::kernels::cuda_brute(KeeloqKernelInput& mainInputs,
         return kernel_results;
     }
 
-    if (mainInputs.NumInputs() > 1 && !mainInputs.InputsFixMatch())
+    if (mainInputs.InputsCount() > 1 && !mainInputs.InputsFixMatch())
     {
         assert(false && "Fixed parts of inputs do not match! Kernel launch skipped.");
         printf("Fixed parts of inputs do not match! CUDA launch skipped!\n");
@@ -812,10 +1028,46 @@ __host__ KernelResult keeloq::kernels::cuda_brute(KeeloqKernelInput& mainInputs,
     const bool allLearnings = mainInputs.GetLearningMatrix().isAllEnabled();
     const bool seedOnly = mainInputs.GetConfig().type == BruteforceType::Seed;
 
-    LaunchTable[launcherIndex](cuda, mainInputs.NumInputs(), allLearnings, seedOnly, mainInputs.ptr(), kernel_results.ptr());
+    LaunchTable[launcherIndex](cuda, mainInputs.InputsCount(), allLearnings, seedOnly, mainInputs.ptr(), kernel_results.ptr());
 
     kernel_results.read();
     mainInputs.read();
+
+    return kernel_results;
+}
+
+__host__ KernelResult keeloq::kernels::cuda_brute(KeeloqKernelSingleLearningInput& flatInputs, const CudaConfig& cuda)
+{
+    static constexpr auto LaunchTable = flat::MakeKernelsLaunchTable(
+        std::make_index_sequence<static_cast<std::size_t>(InputsMutationVariantsCount)>{},
+        KeeloqLearning::LearningTypesSequence{},
+        KeeloqLearning::Modifier::TypeSequence{});
+
+    KernelResult kernel_results;
+
+    if (!flatInputs.Ready())
+    {
+        assert(false && "Kernel inputs are not ready! Did you forget to call prepare? Check your config and generator.");
+        printf("Kernel inputs are not ready! CUDA launch skipped!\n");
+        return kernel_results;
+    }
+
+    if (flatInputs.InputsCount() > 1 && !flatInputs.InputsFixMatch())
+    {
+        assert(false && "Fixed parts of inputs do not match! Kernel launch skipped.");
+        printf("Fixed parts of inputs do not match! CUDA launch skipped!\n");
+        return kernel_results;
+    }
+
+    const auto launcherIndex = flat::KernelIndexer::GetFlatIndex(
+        static_cast<std::size_t>(flatInputs.inputsMutation),
+        static_cast<std::size_t>(flatInputs.learning),
+        static_cast<std::size_t>(flatInputs.algorithModifier));
+
+    LaunchTable[launcherIndex](cuda, flatInputs.inputsCount, flatInputs.ptr(), kernel_results.ptr());
+
+    kernel_results.read();
+    flatInputs.read();
 
     return kernel_results;
 }

@@ -6,10 +6,12 @@
 
 #include "device/cuda_config.h"
 #include "device/cuda_context.h"
+
 #include "kernels/kernel_result.h"
 #include "kernels/inputs_mutation.h"
+#include "kernels/kernel_input_single_learning.h"
+#include "kernels/kernel_input_multi_learning.h"
 
-#include "algorithm/keeloq/keeloq_kernel_input.h"
 #include "algorithm/keeloq/keeloq_learning_types.h"
 
 #define NLF_LOOKUP_CONSTANT 0x3a5c742e
@@ -212,7 +214,10 @@ namespace keeloq::kernels
 __host__ bool cuda_is_working();
 
 // Main kernel launcher wrapper
-__host__ KernelResult cuda_brute(KeeloqKernelInput& mainInputs, const CudaConfig& config);
+__host__ KernelResult cuda_brute(KeeloqKernelMultiLearningInput& mainInputs, const CudaConfig& config);
+
+// Experimental kernel launcher wrapper for flat input structure
+__host__ KernelResult cuda_brute(KeeloqKernelSingleLearningInput& flatInputs, const CudaConfig& config);
 
 // Single decrypt round with all learning types and modifications, used for testing and debugging
 __host__ SingleResult cuda_encdec(uint64_t ota, uint64_t man, uint32_t seed, bool isDecrypt, InputsMutation inputsMutation);

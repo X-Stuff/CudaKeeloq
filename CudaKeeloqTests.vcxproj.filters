@@ -47,9 +47,6 @@
     <ClInclude Include="src\algorithm\keeloq\keeloq_kernel.h">
       <Filter>algorithm\keeloq</Filter>
     </ClInclude>
-    <ClInclude Include="src\algorithm\keeloq\keeloq_kernel_input.h">
-      <Filter>algorithm\keeloq</Filter>
-    </ClInclude>
     <ClInclude Include="src\algorithm\keeloq\keeloq_learning_types.h">
       <Filter>algorithm\keeloq</Filter>
     </ClInclude>
@@ -137,13 +134,25 @@
     <ClInclude Include="ThirdParty\doctest\doctest.h">
       <Filter>ThirdParty</Filter>
     </ClInclude>
+    <ClInclude Include="src\algorithm\keeloq\keeloq_learning_result.h">
+      <Filter>algorithm\keeloq</Filter>
+    </ClInclude>
+    <ClInclude Include="src\kernels\kernel_input_base.h">
+      <Filter>kernels</Filter>
+    </ClInclude>
+    <ClInclude Include="src\kernels\inputs_mutation.h">
+      <Filter>kernels</Filter>
+    </ClInclude>
+    <ClInclude Include="src\kernels\kernel_input_multi_learning.h">
+      <Filter>kernels</Filter>
+    </ClInclude>
+    <ClInclude Include="src\kernels\kernel_input_single_learning.h">
+      <Filter>kernels</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <!-- Shared app sources -->
     <ClCompile Include="src\algorithm\keeloq\keeloq_encryptor.cpp">
-      <Filter>algorithm\keeloq</Filter>
-    </ClCompile>
-    <ClCompile Include="src\algorithm\keeloq\keeloq_kernel_input.cpp">
       <Filter>algorithm\keeloq</Filter>
     </ClCompile>
     <ClCompile Include="src\algorithm\keeloq\keeloq_learning_types.cpp">
@@ -182,12 +191,10 @@
     <ClCompile Include="src\host\host_utils.cpp">
       <Filter>host</Filter>
     </ClCompile>
-
     <!-- Test support -->
     <ClCompile Include="src\tests\support\keeloq_inputs.cpp">
       <Filter>tests\support</Filter>
     </ClCompile>
-
     <!-- Tests -->
     <ClCompile Include="src\tests\test_main.cpp">
       <Filter>tests</Filter>
@@ -209,6 +216,15 @@
     </ClCompile>
     <ClCompile Include="src\tests\test_keeloq.cpp">
       <Filter>tests</Filter>
+    </ClCompile>
+    <ClCompile Include="src\kernels\kernel_input_base.cpp">
+      <Filter>kernels</Filter>
+    </ClCompile>
+    <ClCompile Include="src\kernels\kernel_input_multi_learning.cpp">
+      <Filter>kernels</Filter>
+    </ClCompile>
+    <ClCompile Include="src\kernels\kernel_input_single_learning.cpp">
+      <Filter>kernels</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

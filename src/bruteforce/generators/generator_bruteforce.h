@@ -7,7 +7,7 @@
 #include "device/cuda_config.h"
 #include "kernels/kernel_result.h"
 
-#include "algorithm/keeloq/keeloq_kernel_input.h"
+#include "kernels/kernel_input_multi_learning.h"
 
 
 /**
@@ -30,9 +30,9 @@
 template<typename TSelf>
 struct IGenerator
 {
-    typedef void(*KernelFunc)(KeeloqKernelInput::TCudaPtr input, KernelResult::TCudaPtr results);
+    typedef void(*KernelFunc)(IKeeloqKernelInputBase::Ptr input, KernelResult::TCudaPtr results);
 
-    static inline void LaunchKernel(const CudaConfig& cuda, KeeloqKernelInput::TCudaPtr input, KernelResult::TCudaPtr results)
+    static inline void LaunchKernel(const CudaConfig& cuda, IKeeloqKernelInputBase::Ptr input, KernelResult::TCudaPtr results)
     {
         void* args[] = { &input, &results };
 
@@ -54,12 +54,12 @@ struct GeneratorBruteforce
      *
      * Note: `inputs.decryptors.size()` must be `N * blocks * threads` with N > 0.
      */
-    static cudaError_t PrepareDecryptors(KeeloqKernelInput& inputs, const CudaConfig& cuda);
+    static cudaError_t PrepareDecryptors(IKeeloqKernelInputBase& inputs, const CudaConfig& cuda);
 };
 
 
 // Extern cuda kernels - Implementation are in inl.file
-DECLARE_GENERATOR(GeneratorBruteforcePattern, KeeloqKernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls);
-DECLARE_GENERATOR(GeneratorBruteforceFiltered, KeeloqKernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls);
-DECLARE_GENERATOR(GeneratorBruteforceSimple, KeeloqKernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls);
-DECLARE_GENERATOR(GeneratorBruteforceSeed, KeeloqKernelInput::TCudaPtr input, KernelResult::TCudaPtr resuls);
+DECLARE_GENERATOR(GeneratorBruteforcePattern, IKeeloqKernelInputBase::Ptr input, KernelResult::TCudaPtr resuls);
+DECLARE_GENERATOR(GeneratorBruteforceFiltered, IKeeloqKernelInputBase::Ptr input, KernelResult::TCudaPtr resuls);
+DECLARE_GENERATOR(GeneratorBruteforceSimple, IKeeloqKernelInputBase::Ptr input, KernelResult::TCudaPtr resuls);
+DECLARE_GENERATOR(GeneratorBruteforceSeed, IKeeloqKernelInputBase::Ptr input, KernelResult::TCudaPtr resuls);
