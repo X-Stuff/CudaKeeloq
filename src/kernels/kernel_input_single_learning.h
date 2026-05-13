@@ -39,8 +39,21 @@ public:
     KeeloqKernelSingleLearningInput& operator=(KeeloqKernelSingleLearningInput&& other) = delete;
     KeeloqKernelSingleLearningInput& operator=(const KeeloqKernelSingleLearningInput& other) = delete;
 public:
+
+    /*  Allocates GPU memory for results and call base method to allocate memory for decryptors */
+    virtual __host__ cudaError_t AllocateGPU(size_t totalNumDecryptors, uint8_t numInputs) final override;
+
+    /** Release allocated GPU memory for results and decryptors */
+    virtual __host__ void FreeGPU() final override;
+
     /** Bytes allocated by the decryptor and result buffers (for metrics). */
     virtual __host__ size_t BytesAllocated() const override;
+
+    /** Returns bruteforce match found in results if any */
+    virtual __host__ BruteforceResult getMatch(GetMatchProgressCallback onProgress = nullptr) const final override;
+
+    /** Get specific result by index */
+    virtual __host__ BruteforceResult getResult(size_t index) const final override;
 
 public:
     /** Each time before bruteforce called, this method should be called */

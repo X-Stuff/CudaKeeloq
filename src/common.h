@@ -12,9 +12,12 @@
  * This header is included by host, device, and kernel translation units alike.
  */
 
-#define CUDA_CHECK(error) \
-    if (error != 0) { printf("\nASSERTION FAILED. CUDA ERROR!\n%s: %s\n", cudaGetErrorName((cudaError_t)error), cudaGetErrorString((cudaError_t)error)); }\
-    assert(error == 0)
+#define _CUDA_CHECK(e, ret) \
+    if (e != 0) { printf("\nASSERTION FAILED. CUDA ERROR!\n%s: %s\n", cudaGetErrorName((cudaError_t)e), cudaGetErrorString((cudaError_t)e)); assert(e == cudaSuccess); ret; }
+
+// Argument-count dispatch helpers
+#define CUDA_CHECK(e) _CUDA_CHECK(e, (void)0)
+#define CUDA_CHECK_RETURN(e, r) _CUDA_CHECK(e, return r)
 
 
 #if _DEBUG

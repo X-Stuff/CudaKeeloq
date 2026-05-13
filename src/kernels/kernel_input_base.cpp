@@ -17,6 +17,31 @@ void IKeeloqKernelInputBase::InitInputsCache(const std::vector<EncParcel>& input
 }
 
 
+cudaError_t IKeeloqKernelInputBase::AllocateGPU(size_t totalNumDecryptors, uint8_t numInputs)
+{
+    assert(numInputs > 0 && numInputs == inputsCount &&
+        "Invalid number provided to alloc function, should match number what used in initialization");
+
+    assert(decryptors == nullptr && "Decryptors data already allocated on GPU");
+
+    if (decryptors == nullptr)
+    {
+        decryptors = CudaArray<Decryptor>::allocate(totalNumDecryptors);
+    }
+
+    return decryptors != nullptr ? cudaSuccess : cudaGetLastError();
+}
+
+
+void IKeeloqKernelInputBase::FreeGPU()
+{
+    if (decryptors != nullptr)
+    {
+        decryptors->free();
+        decryptors = nullptr;
+    }
+}
+
 size_t IKeeloqKernelInputBase::BytesAllocated() const
 {
     return (decryptors ? decryptors->allocated() : 0);
@@ -25,6 +50,7 @@ size_t IKeeloqKernelInputBase::BytesAllocated() const
 void IKeeloqKernelInputBase::Initialize(const BruteforceConfig& inConfig, const std::vector<EncParcel>& inInputs)
 {
     config = inConfig;
+    inputs = inInputs;
     InitInputsCache(inInputs);
 
     inputsCount = static_cast<uint8_t>(inInputs.size());

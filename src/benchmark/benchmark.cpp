@@ -67,10 +67,11 @@ void benchmark::real()
         if (stats.result != Bruteforcer::Stats::UserCancelled)
         {
             assert(stats.result == Bruteforcer::Stats::Success && "Benchmark real test failed, no successful result");
-            assert(result.hasMatch() && "Benchmark real test failed, no match found for DH inputs");
-            assert(result.match == KeeloqLearning::DecryptedResults::getIndex(learningItem) && "Invalid match for real benchmark test (DH)");
+            assert(result.isValid() && "Benchmark real test failed, no match found for DH inputs");
+            assert(result.learningType == learningItem.learning && "Invalid LType match for real benchmark test (DH)");
+            assert(result.algoModifier == learningItem.amod && "Invalid AMod match for real benchmark test (DH)");
 
-            result.print(dhInputs);
+            result.print();
             printf("Real benchmark for DH: Time (s): %" PRIu64 "\n\n", timer.elapsedSeconds().count());
         }
     }
@@ -96,10 +97,11 @@ void benchmark::real()
         if (stats.result != Bruteforcer::Stats::UserCancelled)
         {
             assert(stats.result == Bruteforcer::Stats::Success && "Benchmark real test failed, no successful result");
-            assert(result.hasMatch() && "Benchmark real test failed, no match found for Sommer inputs");
-            assert(result.match == KeeloqLearning::DecryptedResults::getIndex(learningItem) && "Invalid match for real benchmark test (Sommer)");
+            assert(result.isValid() && "Benchmark real test failed, no match found for Sommer inputs");
+            assert(result.learningType == learningItem.learning && "Invalid LType match for real benchmark test (Sommer)");
+            assert(result.algoModifier == learningItem.amod && "Invalid AMod match for real benchmark test (Sommer)");
 
-            result.print(sommerInputs);
+            result.print();
             printf("Real benchmark for Sommer: Time (s): %" PRIu64 "\n\n", timer.elapsedSeconds().count());
         }
     }

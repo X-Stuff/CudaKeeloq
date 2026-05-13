@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include <memory>
 
 #include "common.h"
 
@@ -39,9 +40,6 @@ public:
     /** One-shot allocation of GPU buffers; must be called before running batches. */
     void init();
 
-    /** Reads GPU result buffer into the supplied container; returns true if any data was copied. */
-    bool readResultsGpu(std::vector<SingleResult>& container) const;
-
     /** Inspects a kernel result and returns true if the round should stop (match or fatal error). */
     bool checkResults(const KernelResult& result, AppVerbosity verbosity = AppVerbosity::Debug);
 
@@ -62,16 +60,16 @@ public:
 
 public:
     /** Underlying bruteforce configuration (requires init()). */
-    inline const BruteforceConfig& config() const { assert(inited); return kernel_inputs.GetConfig(); }
+    inline const BruteforceConfig& config() const { assert(inited); return inputs().GetConfig(); }
 
     /** Bruteforce attack type (requires init()). */
     inline BruteforceType::Type type() const { assert(inited); return config().type; }
 
     /** Mutable kernel inputs (requires init()). */
-    inline KeeloqKernelMultiLearningInput& inputs() { assert(inited); return kernel_inputs; }
+    inline IKeeloqKernelInputBase& inputs() { assert(kernel_inputs); return *kernel_inputs; }
 
     /** Const kernel inputs (requires init()). */
-    inline const KeeloqKernelMultiLearningInput& inputs() const { assert(inited); return kernel_inputs; }
+    inline const IKeeloqKernelInputBase& inputs() const { assert(kernel_inputs); return *kernel_inputs; }
 
     /** Launches decryptors generator kernels and returns true if succeeded. */
     bool prepareInputs(uint64_t batchIdx);
@@ -86,13 +84,14 @@ private:
 
     bool inited = false;
 
+    // Cached number of inputs was used to create this round
+    const uint8_t inputsNum = 0;
+
     // NumBlocks * NumThreads * [NumIterations] (num iteration is 1 if NO_INNER_LOOPS is defined, by default)
     uint32_t num_decryptors_per_batch = 0;
 
     //
-    KeeloqKernelMultiLearningInput kernel_inputs;
-
-    uint8_t encrypted_data_num = 0;
+    std::unique_ptr<IKeeloqKernelInputBase> kernel_inputs;
 
     CudaConfig cudaConfig;
 };

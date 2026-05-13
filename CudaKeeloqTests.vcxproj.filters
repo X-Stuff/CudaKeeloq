@@ -149,6 +149,9 @@
     <ClInclude Include="src\kernels\kernel_input_single_learning.h">
       <Filter>kernels</Filter>
     </ClInclude>
+    <ClInclude Include="src\bruteforce\bruteforce_result.h">
+      <Filter>bruteforce</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <!-- Shared app sources -->
@@ -225,6 +228,9 @@
     </ClCompile>
     <ClCompile Include="src\kernels\kernel_input_single_learning.cpp">
       <Filter>kernels</Filter>
+    </ClCompile>
+    <ClCompile Include="src\bruteforce\bruteforce_result.cpp">
+      <Filter>bruteforce</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

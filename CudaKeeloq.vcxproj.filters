@@ -107,6 +107,9 @@
     <ClInclude Include="src\kernels\kernel_input_multi_learning.h">
       <Filter>kernels</Filter>
     </ClInclude>
+    <ClInclude Include="src\bruteforce\bruteforce_result.h">
+      <Filter>bruteforce</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp" />
@@ -160,6 +163,9 @@
     </ClCompile>
     <ClCompile Include="src\kernels\kernel_input_multi_learning.cpp">
       <Filter>kernels</Filter>
+    </ClCompile>
+    <ClCompile Include="src\bruteforce\bruteforce_result.cpp">
+      <Filter>bruteforce</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

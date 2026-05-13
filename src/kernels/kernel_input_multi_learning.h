@@ -43,8 +43,19 @@ public:
     KeeloqKernelMultiLearningInput& operator=(const KeeloqKernelMultiLearningInput& other) = delete;
 
 public:
+    virtual __host__ cudaError_t AllocateGPU(size_t totalNumDecryptors, uint8_t numInputs) final override;
+
+    /** Release allocated GPU memory for results and decryptors */
+    virtual __host__ void FreeGPU() final override;
+
     /** Bytes allocated by the decryptor and result buffers (for metrics). */
     virtual __host__ size_t BytesAllocated() const override;
+
+    /** Returns bruteforce match found in results if any */
+    virtual __host__ BruteforceResult getMatch(GetMatchProgressCallback = nullptr) const final override;
+
+    /** Get specific result by index */
+    virtual __host__ BruteforceResult getResult(size_t index) const final override;
 
 public:
     /** Learning-type selection matrix for the current run. */

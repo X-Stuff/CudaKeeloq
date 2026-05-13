@@ -64,11 +64,7 @@ TEST_CASE("generators: pattern produces the expected first decryptor")
             auto decryptors = kernelInputs.decryptors;
             REQUIRE(decryptors != nullptr);
 
-            auto results = kernelInputs.results;
-            REQUIRE(results != nullptr);
-
             auto copiedDecryptors = decryptors->read();
-            auto copiedResults = results->read();
 
             REQUIRE(kernelResult.cudaError == cudaSuccess);
             REQUIRE(kernelResult.threadsFinished() == cudaConfig.threadsCount());

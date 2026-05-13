@@ -110,10 +110,10 @@ void bruteforce(const CommandLineArgs& args)
         const auto& config = args.brute_configs[configIndex];
         auto learningMatrix = KeeloqLearning::Matrix(args.selected_learning, args.selected_algo_mods);
 
-        SingleResult result = bruteforcer.run(config, args.cudaConfig(), learningMatrix);
-        if (result.hasMatch())
+        auto match = bruteforcer.run(config, args.cudaConfig(), learningMatrix);
+        if (match.isValid())
         {
-            result.print(args.inputs);
+            match.print();
 
             if (args.match_stop)
             {

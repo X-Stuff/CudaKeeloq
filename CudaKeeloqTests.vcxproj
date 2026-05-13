@@ -165,6 +165,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="src\algorithm\keeloq\keeloq_learning_result.h" />
+    <ClInclude Include="src\bruteforce\bruteforce_result.h" />
     <ClInclude Include="src\common.h" />
     <ClInclude Include="src\algorithm\keeloq\keeloq_decryptor.h" />
     <ClInclude Include="src\algorithm\keeloq\keeloq_encrypted.h" />
@@ -212,6 +213,7 @@
     <ClCompile Include="src\bruteforce\bruteforce_config.cpp" />
     <ClCompile Include="src\bruteforce\bruteforce_filters.cpp" />
     <ClCompile Include="src\bruteforce\bruteforce_pattern.cpp" />
+    <ClCompile Include="src\bruteforce\bruteforce_result.cpp" />
     <ClCompile Include="src\bruteforce\bruteforce_round.cpp" />
     <ClCompile Include="src\bruteforce\bruteforce_type.cpp" />
     <ClCompile Include="src\bruteforce\generators\generator_bruteforce.cpp" />

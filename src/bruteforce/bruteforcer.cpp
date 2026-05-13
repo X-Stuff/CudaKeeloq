@@ -21,7 +21,7 @@ Bruteforcer::Bruteforcer(const std::vector<EncParcel>& inputs, bool breakOnEsc, 
 
 }
 
-SingleResult Bruteforcer::run(const BruteforceConfig& config, const CudaConfig& cuda, const KeeloqLearning::Matrix& learningMatrix)
+BruteforceResult Bruteforcer::run(const BruteforceConfig& config, const CudaConfig& cuda, const KeeloqLearning::Matrix& learningMatrix)
 {
     auto hideCursor = console::ScopedHideCursor();
     stats = Stats();
@@ -56,10 +56,10 @@ SingleResult Bruteforcer::run(const BruteforceConfig& config, const CudaConfig& 
         if (!attackRound.prepareInputs(batch))
         {
             stats.result = Stats::KernelFailure;
-            return SingleResult::Invalid();
+            return BruteforceResult::Invalid();
         }
 
-        KeeloqKernelMultiLearningInput& kernelInput = attackRound.inputs();
+        auto& kernelInput = static_cast<KeeloqKernelMultiLearningInput&>(attackRound.inputs());
 
         for (auto m = 0; !stop && m < numInputMutations; ++m)
         {
@@ -77,7 +77,7 @@ SingleResult Bruteforcer::run(const BruteforceConfig& config, const CudaConfig& 
                 LOG_PROGRESS("Bruteforce stopped by user\n");
                 stats.result = Stats::UserCancelled;
 
-                return SingleResult::Invalid();
+                return BruteforceResult::Invalid();
             }
         }
 
@@ -107,11 +107,11 @@ SingleResult Bruteforcer::run(const BruteforceConfig& config, const CudaConfig& 
     if (stop && !lastResult.hasMatch())
     {
         // print was in `checkResults`
-        return SingleResult::Invalid();
+        return BruteforceResult::Invalid();
     }
 
     LOG_INFO("\n\nAfter: %zd batches no results was found. Keys checked:%zd\n\n", batchesInRound, batchesInRound * keysInBatch * numInputMutations);
-    return SingleResult::Invalid();
+    return BruteforceResult::Invalid();
 }
 
 void Bruteforcer::printBruteforceProgress(const BruteforceRound& round, const int64_t batchTime, const std::chrono::seconds& roundTime,
@@ -164,35 +164,13 @@ void Bruteforcer::printGpuMemorySearchProgress(const size_t index, const size_t 
     console::progressBar(progressPercent, time);
 }
 
-SingleResult Bruteforcer::getMatchResult(const BruteforceRound& round, bool first)
+BruteforceResult Bruteforcer::getMatchResult(const BruteforceRound& round, bool first)
 {
-    constexpr auto MaxElements = 1024 * 1024;
-
-    const auto results = round.inputs().results->host();
-
     auto searchTimer = Timer<std::chrono::steady_clock>::start();
-
-    const auto numIterations = results.num / MaxElements;
-
-    for (size_t index = 0, count = 0; index < results.num; index += MaxElements, ++count)
-    {
-        printGpuMemorySearchProgress(count, numIterations, searchTimer.elapsedSeconds());
-
-        // Read decryptors in batches, just to save RAM on host, using static method since we already copied object to host
-        auto copied_results = CudaArray<SingleResult>::read(results, index, MaxElements);
-
-        for (const auto& result : copied_results)
+    return round.inputs().getMatch([&](auto curr, auto total)
         {
-            if (result.match != KeeloqLearning::NoMatch)
-            {
-                LOG_INFO("Found!\n");
-                return result;
-            }
-        }
-    }
-
-    LOG_INFO("NOT FOUND!\n");
-    return SingleResult::Invalid();
+            printGpuMemorySearchProgress(curr, total, searchTimer.elapsedSeconds());
+        });
 }
 
 void Bruteforcer::Stats::setResult(const KernelResult& kResult, bool stopped)

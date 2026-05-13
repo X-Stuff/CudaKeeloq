@@ -15,7 +15,7 @@
 
 
 BruteforceRound::BruteforceRound(const std::vector<EncParcel>& inputs, const BruteforceConfig& config, const CudaConfig& cuda)
-    : cudaConfig(cuda)
+    : cudaConfig(cuda), inputsNum(static_cast<uint8_t>(inputs.size()))
 {
 #if NO_INNER_LOOPS
     cudaConfig.substeps = 1;
@@ -23,21 +23,8 @@ BruteforceRound::BruteforceRound(const std::vector<EncParcel>& inputs, const Bru
 
     num_decryptors_per_batch = cudaConfig.blocks * cudaConfig.threads * cudaConfig.substeps;
 
-    kernel_inputs.Initialize(config, inputs);
-    encrypted_data_num = static_cast<uint8_t>(inputs.size());
-}
-
-bool BruteforceRound::readResultsGpu(std::vector<SingleResult>& container) const
-{
-    assert(inited);
-    if (kernel_inputs.results == nullptr)
-    {
-        printf("Results data is not allocated on GPU. Can't read results.\n");
-        return false;
-    }
-
-    size_t num_copied = kernel_inputs.results->copy(container);
-    return num_copied > 0;
+    kernel_inputs = std::make_unique<KeeloqKernelMultiLearningInput>();
+    kernel_inputs->Initialize(config, inputs);
 }
 
 bool BruteforceRound::checkResults(const KernelResult& result, AppVerbosity verbosity)
@@ -70,11 +57,11 @@ size_t BruteforceRound::getMemSize(bool cpu) const
 
     if (cpu)
     {
-        return encrypted_data_num * sizeof(EncParcel);
+        return inputsNum * sizeof(EncParcel);
     }
     else
     {
-        return kernel_inputs.BytesAllocated();
+        return kernel_inputs->BytesAllocated();
     }
 }
 
@@ -100,7 +87,7 @@ size_t BruteforceRound::keysPerBatch() const
 
 size_t BruteforceRound::resultsPerBatch() const
 {
-    return encrypted_data_num * num_decryptors_per_batch;
+    return keysPerBatch() * inputsNum;
 }
 
 void BruteforceRound::init()
@@ -135,7 +122,7 @@ std::string BruteforceRound::toString() const
         "Config: %s\n"
         "----------------------------------------",
         cudaConfig.blocks, cudaConfig.threads, cudaConfig.substeps, (getMemSize(false) / static_cast<float>(1024 * 1024 * 1024)),
-        encrypted_data_num, config().mutationsToString().c_str(),
+        inputsNum, config().mutationsToString().c_str(),
         resultsPerBatch(), keysPerBatch(), config().toString().c_str());
 }
 
@@ -147,11 +134,11 @@ bool BruteforceRound::prepareInputs(uint64_t batchIdx)
         if (batchIdx != 0)
         {
             // Make last decryptor from previous batch as first for this batch
-            kernel_inputs.NextDecryptor();
+            inputs().NextDecryptor();
         }
 
         // Generate decryptors (if available)
-        auto cudaError = GeneratorBruteforce::PrepareDecryptors(kernel_inputs, cudaConfig);
+        auto cudaError = GeneratorBruteforce::PrepareDecryptors(inputs(), cudaConfig);
         if (cudaError != cudaSuccess)
         {
             printf("Error: Key generation resulted with error: %s: %s\n", cudaGetErrorName(cudaError), cudaGetErrorString(cudaError));
@@ -162,7 +149,7 @@ bool BruteforceRound::prepareInputs(uint64_t batchIdx)
     else
     {
         // Write next batch of keys from dictionary
-        kernel_inputs.WriteDecryptors(config().dictDecryptors, batchIdx * keysPerBatch(), keysPerBatch());
+        inputs().WriteDecryptors(config().dictDecryptors, batchIdx * keysPerBatch(), keysPerBatch());
     }
 
     return true;
@@ -170,34 +157,11 @@ bool BruteforceRound::prepareInputs(uint64_t batchIdx)
 
 void BruteforceRound::alloc()
 {
-    //
-    assert(kernel_inputs.decryptors == nullptr	&& "Decryptors data already allocated on GPU");
-    assert(kernel_inputs.results == nullptr		&& "Results data already allocated on GPU");
-
-
     // ALLOCATE ON GPU
-    if (kernel_inputs.decryptors == nullptr)
-    {
-        kernel_inputs.decryptors = CudaArray<Decryptor>::allocate(num_decryptors_per_batch);
-    }
-
-    if (kernel_inputs.results == nullptr)
-    {
-        kernel_inputs.results = CudaArray<SingleResult>::allocate(resultsPerBatch());
-    }
+    inputs().AllocateGPU(num_decryptors_per_batch, inputsNum);
 }
 
 void BruteforceRound::free()
 {
-    if (kernel_inputs.decryptors != nullptr)
-    {
-        kernel_inputs.decryptors->free();
-        kernel_inputs.decryptors = nullptr;
-    }
-
-    if (kernel_inputs.results != nullptr)
-    {
-        kernel_inputs.results->free();
-        kernel_inputs.results = nullptr;
-    }
+    inputs().FreeGPU();
 }

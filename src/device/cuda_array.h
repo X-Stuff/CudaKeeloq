@@ -137,11 +137,11 @@ CudaArray<T>* CudaArray<T>::allocate(const size_t size)
     // Allocate memory of vector itself (ptr + size_t == 16 bytes)
     CudaArray<T>* result = nullptr;
     uint32_t error = cudaMalloc((void**)&result, sizeof(CudaArray<T>));
-    CUDA_CHECK(error);
+    CUDA_CHECK_RETURN(error, nullptr);
 
     // Write size_t - size of the data
     error = cudaMemcpy(&result->num, &size, sizeof(size_t), cudaMemcpyHostToDevice);
-    CUDA_CHECK(error);
+    CUDA_CHECK_RETURN(error, nullptr);
 
     // Device pointer of data (if available)
     T* data_ptr = nullptr;
@@ -151,12 +151,12 @@ CudaArray<T>* CudaArray<T>::allocate(const size_t size)
 
         // allocate data on device and copy from RAW
         error = cudaMalloc((void**)&data_ptr, allocated_bytes);
-        CUDA_CHECK(error);
+        CUDA_CHECK_RETURN(error, nullptr);
     }
 
     // Write data pointer (null if no data)
     error = cudaMemcpy(&result->CUDA_data, &data_ptr, sizeof(T*), cudaMemcpyHostToDevice);
-    CUDA_CHECK(error);
+    CUDA_CHECK_RETURN(error, nullptr);
 
     return result;
 }

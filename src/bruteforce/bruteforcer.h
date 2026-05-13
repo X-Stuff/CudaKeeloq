@@ -86,7 +86,7 @@ struct Bruteforcer
 
 public:
     /** Run one bruteforce round and return a matching result (or `SingleResult::Invalid()`). */
-    SingleResult run(const BruteforceConfig& config, const CudaConfig& cuda, const KeeloqLearning::Matrix& learningMatrix);
+    BruteforceResult run(const BruteforceConfig& config, const CudaConfig& cuda, const KeeloqLearning::Matrix& learningMatrix);
 
     /** Set callback for round completion event*/
     void setOnRoundComplete(RoundCompleteCallback&& callback) { onRoundComplete = std::move(callback); }
@@ -95,7 +95,7 @@ public:
     const Stats& getStats() const { return stats; }
 
 private:
-    SingleResult getMatchResult(const BruteforceRound& round, bool first = true);
+    BruteforceResult getMatchResult(const BruteforceRound& round, bool first = true);
 
     void printBruteforceProgress(const BruteforceRound& round, const int64_t batchTime, const std::chrono::seconds& roundTime,
         const size_t batchIndex, const uint8_t mutationIndex, const uint8_t mutationsNum, InputsMutation mutation);

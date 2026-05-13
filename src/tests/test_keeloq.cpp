@@ -92,12 +92,7 @@ void runEveryLearningWithMod(const BruteforceConfig& config)
 
                         auto decryptors = kernelInputs.decryptors;
                         REQUIRE(decryptors != nullptr);
-
-                        auto results = kernelInputs.results;
-                        REQUIRE(results != nullptr);
-
                         auto copiedDecryptors = decryptors->read();
-                        auto copiedResults = results->read();
 
                         REQUIRE(kernelResult.cudaError == cudaSuccess);
                         REQUIRE(kernelResult.threadsFinished() == cudaConfig.threadsCount());
@@ -111,13 +106,17 @@ void runEveryLearningWithMod(const BruteforceConfig& config)
                             CHECK(copiedDecryptors[0].man() == kDebugKey);
 
                             // Last input's result index must match the learning combination
-                            const auto& matched_result = copiedResults[numInputs - 1];
-                            CHECK(matched_result.match == resIndex);
-                            CHECK(matched_result.inputsMutation() == mutation);
+                            const auto matched_result = kernelInputs.getResult(numInputs - 1);
+                            CHECK(matched_result.isValid());
+                            CHECK(matched_result.isMatch());
+
+                            CHECK(matched_result.mutation == mutation);
+                            CHECK(matched_result.learningType == learningType);
+                            CHECK(matched_result.algoModifier == algoModifier);
 
                             // click() advances the counter, roll it back before comparing
                             encryptor.setCounter(encryptor.getCounter() - 1);
-                            CHECK(matched_result.decrypted[resIndex] == encryptor.unencrypted());
+                            CHECK(matched_result.decrypted == encryptor.unencrypted());
                         }
                     });
                     bruteforcer.run(ccopy, cudaConfig, KeeloqLearning::Matrix::Everything());

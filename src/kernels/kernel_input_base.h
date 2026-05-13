@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstring>
+#include <functional>
 
 #include "common.h"
 
@@ -12,6 +13,7 @@
 #include "algorithm/keeloq/keeloq_encrypted.h"
 
 #include "bruteforce/bruteforce_config.h"
+#include "bruteforce/bruteforce_result.h"
 
 
 // Constant per-run input data (captured encoded)
@@ -25,7 +27,21 @@ struct BruteforceConfig;
  */
 struct IKeeloqKernelInputBase
 {
+    using GetMatchProgressCallback = std::function<void(size_t current, size_t total)>;
+
     using Ptr = IKeeloqKernelInputBase*;
+
+    virtual ~IKeeloqKernelInputBase()
+    {
+        FreeGPU();
+    }
+
+public:
+    /** Get first matched result, final ancestors should return a match by searching own results array */
+    virtual __host__ BruteforceResult getMatch(GetMatchProgressCallback onProgress = nullptr) const = 0;
+
+    /** Get specific result by index */
+    virtual __host__ BruteforceResult getResult(size_t index) const = 0;
 
 public:
     /** Copies self object (shallow copy) to GPU */
@@ -35,6 +51,17 @@ public:
     virtual __host__ cudaError_t sync() = 0;
 
 public:
+    /**
+     *  Allocates GPU memory for the decryptors (num in batch), and results (ancestors do)
+     *
+     *  @param totalNumDecryptors       Total number of decryptors to allocate
+     *  @param numInputs                Number of inputs to calculate number of results
+     */
+    virtual __host__ cudaError_t AllocateGPU(size_t totalNumDecryptors, uint8_t numInputs);
+
+    /** Frees GPU memory allocated for decryptors and results (ancestors do) */
+    virtual __host__ void FreeGPU();
+
     /** Bytes allocated by the decryptors (for metrics), ancestors should add their allocations */
     virtual __host__ size_t BytesAllocated() const;
 
@@ -69,6 +96,10 @@ public:
 public:
     static void InitInputsCache(const std::vector<EncParcel>& inputs);
 
+protected:
+    /** A helper method for ancestor to get input for bruteforce match struct */
+    __host__ const EncParcel& GetInput(size_t index) const { return inputs[index]; }
+
 public:
     uint8_t inputsCount = 0;
 
@@ -78,6 +109,9 @@ public:
 private:
     // Config for current bruteforce run, captured on host and used on device
     BruteforceConfig config;
+
+    // Used inputs, this is cached for CPU only, GPU uses its own global cache
+    std::vector<EncParcel> inputs;
 
     // True if all inputs have the same fixed part (not matched fixed parts are not allowed)
     bool inputsFixMatch = false;
@@ -98,6 +132,7 @@ public:
         readyForBrute = other.readyForBrute;
         other.readyForBrute = false;
     }
+
 public:
     /** Copies self object (shallow copy) to GPU, returns as pointer to base interface */
     virtual __host__ IKeeloqKernelInputBase::Ptr gpu() final override { return ptr(); };
@@ -126,5 +161,4 @@ private:
     // Flag resets every time kernel finished, and sets on Prepare
     // Safety flag
     bool readyForBrute = false;
-
 };

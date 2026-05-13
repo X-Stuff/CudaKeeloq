@@ -176,6 +176,7 @@
     <ClInclude Include="src\bruteforce\bruteforcer.h" />
     <ClInclude Include="src\bruteforce\bruteforce_config.h" />
     <ClInclude Include="src\bruteforce\bruteforce_filters.h" />
+    <ClInclude Include="src\bruteforce\bruteforce_result.h" />
     <ClInclude Include="src\bruteforce\bruteforce_pattern.h" />
     <ClInclude Include="src\bruteforce\bruteforce_round.h" />
     <ClInclude Include="src\bruteforce\bruteforce_type.h" />
@@ -208,6 +209,7 @@
     <ClCompile Include="src\bruteforce\bruteforcer.cpp" />
     <ClCompile Include="src\bruteforce\bruteforce_config.cpp" />
     <ClCompile Include="src\bruteforce\bruteforce_filters.cpp" />
+    <ClCompile Include="src\bruteforce\bruteforce_result.cpp" />
     <ClCompile Include="src\bruteforce\bruteforce_pattern.cpp" />
     <ClCompile Include="src\bruteforce\bruteforce_round.cpp" />
     <ClCompile Include="src\bruteforce\bruteforce_type.cpp" />
