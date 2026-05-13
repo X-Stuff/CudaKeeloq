@@ -87,16 +87,12 @@ TEST_CASE("generators: seed produces a contiguous, monotonically increasing sequ
     auto inputsMutation = InputsMutation::None;
     const auto inputs = tests::keeloq::genInputs(debugKey, NumInputs, inputsMutation, LearningType::Secure);
 
-    CudaVector<Decryptor>    decryptors(cudaConfig.total());
-    CudaVector<SingleResult> results(decryptors.size() * inputs.size());
-
     BruteforceConfig config = BruteforceConfig::GetSeedBruteforce(Decryptor::Make(debugKey, 0, true), inputsMutation);
     REQUIRE(config.type == BruteforceType::Seed);
 
     KeeloqKernelMultiLearningInput generatorInputs;
-    generatorInputs.decryptors = decryptors.gpu();
-    generatorInputs.results    = results.gpu();
     generatorInputs.Initialize(config, inputs);
+    generatorInputs.AllocateGPU(cudaConfig.total(), NumInputs);
 
     uint64_t gen_seed_global = 0;
     for (int round = 0; round < NumTestRounds; ++round)
@@ -112,11 +108,11 @@ TEST_CASE("generators: seed produces a contiguous, monotonically increasing sequ
         auto cudaError = GeneratorBruteforce::PrepareDecryptors(generatorInputs, cudaConfig);
         REQUIRE(cudaError == cudaSuccess);
 
-        decryptors.read();
+        auto decryptors = generatorInputs.decryptors->read();
 
-        for (size_t index = 0; index < decryptors.cpu().size(); ++index, ++gen_seed_global)
+        for (size_t index = 0; index < decryptors.size(); ++index, ++gen_seed_global)
         {
-            REQUIRE(decryptors.cpu()[index].seed() == gen_seed_global);
+            REQUIRE(decryptors[index].seed() == gen_seed_global);
         }
     }
 }

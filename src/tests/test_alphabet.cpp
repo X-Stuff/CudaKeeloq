@@ -26,23 +26,22 @@ TEST_CASE("alphabet generator: produces expected decryptor sequence")
 
     auto inputs = tests::keeloq::genInputs(0x6161616161616161, 3, inputsMutation);
 
-    CudaVector<Decryptor> decryptors(Cuda.total());
-
     KeeloqKernelMultiLearningInput generatorInputs;
-    generatorInputs.decryptors = decryptors.gpu();
     generatorInputs.Initialize(testConfig, inputs);
+    generatorInputs.AllocateGPU(Cuda.total(), static_cast<uint8_t>(inputs.size()));
 
     const auto fullCyclesNum = fullTurn / Cuda.total();
 
     for (uint32_t i = 0; i < fullCyclesNum; ++i)
     {
         GeneratorBruteforce::PrepareDecryptors(generatorInputs, Cuda);
-        decryptors.read();
+        auto decryptors = generatorInputs.decryptors->read();
 
-        CHECK((decryptors.cpu()[0].man() & 0x000000FFFFFFFFFF) == 0x6161616161);
+        CHECK((decryptors[0].man() & 0x000000FFFFFFFFFF) == 0x6161616161);
 
         generatorInputs.NextDecryptor();
     }
 
-    CHECK(decryptors.cpu()[Cuda.total() - 1].man() == 0x6464646464646464);
+    auto decryptors = generatorInputs.decryptors->read();
+    CHECK(decryptors[Cuda.total() - 1].man() == 0x6464646464646464);
 }

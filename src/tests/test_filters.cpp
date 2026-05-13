@@ -101,17 +101,15 @@ TEST_CASE("filters: filtered generator produces the target filtered key")
             BruteforceFilters::Flags::BytesIncremental | BruteforceFilters::Flags::BytesRepeat4,
         });
 
-    CudaVector<Decryptor> decryptors(NumToGenerate);
-
     auto inputs = tests::keeloq::genInputs(FilteredKey, NumInputs, inputsMutation);
 
     KeeloqKernelMultiLearningInput generatorInputs;
-    generatorInputs.decryptors = decryptors.gpu();
     generatorInputs.Initialize(testConfig, inputs);
+    generatorInputs.AllocateGPU(testConfig.bruteSize(), NumInputs);
 
     REQUIRE(GeneratorBruteforce::PrepareDecryptors(generatorInputs, config) == cudaSuccess);
 
-    const auto& dcpu = decryptors.read().cpu();
+    const auto& dcpu = generatorInputs.decryptors->read();
 
     bool found = false;
     for (size_t i = 0; !found && i < dcpu.size(); ++i)

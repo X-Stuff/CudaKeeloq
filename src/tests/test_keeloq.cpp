@@ -158,18 +158,14 @@ TEST_CASE("keeloq: flat")
                     Encryptor encryptor(kDebugKey, kDebugSeed);
                     const auto inputs = tests::keeloq::genInputs(encryptor, numInputs, mutation, learningType);
 
-                    CudaVector<Decryptor> decryptors(cudaConfig.total());
-                    CudaVector<SingleLearningResult> results(decryptors.size() * inputs.size());
-
                     KeeloqKernelSingleLearningInput kernelInputs;
-                    kernelInputs.decryptors = decryptors.gpu();
-                    kernelInputs.results = results.gpu();
                     kernelInputs.Initialize(config, inputs);
+                    kernelInputs.AllocateGPU(cudaConfig.total(), numInputs);
 
                     auto cudaError = GeneratorBruteforce::PrepareDecryptors(kernelInputs, cudaConfig);
                     REQUIRE(cudaError == cudaSuccess);
 
-                    decryptors.read();
+                    auto decryptors = kernelInputs.decryptors->read();
 
                     kernelInputs.BruteforcePrepare(mutation, learningType, algoModifier);
                     keeloq::kernels::cuda_brute(kernelInputs, cudaConfig);
