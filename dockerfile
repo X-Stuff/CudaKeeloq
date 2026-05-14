@@ -15,7 +15,7 @@ COPY ThirdParty/ ThirdParty
 COPY makefile makefile
 
 # Build both binaries (app + test runner).
-RUN make ${CONFIGURATION}
+RUN make ${CONFIGURATION} -j 4
 
 # Runner: ship both binaries. Default entrypoint stays the main app.
 FROM nvidia/cuda:${CUDA_MAJOR}.${CUDA_MINOR}.${CUDA_PATCH}-base-ubuntu22.04
@@ -25,7 +25,7 @@ RUN groupadd cuda && useradd -m -d /app -g cuda cuda
 USER cuda
 
 WORKDIR /app
-COPY --chown=cuda:cuda --from=builder /workspace/x64/${CONFIGURATION}/bin /app/
+COPY --chown=cuda:cuda --from=builder /workspace/.build/${CONFIGURATION}/linux/bin /app/
 ENTRYPOINT [ "/app/CudaKeeloq" ]
 CMD [ "--help" ]
 

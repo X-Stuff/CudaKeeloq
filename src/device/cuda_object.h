@@ -2,6 +2,8 @@
 
 #include <cuda_runtime_api.h>
 
+#include <utility>
+
 #include "common.h"
 
 

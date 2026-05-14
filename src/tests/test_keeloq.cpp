@@ -136,8 +136,6 @@ TEST_CASE("keeloq: flat")
 
     static const auto config = BruteforceConfig::GetBruteforce(Decryptor::Make(kDebugKey, kDebugSeed, true), InputsMutation::All, 1);
 
-    uint16_t totalMatches = 0;
-
     for (auto lType = 0; lType < LearningTypesCount; ++lType)
     {
         const auto learningType = static_cast<LearningType>(lType);
@@ -149,9 +147,6 @@ TEST_CASE("keeloq: flat")
             for (auto aMod = 0; aMod < Modifier::AlgoModCount; ++aMod)
             {
                 const auto algoModifier = static_cast<Modifier::Algo>(aMod);
-                const auto learningItem = LearningItem(learningType, algoModifier);
-
-                const auto resIndex = DecryptedResults::getIndex(learningItem);
 
                 for (auto numInputs = 1; numInputs <= 3; ++numInputs)
                 {
@@ -218,31 +213,31 @@ TEST_CASE("keeloq: EncParcel round-trips between OTA and fix/hop")
 // independent so a single failure does not obscure the others; MESSAGE() prints
 // the name unconditionally so the reporter shows progress while the sweep runs.
 
-TEST_CASE("keeloq: learning x modifier sweep: Dictionary")
+TEST_CASE("keeloq: Dictionary")
 {
     MESSAGE("Dictionary");
     runEveryLearningWithMod(BruteforceConfig::GetDictionary({ Decryptor::Make(kDebugKey, kDebugSeed, true) }, InputsMutation::All));
 }
 
-TEST_CASE("keeloq: learning x modifier sweep: Bruteforce (no seed)")
+TEST_CASE("keeloq: Bruteforce (no seed)")
 {
     MESSAGE("Bruteforce (no seed)");
     runEveryLearningWithMod(BruteforceConfig::GetBruteforce(Decryptor::MakeNoSeed(kDebugKey), InputsMutation::All, 1));
 }
 
-TEST_CASE("keeloq: learning x modifier sweep: Bruteforce (with seed)")
+TEST_CASE("keeloq: Bruteforce (with seed)")
 {
     MESSAGE("Bruteforce (with seed)");
     runEveryLearningWithMod(BruteforceConfig::GetBruteforce(Decryptor::Make(kDebugKey, kDebugSeed, true), InputsMutation::All, 1));
 }
 
-TEST_CASE("keeloq: learning x modifier sweep: Seed")
+TEST_CASE("keeloq: Seed")
 {
     MESSAGE("Seed");
     runEveryLearningWithMod(BruteforceConfig::GetSeedBruteforce(Decryptor::Make(kDebugKey, kDebugSeed, true), InputsMutation::All, 1));
 }
 
-TEST_CASE("keeloq: learning x modifier sweep: Pattern")
+TEST_CASE("keeloq: Pattern")
 {
     MESSAGE("Pattern");
     std::vector<std::vector<uint8_t>> bytes = {
@@ -254,7 +249,7 @@ TEST_CASE("keeloq: learning x modifier sweep: Pattern")
     runEveryLearningWithMod(BruteforceConfig::GetPattern(Decryptor::Make(kDebugKey, kDebugSeed, true), InputsMutation::All, BruteforcePattern(std::move(bytes)), 1));
 }
 
-TEST_CASE("keeloq: learning x modifier sweep: Alphabet")
+TEST_CASE("keeloq: Alphabet")
 {
     MESSAGE("Alphabet");
     std::vector<uint8_t> alphabet = {

@@ -338,6 +338,39 @@ public:
     template<std::size_t I, std::size_t LCount, uint8_t ACount>
     static constexpr Modifier::Algo AModFromIndex() { return static_cast<Modifier::Algo>((I / LCount) % ACount); }
 
+private:
+    template<LearningType LType, bool IsSeeded>
+    static constexpr uint8_t NumResindices()
+    {
+        using Element = typename Registry::template Element<LType>;
+        if constexpr (Element::IsSeeded == IsSeeded)
+        {
+            return Element::NumMods;
+        }
+        else
+        {
+            return 0;
+        }
+    }
+
+public:
+    /**
+     *  Returns number of Result indices for all learning types with seed (if IsSeeded == true)
+     */
+    template<std::size_t... Ls>
+    static constexpr uint8_t CountSeededResIndices(std::index_sequence<Ls...>)
+    {
+        return (NumResindices<static_cast<LearningType>(Ls), true>() + ...);
+    }
+
+    /**
+     *  Returns number of Result indices for all learning types withouth seed (if IsSeeded == false)
+     */
+    template<std::size_t... Ls>
+    static constexpr uint8_t CountNormalResIndices(std::index_sequence<Ls...>)
+    {
+        return (NumResindices<static_cast<LearningType>(Ls), false>() + ...);
+    }
 };
 
 /** Alias for indexer type in DecryptedResults, from index you can easily restore the Learning-Mod pair */
@@ -446,6 +479,47 @@ public:
      */
     using ResultIndicesCache = typename MakeTIndicesType<LearningTypesCount, Modifier::AlgoModCount, std::make_index_sequence<IndicesCacheSize>>::type;
 
+    /**
+     *  Number of seeded learning types indices in results collection.
+     */
+    static constexpr uint8_t SeededIndicesNum = RegistryInfo::CountSeededResIndices(LearningTypesSequence{});
+
+    /**
+     *  Number of normal (no seed) learning types indices in results collection.
+     */
+    static constexpr uint8_t NormalIndicesNum = RegistryInfo::CountNormalResIndices(LearningTypesSequence{});
+
+    /**
+     *  Static fixed array of indices in results collection for seeded learning types, used for quick lookup in kernels, based on Registry::Available definition.
+     */
+    __host__ __device__ __inline__ static constexpr CudaFixedArray<ResultIndex, SeededIndicesNum> GetSeededIndicesCache()
+    {
+        return
+        {
+            IndexInResults<LearningType::Secure, Modifier::Algo::Normal>::value,
+            IndexInResults<LearningType::Secure, Modifier::Algo::Inverted>::value,
+            IndexInResults<LearningType::Faac, Modifier::Algo::Normal>::value,
+            IndexInResults<LearningType::Faac, Modifier::Algo::Inverted>::value
+        };
+    }
+
+    /**
+     *  Static fixed array of indices in results collection for normal (no seed) learning types, used for quick lookup in kernels, based on Registry::Available definition.
+     */
+    __host__ __device__ __inline__ static constexpr CudaFixedArray<ResultIndex, NormalIndicesNum> GetNormalIndicesCache()
+    {
+        return
+        {
+            IndexInResults<LearningType::Simple, Modifier::Algo::Normal>::value,
+            IndexInResults<LearningType::Normal, Modifier::Algo::Normal>::value,
+            IndexInResults<LearningType::Normal, Modifier::Algo::Inverted>::value,
+            IndexInResults<LearningType::Xor, Modifier::Algo::Normal>::value,
+            IndexInResults<LearningType::Serial1, Modifier::Algo::Normal>::value,
+            IndexInResults<LearningType::Serial2, Modifier::Algo::Normal>::value,
+            IndexInResults<LearningType::Serial3, Modifier::Algo::Normal>::value
+        };
+    }
+
 public:
     /** Get index in DecryptedResults for specific learning type with modification */
     template<LearningType LType, Modifier::Algo AMod>
@@ -516,6 +590,8 @@ struct Matrix
     __host__ __device__ __inline__ constexpr explicit Matrix(uint64_t value = 0) : matrix(value)
     {
 #if !__CUDA_ARCH__
+        static_assert(DecryptedResults::NormalIndicesNum + DecryptedResults::SeededIndicesNum == DecryptedArraySize, "Normal indices cache or Seeded indices cache missing some entries");
+
         static_assert(DecryptedResults::getIndex(LearningType::Simple, Modifier::Algo::Normal) == 0, "Invalid index for Simple/Normal");
         static_assert(DecryptedResults::getIndex(LearningType::Simple, Modifier::Algo::Inverted) == InvalidResultIndex, "Simple learning should not have valid index for Inverted decode");
 

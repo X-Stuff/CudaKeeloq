@@ -2,7 +2,7 @@
 
 bool BruteforceResult::isMatch() const
 {
-    assert(!match || ((decrypted >> 28) == input.btn() && ((decrypted >> 16) & 0x3ff) == input.srl()) &&
+    assert((!match || ((decrypted >> 28) == input.btn() && ((decrypted >> 16) & 0x3ff) == input.srl())) &&
         "Match flag is true but decrypted data doesn't match the unencrypted input's part");
 
     return isValid() && match;

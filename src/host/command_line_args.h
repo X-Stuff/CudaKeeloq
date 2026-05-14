@@ -87,16 +87,13 @@ struct CommandLineArgs
     bool has_errors = false;
 
 public:
-    /** Controls whether parse() writes to stdout/stderr. Tests pass Silent. */
-    enum class Verbosity : uint8_t { Normal, Silent };
-
     /** Current CUDA launch config — auto-derived unless user set blocks/threads explicitly. */
     inline CudaConfig cudaConfig() const { return CudaConfig{ cuda_blocks, cuda_threads, cuda_loops }; }
 
 public:
 
     /** Parse a standard argc/argv invocation into a CommandLineArgs. */
-    static CommandLineArgs parse(int argc, const char** argv, Verbosity verbosity = Verbosity::Normal);
+    static CommandLineArgs parse(int argc, const char** argv, AppVerbosity verbosity = AppVerbosity::Debug);
 
     /** Print the full options help and usage examples. */
     static void printHelp(std::FILE* out = stdout);

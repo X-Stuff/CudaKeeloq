@@ -82,16 +82,16 @@ private:
 
 private:
 
-    bool inited = false;
+    CudaConfig cudaConfig;
 
     // Cached number of inputs was used to create this round
     const uint8_t inputsNum = 0;
 
-    // NumBlocks * NumThreads * [NumIterations] (num iteration is 1 if NO_INNER_LOOPS is defined, by default)
-    uint32_t num_decryptors_per_batch = 0;
-
     //
     std::unique_ptr<IKeeloqKernelInputBase> kernel_inputs;
 
-    CudaConfig cudaConfig;
+    // NumBlocks * NumThreads * [NumIterations] (num iteration is 1 if NO_INNER_LOOPS is defined, by default)
+    uint32_t num_decryptors_per_batch = 0;
+
+    bool inited = false;
 };

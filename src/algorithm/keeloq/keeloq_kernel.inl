@@ -77,24 +77,64 @@ __device__ uint8_t is_srl_match(const Span<SingleResult>& results, KeeloqLearnin
     return lrn_matches == NumInputs && expected_srl != 0; // 0 check at the end to save instructions in loop
 }
 
-template<uint8_t NumInputs, bool ForceAllLearningTypes>
+template<uint8_t NumInputs, KernelLearningMode LearningMode>
 __device__ KeeloqLearning::ResultIndex get_match_index(const Span<SingleResult>& results, const KeeloqLearning::Matrix& learnings_matrix)
 {
+    static constexpr bool IgnoreMatrix = !!(LearningMode & KernelLearningMode::Force);
+
+    static constexpr bool NormalTypes = !!(LearningMode & KernelLearningMode::Normal);
+    static constexpr bool SeedTypes = !!(LearningMode & KernelLearningMode::Seeded);
+
     KeeloqLearning::ResultIndex match_res_index = KeeloqLearning::NoMatch;
 
-    // outer loop - over all learning types
-    UNROLL
-    for (auto resIndex = 0; resIndex < KeeloqLearning::InvalidResultIndex; ++resIndex)
+    if constexpr (SeedTypes)
     {
-        // Compiler should optimize this block and throw away `if` check in case of ForceAllLearningTypes = true
-        const bool allowed = ForceAllLearningTypes || learnings_matrix.isEnabled(resIndex);
+        static constexpr auto SeedIndicesSize = KeeloqLearning::DecryptedResults::SeededIndicesNum;
+        static constexpr auto SeedIndicesCache = KeeloqLearning::DecryptedResults::GetSeededIndicesCache();
 
-        if (allowed)
+        UNROLL
+        for (uint8_t lIndex = 0; lIndex < SeedIndicesSize; ++lIndex)
         {
-            const bool has_match = is_srl_match<NumInputs>(results, resIndex) && is_btn_match<NumInputs>(results, resIndex) && is_cnt_match<NumInputs>(results, resIndex);
-            match_res_index = (has_match * resIndex + !has_match * match_res_index);
-        }
+            const uint8_t resIndex = SeedIndicesCache[lIndex];
 
+            // Compiler should optimize this block and throw away `if` check in case of ForceAllLearningTypes = true
+            const bool allowed = IgnoreMatrix || learnings_matrix.isEnabled(resIndex);
+
+            if (allowed)
+            {
+                const bool has_match =
+                    is_srl_match<NumInputs>(results, resIndex) &&
+                    is_btn_match<NumInputs>(results, resIndex) &&
+                    is_cnt_match<NumInputs>(results, resIndex);
+
+                match_res_index = (has_match * resIndex + !has_match * match_res_index);
+            }
+        }
+    }
+
+    if constexpr (NormalTypes)
+    {
+        static constexpr auto NormalIndicesSize = KeeloqLearning::DecryptedResults::NormalIndicesNum;
+        static constexpr auto NormalIndicesCache = KeeloqLearning::DecryptedResults::GetNormalIndicesCache();
+
+        UNROLL
+        for (uint8_t lIndex = 0; lIndex < NormalIndicesSize; ++lIndex)
+        {
+            const uint8_t resIndex = NormalIndicesCache[lIndex];
+
+            // Compiler should optimize this block and throw away `if` check in case of ForceAllLearningTypes = true
+            const bool allowed = IgnoreMatrix || learnings_matrix.isEnabled(resIndex);
+
+            if (allowed)
+            {
+                const bool has_match =
+                    is_srl_match<NumInputs>(results, resIndex) &&
+                    is_btn_match<NumInputs>(results, resIndex) &&
+                    is_cnt_match<NumInputs>(results, resIndex);
+
+                match_res_index = (has_match * resIndex + !has_match * match_res_index);
+            }
+        }
     }
 
     return match_res_index;
@@ -106,7 +146,7 @@ __device__ KeeloqLearning::ResultIndex get_match_index(const Span<SingleResult>&
 template<uint8_t NumInputs, KernelLearningMode LearningMode>
 __device__ KeeloqLearning::ResultIndex analyze_multiple_results(const CudaContext& ctx, Span<SingleResult>& results, const KeeloqLearning::Matrix& learnings_matrix)
 {
-    auto match_res_indx =  get_match_index<NumInputs, LearningMode == KernelLearningMode::ForceAll>(results, learnings_matrix);
+    auto match_res_indx = get_match_index<NumInputs, LearningMode>(results, learnings_matrix);
 
     UNROLL
     for (int i = 0; i < NumInputs; ++i)
@@ -120,23 +160,59 @@ __device__ KeeloqLearning::ResultIndex analyze_multiple_results(const CudaContex
 
 // In case of single input we checking fixed part of parcel's serial (28-bit serial | 4-bit button)
 // with decoded serial
+template<KernelLearningMode LearningMode>
 __device__ KeeloqLearning::ResultIndex analyze_single_result(const SingleResult& result, uint32_t exp_srl, uint8_t exp_btn, const KeeloqLearning::Matrix& learnings_matrix)
 {
+    static constexpr bool IgnoreMatrix = !!(LearningMode & KernelLearningMode::Force);
+
+    static constexpr bool NormalTypes = !!(LearningMode & KernelLearningMode::Normal);
+    static constexpr bool SeedTypes = !!(LearningMode & KernelLearningMode::Seeded);
+
     auto match_res_index = KeeloqLearning::NoMatch;
 
-    // outer loop - over all learning types
-    UNROLL
-    for (uint8_t resIndex = 0; resIndex < KeeloqLearning::InvalidResultIndex; ++resIndex)
-    {
-        // Since `allowed` is uniform across the warp, an if block is cheaper
-        const bool allowed = learnings_matrix.isEnabled(resIndex);
-        if (allowed)
-        {
-            const uint32_t srl = result.decrypted.srl(resIndex);
-            const uint8_t btn = result.decrypted.btn(resIndex);
 
-            const bool has_match = srl == exp_srl && srl != 0 && btn == exp_btn;
-            match_res_index = (has_match * resIndex + !has_match * match_res_index);
+    if constexpr (SeedTypes)
+    {
+        static constexpr auto SeedIndicesSize = KeeloqLearning::DecryptedResults::SeededIndicesNum;
+        static constexpr auto SeedIndicesCache = KeeloqLearning::DecryptedResults::GetSeededIndicesCache();
+
+        UNROLL
+        for (uint8_t lIndex = 0; lIndex < SeedIndicesSize; ++lIndex)
+        {
+            const uint8_t resIndex = SeedIndicesCache[lIndex];
+
+            // Since `allowed` is uniform across the warp, an if block is cheaper
+            const bool allowed = IgnoreMatrix || learnings_matrix.isEnabled(resIndex);
+            if (allowed)
+            {
+                const uint32_t srl = result.decrypted.srl(resIndex);
+                const uint8_t btn = result.decrypted.btn(resIndex);
+
+                const bool has_match = srl == exp_srl && srl != 0 && btn == exp_btn;
+                match_res_index = (has_match * resIndex + !has_match * match_res_index);
+            }
+        }
+    }
+
+    if constexpr (NormalTypes)
+    {
+        static constexpr auto NormalIndicesSize = KeeloqLearning::DecryptedResults::NormalIndicesNum;
+        static constexpr auto NormalIndicesCache = KeeloqLearning::DecryptedResults::GetNormalIndicesCache();
+
+        UNROLL
+        for (uint8_t lIndex = 0; lIndex < NormalIndicesSize; ++lIndex)
+        {
+            const uint8_t resIndex = NormalIndicesCache[lIndex];
+
+            // Since `allowed` is uniform across the warp, an if block is cheaper
+            const bool allowed = IgnoreMatrix || learnings_matrix.isEnabled(resIndex);
+            if (allowed)
+            {
+                const uint32_t srl = result.decrypted.srl(resIndex);
+                const uint8_t btn = result.decrypted.btn(resIndex);
+                const bool has_match = srl == exp_srl && srl != 0 && btn == exp_btn;
+                match_res_index = (has_match * resIndex + !has_match * match_res_index);
+            }
         }
     }
 
@@ -404,8 +480,8 @@ __device__ __host__ __forceinline__ void keeloq_encdec_normal_all(uint32_t data,
 template<KernelLearningMode Mode, bool IsDecrypt = true>
 __device__ __host__ inline void keeloq_encdec(const EncParcel& enc, const Decryptor& decryptor, const Matrix& learnings_matrix, SingleResult::LearningsArray& results)
 {
-    constexpr bool IgnoreMatrix     = !!(Mode & KernelLearningMode::Force);
-    constexpr bool ExplicitDecrypt  = !!(Mode & KernelLearningMode::Explicit);
+    static constexpr bool IgnoreMatrix     = !!(Mode & KernelLearningMode::Force);
+    static constexpr bool ExplicitDecrypt  = !!(Mode & KernelLearningMode::Explicit);
 
     static_assert(IgnoreMatrix != ExplicitDecrypt, "Can't be only Force or Explicit");
 
@@ -497,7 +573,7 @@ __device__ inline void keeloq_decrypt_and_quick_analyze(const CudaContext& ctx, 
 
     keeloq_encdec<LearningMode>(enc, decryptor, learning_matrix, result.decrypted);
 
-    result.match = analyze_single_result(result, enc.srl(), enc.btn(), learning_matrix);
+    result.match = analyze_single_result<LearningMode>(result, enc.srl(), enc.btn(), learning_matrix);
 }
 
 template<uint8_t InputIndex, InputsMutation InputMut, LearningType LType, Modifier::Algo AMod>

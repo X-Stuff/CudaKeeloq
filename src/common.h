@@ -95,12 +95,17 @@ enum AppVerbosity : uint8_t
 
     Progress = 2,
 
+    Warning = 4,
+
     Error = 5,
+
+    Silent = 255,
 };
 
 #define APP_LOG_DEBUG(s, format, ...)       if (s <= AppVerbosity::Debug) { printf(format, ##__VA_ARGS__); }
 #define APP_LOG_INFO(s, format, ...)        if (s <= AppVerbosity::Info) { printf(format, ##__VA_ARGS__); }
 #define APP_LOG_PROGRESS(s, format, ...)    if (s <= AppVerbosity::Progress) { printf(format, ##__VA_ARGS__); }
+#define APP_LOG_WARNING(s, format, ...)    if (s <= AppVerbosity::Warning) { printf(format, ##__VA_ARGS__); }
 #define APP_LOG_ERROR(s, format, ...)       if (s <= AppVerbosity::Error) { printf(format, ##__VA_ARGS__); }
 
 /**

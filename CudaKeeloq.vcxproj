@@ -57,12 +57,18 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
     <IncludePath>$(IncludePath);$(projectdir)\src;$(CUDA_PATH_V13_2)\include;$(projectdir)\ThirdParty\cpp-terminal;$(projectdir)\ThirdParty;</IncludePath>
+    <OutDir>$(ProjectDir)\.build\x64\$(Configuration)\win\</OutDir>
+    <IntDir>$(ProjectDir)\.build\x64\$(Configuration)\win\obj\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <IncludePath>$(IncludePath);$(projectdir)\src;$(CUDA_PATH_V13_2)\include;$(projectdir)\ThirdParty\cpp-terminal;$(projectdir)\ThirdParty;</IncludePath>
+    <OutDir>$(ProjectDir)\.build\x64\$(Configuration)\win\</OutDir>
+    <IntDir>$(ProjectDir)\.build\x64\$(Configuration)\win\obj\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">
     <IncludePath>$(IncludePath);$(projectdir)\src;$(CUDA_PATH_V13_2)\include;$(projectdir)\ThirdParty\cpp-terminal;$(projectdir)\ThirdParty;</IncludePath>
+    <OutDir>$(ProjectDir)\.build\x64\$(Configuration)\win\</OutDir>
+    <IntDir>$(ProjectDir)\.build\x64\$(Configuration)\win\obj\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -90,6 +96,7 @@
       <NvccCompilation>compile</NvccCompilation>
       <Keep>false</Keep>
       <AdditionalOptions>--std=c++17 --ptxas-options=-v %(AdditionalOptions)</AdditionalOptions>
+      <CompileOut>$(IntDir)$(TargetName)\%(Filename)%(Extension).obj</CompileOut>
     </CudaCompile>
     <CudaLink>
       <PerformDeviceLinkTimeOptimization>true</PerformDeviceLinkTimeOptimization>
@@ -124,6 +131,7 @@
       <GPUDebugInfo>false</GPUDebugInfo>
       <AdditionalOptions>--std=c++17 %(AdditionalOptions)</AdditionalOptions>
       <GenerateRelocatableDeviceCode>true</GenerateRelocatableDeviceCode>
+      <CompileOut>$(IntDir)$(TargetName)\%(Filename)%(Extension).obj</CompileOut>
     </CudaCompile>
     <CudaLink>
       <PerformDeviceLinkTimeOptimization>true</PerformDeviceLinkTimeOptimization>
@@ -158,6 +166,7 @@
       <GPUDebugInfo>false</GPUDebugInfo>
       <AdditionalOptions>--std=c++17 %(AdditionalOptions)</AdditionalOptions>
       <GenerateRelocatableDeviceCode>true</GenerateRelocatableDeviceCode>
+      <CompileOut>$(IntDir)$(TargetName)\%(Filename)%(Extension).obj</CompileOut>
     </CudaCompile>
     <CudaLink>
       <PerformDeviceLinkTimeOptimization>true</PerformDeviceLinkTimeOptimization>

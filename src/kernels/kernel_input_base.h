@@ -135,7 +135,7 @@ public:
 
 public:
     /** Copies self object (shallow copy) to GPU, returns as pointer to base interface */
-    virtual __host__ IKeeloqKernelInputBase::Ptr gpu() final override { return ptr(); };
+    virtual __host__ IKeeloqKernelInputBase::Ptr gpu() final override { return TGenericGpuObject<TDerived>::ptr(); };
 
     /** Copies self object (shallow copy) from GPU */
     virtual __host__ cudaError_t sync() final override { return read(); };

@@ -65,7 +65,7 @@ void console::setWidth(int width)
     sprintf_s(cmd, "mode con: cols=%d", width);
     system(cmd);
 #else
-    printf("\033[%du", width)
+    printf("\033[%du", width);
 #endif
 }
 

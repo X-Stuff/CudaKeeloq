@@ -108,7 +108,7 @@ void KeeloqKernelMultiLearningInput::BruteforcePrepare(const KeeloqLearning::Mat
 {
     assert(is_valid(mutations) && "Invalid input mutation mask");
 
-    assert(GetConfig().type != BruteforceType::XorFix || !!(mutations & InputsMutation::XorFix) &&
+    assert((GetConfig().type != BruteforceType::XorFix || !!(mutations & InputsMutation::XorFix)) &&
         "In XorFix bruteforce you should have always XorFix mutation enabled");
 
     learnings = inLearnings;

@@ -10,57 +10,13 @@
 //#define CXXOPTS_NO_EXCEPTIONS
 #include "cxxopts/include/cxxopts.hpp"
 
+#define LOG_WARNING(fmt, ...) APP_LOG_WARNING(verbosity, fmt, ##__VA_ARGS__)
+#define LOG_ERROR(fmt, ...) APP_LOG_ERROR(verbosity, fmt, ##__VA_ARGS__); args.has_errors = true;
 
 namespace
 {
 
-// Small sink that routes warnings to stdout and errors to stderr, and respects
-// the caller's verbosity preference. Errors also flip `has_errors` on the
-// target so the caller can stop after parse() returns.
-struct Reporter
-{
-    CommandLineArgs& target;
-    CommandLineArgs::Verbosity verbosity;
-
-    bool silent() const { return verbosity == CommandLineArgs::Verbosity::Silent; }
-
-    template <typename... Args>
-    void warn(const char* fmt, Args... args) const
-    {
-        emit(stdout, "WARNING: ", fmt, args...);
-    }
-
-    template <typename... Args>
-    void error(const char* fmt, Args... args) const
-    {
-        target.has_errors = true;
-        emit(stderr, "ERROR: ", fmt, args...);
-    }
-
-private:
-    template <typename... Args>
-    void emit(std::FILE* out, const char* prefix, const char* fmt, Args... args) const
-    {
-        if (silent())
-        {
-            return;
-        }
-        std::fputs(prefix, out);
-        // Zero-arg path avoids GCC's -Wformat-security complaint about non-literal
-        // formats; callers pass literals, but the template can't prove that.
-        if constexpr (sizeof...(Args) == 0)
-        {
-            std::fputs(fmt, out);
-        }
-        else
-        {
-            std::fprintf(out, fmt, args...);
-        }
-        std::fputc('\n', out);
-    }
-};
-
-inline void read_alphabets(CommandLineArgs& target, cxxopts::ParseResult& result, const Reporter& report)
+inline void read_alphabets(CommandLineArgs& args, cxxopts::ParseResult& result, AppVerbosity verbosity)
 {
     if (result.count(ARG_ALPHABET) == 0)
     {
@@ -75,7 +31,7 @@ inline void read_alphabets(CommandLineArgs& target, cxxopts::ParseResult& result
         auto alphabet_bytes = host::utils::readAlphabetBinaryFile(alphabet_arg.c_str());
         if (alphabet_bytes.size() > 0)
         {
-            target.alphabets.emplace_back(alphabet_bytes);
+            args.alphabets.emplace_back(alphabet_bytes);
         }
         else
         {
@@ -100,33 +56,33 @@ inline void read_alphabets(CommandLineArgs& target, cxxopts::ParseResult& result
                 }
                 else
                 {
-                    report.error("cannot parse alphabet byte '%s'!", hex.c_str());
+                    LOG_ERROR("cannot parse alphabet byte '%s'!", hex.c_str());
                 }
             }
 
             //
             if (alphabet_bytes.size() > 0)
             {
-                target.alphabets.emplace_back(alphabet_bytes);
+                args.alphabets.emplace_back(alphabet_bytes);
 
                 if (alphabet_bytes.size() > 256)
                 {
-                    report.warn("Alphabet: '%s' has too many bytes in hex string: %zd (should be less than 257)",
+                    LOG_WARNING("Alphabet: '%s' has too many bytes in hex string: %zd (should be less than 257)",
                         result[ARG_ALPHABET].as<std::string>().c_str(), alphabet_bytes.size());
                 }
             }
             else
             {
-                report.error("Alphabet: '%s' is not valid file, neither valid alphabet hex string (like: AA:11:b3...)!",
+                LOG_ERROR("Alphabet: '%s' is not valid file, neither valid alphabet hex string (like: AA:11:b3...)!",
                     alphabet_arg.c_str());
             }
         }
     }
 }
 
-inline void parse_dictionary_mode(CommandLineArgs& target, cxxopts::ParseResult& result, const Reporter& report)
+inline void parse_dictionary_mode(CommandLineArgs& args, cxxopts::ParseResult& result, AppVerbosity verbosity)
 {
-    auto bruteConfigsBefore = target.brute_configs.size();
+    auto bruteConfigsBefore = args.brute_configs.size();
 
     if (result[ARG_WORDDICT].count() > 0)
     {
@@ -152,14 +108,14 @@ inline void parse_dictionary_mode(CommandLineArgs& target, cxxopts::ParseResult&
             }
             else
             {
-                report.error("invalid param passed to '--%s' argument: '%s' not a dictionary file neither word",
+                LOG_ERROR("invalid param passed to '--%s' argument: '%s' not a dictionary file neither word",
                     ARG_WORDDICT, dict_arg.c_str());
             }
         }
 
         if (decryptors.size() > 0)
         {
-            target.brute_configs.push_back(BruteforceConfig::GetDictionary(std::move(decryptors), target.inputsMutation));
+            args.brute_configs.push_back(BruteforceConfig::GetDictionary(std::move(decryptors), args.inputsMutation));
         }
     }
 
@@ -179,24 +135,23 @@ inline void parse_dictionary_mode(CommandLineArgs& target, cxxopts::ParseResult&
 
             if (decryptors.size() > 0)
             {
-                target.brute_configs.push_back(BruteforceConfig::GetDictionary(std::move(decryptors), target.inputsMutation));
+                args.brute_configs.push_back(BruteforceConfig::GetDictionary(std::move(decryptors), args.inputsMutation));
             }
             else
             {
-                report.error("invalid param passed to '--%s' argument: '%s'. Invalid file!",
-                    ARG_BINDICT, bin_dict_path.c_str());
+                LOG_WARNING("Cannot read binary dictionary file: '%s'! Check the path and format of the file.", bin_dict_path.c_str());
             }
         }
     }
 
-    if (bruteConfigsBefore == target.brute_configs.size())
+    if (bruteConfigsBefore == args.brute_configs.size())
     {
-        report.error("Cannot parse inputs to even single brute config! Check your --%s and --%s arguments",
+        LOG_ERROR("Cannot parse inputs to even single brute config! Check your --%s and --%s arguments",
             ARG_WORDDICT, ARG_BINDICT);
     }
 }
 
-inline void parse_bruteforce_mode(CommandLineArgs& target, cxxopts::ParseResult& result, const Reporter& /*report*/)
+inline void parse_bruteforce_mode(CommandLineArgs& args, cxxopts::ParseResult& result, AppVerbosity verbosity)
 {
     auto start_key = result[ARG_START].as<uint64_t>();
     auto seed = result[ARG_SEED].as<uint32_t>();
@@ -206,14 +161,14 @@ inline void parse_bruteforce_mode(CommandLineArgs& target, cxxopts::ParseResult&
 
     auto count_key = result[ARG_COUNT].as<size_t>();
 
-    target.brute_configs.push_back(BruteforceConfig::GetBruteforce(first_decryptor, target.inputsMutation, count_key));
+    args.brute_configs.push_back(BruteforceConfig::GetBruteforce(first_decryptor, args.inputsMutation, count_key));
 }
 
-inline void parse_seed_mode(CommandLineArgs& target, cxxopts::ParseResult& result, const Reporter& report)
+inline void parse_seed_mode(CommandLineArgs& args, cxxopts::ParseResult& result, AppVerbosity verbosity)
 {
     if (result.count(ARG_START) == 0)
     {
-        report.error("For seed mode, it's necessary to specify a manufacturer key with '--" ARG_START "' argument!");
+        LOG_ERROR("For seed mode, it's necessary to specify a manufacturer key with '--" ARG_START "' argument!");
         return;
     }
 
@@ -223,14 +178,14 @@ inline void parse_seed_mode(CommandLineArgs& target, cxxopts::ParseResult& resul
 
     Decryptor first_decryptor = Decryptor::Make(start_key, seed, seed_valid);
 
-    target.brute_configs.push_back(BruteforceConfig::GetSeedBruteforce(first_decryptor, target.inputsMutation));
+    args.brute_configs.push_back(BruteforceConfig::GetSeedBruteforce(first_decryptor, args.inputsMutation));
 }
 
-inline void parse_xorfix_mode(CommandLineArgs& target, cxxopts::ParseResult& result, const Reporter& report)
+inline void parse_xorfix_mode(CommandLineArgs& args, cxxopts::ParseResult& result, AppVerbosity verbosity)
 {
     if (result.count(ARG_START) == 0)
     {
-        report.error("For XorFix mode, it's necessary to specify a manufacturer key with '--" ARG_START "' argument!");
+        LOG_ERROR("For XorFix mode, it's necessary to specify a manufacturer key with '--" ARG_START "' argument!");
         return;
     }
 
@@ -240,10 +195,10 @@ inline void parse_xorfix_mode(CommandLineArgs& target, cxxopts::ParseResult& res
 
     Decryptor first_decryptor = Decryptor::Make(start_key, start_xor, seed_valid);
 
-    target.brute_configs.push_back(BruteforceConfig::GetXorFixBruteforce(first_decryptor, target.inputsMutation));
+    args.brute_configs.push_back(BruteforceConfig::GetXorFixBruteforce(first_decryptor, args.inputsMutation));
 }
 
-inline void parse_bruteforce_filtered_mode(CommandLineArgs& target, cxxopts::ParseResult& result, const Reporter& /*report*/)
+inline void parse_bruteforce_filtered_mode(CommandLineArgs& args, cxxopts::ParseResult& result, AppVerbosity verbosity)
 {
     auto start_key = result[ARG_START].as<uint64_t>();
     auto seed = result[ARG_SEED].as<uint32_t>();
@@ -262,10 +217,10 @@ inline void parse_bruteforce_filtered_mode(CommandLineArgs& target, cxxopts::Par
         exclude_filter,
     };
 
-    target.brute_configs.push_back(BruteforceConfig::GetBruteforce(first_decryptor, target.inputsMutation, count_key, filters));
+    args.brute_configs.push_back(BruteforceConfig::GetBruteforce(first_decryptor, args.inputsMutation, count_key, filters));
 }
 
-inline void parse_alphabet_mode(CommandLineArgs& target, cxxopts::ParseResult& result, const Reporter& /*report*/)
+inline void parse_alphabet_mode(CommandLineArgs& args, cxxopts::ParseResult& result, AppVerbosity verbosity)
 {
     auto start_key = result[ARG_START].as<uint64_t>();
     auto seed = result[ARG_SEED].as<uint32_t>();
@@ -275,13 +230,13 @@ inline void parse_alphabet_mode(CommandLineArgs& target, cxxopts::ParseResult& r
 
     auto count_key = result[ARG_COUNT].as<size_t>();
 
-    for (const auto& alphabet : target.alphabets)
+    for (const auto& alphabet : args.alphabets)
     {
-        target.brute_configs.push_back(BruteforceConfig::GetAlphabet(first_decryptor, target.inputsMutation, alphabet, count_key));
+        args.brute_configs.push_back(BruteforceConfig::GetAlphabet(first_decryptor, args.inputsMutation, alphabet, count_key));
     }
 }
 
-inline void parse_pattern_mode(CommandLineArgs& target, cxxopts::ParseResult& result, const Reporter& report)
+inline void parse_pattern_mode(CommandLineArgs& args, cxxopts::ParseResult& result, AppVerbosity verbosity)
 {
     auto start_key = result[ARG_START].as<uint64_t>();
     auto seed = result[ARG_SEED].as<uint32_t>();
@@ -290,19 +245,18 @@ inline void parse_pattern_mode(CommandLineArgs& target, cxxopts::ParseResult& re
     Decryptor first_decryptor = Decryptor::Make(start_key, seed, seed_valid);
 
     auto count_key = result[ARG_COUNT].as<size_t>();
-
 
     if (result.count(ARG_PATTERN) == 0)
     {
-        report.error("For pattern mode, it's necessary to specify a pattern with '--" ARG_PATTERN "' argument!");
+        LOG_ERROR("For pattern mode, it's necessary to specify a pattern with '--" ARG_PATTERN "' argument!");
         return;
     }
 
-    const auto& args = result[ARG_PATTERN].as<std::vector<std::string>>();
+    const auto& args_pattern = result[ARG_PATTERN].as<std::vector<std::string>>();
 
     auto full_bytes = DefaultByteArray<>::asVector<std::vector<uint8_t>>();
 
-    for (const auto& pattern_arg : args)
+    for (const auto& pattern_arg : args_pattern)
     {
         std::string pattern_bytes_hex = pattern_arg;
         std::replace(pattern_bytes_hex.begin(), pattern_bytes_hex.end(), ':', ',');
@@ -317,22 +271,22 @@ inline void parse_pattern_mode(CommandLineArgs& target, cxxopts::ParseResult& re
             // append alphabets' bytes
             if (hex.find("AL") != std::string::npos)
             {
-                if (target.alphabets.size() == 0)
+                if (args.alphabets.size() == 0)
                 {
-                    report.warn("Cannot use Alphabet in patterns - no provided alphabets. Replacing with *");
+                    LOG_WARNING("Cannot use Alphabet in patterns - no provided alphabets. Replacing with *");
                     result.push_back(full_bytes);
                     continue;
                 }
 
                 auto al_index = strtoul(hex.substr(2).c_str(), nullptr, 10);
-                if (al_index >= target.alphabets.size())
+                if (al_index >= args.alphabets.size())
                 {
-                    report.warn("Argument %s referring alphabet: %ld (index: %ld), but there are only %zd available. Replacing with first one",
-                        hex.c_str(), al_index + 1, al_index, target.alphabets.size());
+                    LOG_WARNING("Argument %s referring alphabet: %ld (index: %ld), but there are only %zd available. Replacing with first one",
+                        hex.c_str(), al_index + 1, al_index, args.alphabets.size());
                     al_index = 0;
                 }
 
-                result.push_back(target.alphabets[al_index].asVector());
+                result.push_back(args.alphabets[al_index].asVector());
             }
             else
             {
@@ -341,7 +295,7 @@ inline void parse_pattern_mode(CommandLineArgs& target, cxxopts::ParseResult& re
 
                 if (bytes.size() == 0)
                 {
-                    report.warn("Invalid string '%s' for byte pattern! Ignoring. Replacing with *",
+                    LOG_WARNING("Invalid string '%s' for byte pattern! Ignoring. Replacing with *",
                         hex.c_str());
                     result.push_back(full_bytes);
                 }
@@ -355,12 +309,12 @@ inline void parse_pattern_mode(CommandLineArgs& target, cxxopts::ParseResult& re
         // validate
         if (result.size() > 8)
         {
-            report.warn("Pattern string: '%s' contains more than 8 per-bytes delimiters (%zd) other will be ignored.",
+            LOG_WARNING("Pattern string: '%s' contains more than 8 per-bytes delimiters (%zd) other will be ignored.",
                 pattern_arg.c_str(), bytes_hex.size());
         }
         else if (result.size() < 8)
         {
-            report.warn("Pattern string: '%s' contains less than 8 per-bytes delimiters (%zd) other fill with full pattern.",
+            LOG_WARNING("Pattern string: '%s' contains less than 8 per-bytes delimiters (%zd) other fill with full pattern.",
                 pattern_arg.c_str(), bytes_hex.size());
 
             for (auto i = result.size(); i < 8; ++i)
@@ -374,7 +328,7 @@ inline void parse_pattern_mode(CommandLineArgs& target, cxxopts::ParseResult& re
         std::reverse(result.begin(), result.end());
 
         // Add pattern attack to config
-        target.brute_configs.push_back(BruteforceConfig::GetPattern(first_decryptor, target.inputsMutation, BruteforcePattern(std::move(result), pattern_arg), count_key));
+        args.brute_configs.push_back(BruteforceConfig::GetPattern(first_decryptor, args.inputsMutation, BruteforcePattern(std::move(result), pattern_arg), count_key));
     }
 }
 
@@ -540,12 +494,11 @@ void CommandLineArgs::printHelp(std::FILE* out)
     std::fprintf(out, "%s\n", Usage());
 }
 
-CommandLineArgs CommandLineArgs::parse(int argc, const char** argv, Verbosity verbosity)
+CommandLineArgs CommandLineArgs::parse(int argc, const char** argv, AppVerbosity verbosity)
 {
     auto options = buildOptions();
 
     CommandLineArgs args;
-    Reporter report{ args, verbosity };
 
     auto result = options.parse(argc, argv);
 
@@ -576,8 +529,8 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv, Verbosity ve
         args.initInputs(result[ARG_INPUTS].as<std::vector<uint64_t>>());
         if (args.inputs.size() < 3)
         {
-            report.warn("Not enough inputs: '%zd'! Need at least 3! However we'll proceed...",
-                args.inputs.size());
+            LOG_WARNING("It's recommended to have at least 3 inputs for better results! You have only %zd! Consider adding more if you have them. Check your --%s argument!",
+                args.inputs.size(), ARG_INPUTS);
         }
 
         if (args.inputs.size() > 0)
@@ -588,15 +541,16 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv, Verbosity ve
             {
                 if (args.inputs[i].fix() != fix)
                 {
-                    report.warn("Invalid input at index:%zu (0x%016" PRIX64 ") fixed code doesn't match first input!",
-                        i, args.inputs[i].ota);
+                    LOG_WARNING("Input at index:%zu (0x%016" PRIX64 ") has different fixed code than first input (0x%08X)! "
+                        "Consider checking your inputs, maybe you have some wrong values there? Check your --%s argument!",
+                        i, args.inputs[i].ota, fix, ARG_INPUTS);
                 }
             }
         }
     }
     else
     {
-        report.error("No inputs! Nothing to brute!");
+        LOG_ERROR("No inputs! Nothing to brute!");
         args.print_help = true;
         args.has_errors = true;
         return args;
@@ -631,7 +585,7 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv, Verbosity ve
     }
 
     // Alphabets
-    read_alphabets(args, result, report);
+    read_alphabets(args, result, verbosity);
 
     // Bruteforce configs
     if (result.count(ARG_MODE) > 0)
@@ -641,7 +595,7 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv, Verbosity ve
             BruteforceType::Type mode;
             if (!BruteforceType::parse(modeStr.c_str(), mode))
             {
-                report.error("Unknown bruteforce mode: '%s'. Expected index (0-5) or name (Dictionary, Simple, Filtered, Alphabet, Pattern, Seed).",
+                LOG_ERROR("Unknown bruteforce mode: '%s'. Expected index (0-5) or name (Dictionary, Simple, Filtered, Alphabet, Pattern, Seed).",
                     modeStr.c_str());
                 return args;
             }
@@ -649,25 +603,25 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv, Verbosity ve
             switch (mode)
             {
             case (uint8_t)BruteforceType::Dictionary:
-                parse_dictionary_mode(args, result, report);
+                parse_dictionary_mode(args, result, verbosity);
                 break;
             case (uint8_t)BruteforceType::Simple:
-                parse_bruteforce_mode(args, result, report);
+                parse_bruteforce_mode(args, result, verbosity);
                 break;
             case (uint8_t)BruteforceType::Filtered:
-                parse_bruteforce_filtered_mode(args, result, report);
+                parse_bruteforce_filtered_mode(args, result, verbosity);
                 break;
             case (uint8_t)BruteforceType::Alphabet:
-                parse_alphabet_mode(args, result, report);
+                parse_alphabet_mode(args, result, verbosity);
                 break;
             case (uint8_t)BruteforceType::Pattern:
-                parse_pattern_mode(args, result, report);
+                parse_pattern_mode(args, result, verbosity);
                 break;
             case (uint8_t)BruteforceType::Seed:
-                parse_seed_mode(args, result, report);
+                parse_seed_mode(args, result, verbosity);
                 break;
             case (uint8_t)BruteforceType::XorFix:
-                parse_xorfix_mode(args, result, report);
+                parse_xorfix_mode(args, result, verbosity);
                 break;
             default:
                 break;
@@ -681,14 +635,14 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv, Verbosity ve
 
         if (args.brute_configs.size() == 0)
         {
-            report.error("Cannot parse inputs to even single brute config! Result arguments:\n'%s'",
-                result.arguments_string().c_str());
+            LOG_ERROR("No valid bruteforce config parsed! Check your --%s argument and related parameters! Result arguments:\n'%s'",
+                ARG_MODE, result.arguments_string().c_str());
             return args;
         }
     }
     else
     {
-        report.error("You need to specify bruteforce mode!");
+        LOG_ERROR("No bruteforce mode specified! Check your --%s argument!", ARG_MODE);
         args.print_help = true;
         return args;
     }

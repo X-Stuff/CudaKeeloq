@@ -1,5 +1,7 @@
 #include "doctest/doctest.h"
 
+#include <filesystem>
+#include <fstream>
 #include <cstddef>
 
 #include "host/command_line_args.h"
@@ -8,9 +10,13 @@
 namespace
 {
 template <size_t N>
-CommandLineArgs parseArgs(const char* (&argv)[N])
+CommandLineArgs parseArgs(const char* (&argv)[N], AppVerbosity verbosity = AppVerbosity::Silent)
 {
-    return CommandLineArgs::parse(static_cast<int>(N), argv, CommandLineArgs::Verbosity::Silent);
+    return CommandLineArgs::parse(static_cast<int>(N), argv, verbosity);
+}
+CommandLineArgs parseArgs(std::vector<const char*> argv, AppVerbosity verbosity = AppVerbosity::Silent)
+{
+    return CommandLineArgs::parse(static_cast<int>(argv.size()), argv.data(), verbosity);
 }
 }
 
@@ -40,7 +46,19 @@ TEST_CASE("cli: seed mode without a start key is a hard error")
 
 TEST_CASE("cli: full invocation populates alphabets, modes, and run flags")
 {
-    const char* argv[] = {
+    auto temp_bin_dict = std::filesystem::temp_directory_path() / "test.bin";
+
+    std::ofstream temp_file(temp_bin_dict, std::ios::out | std::ios::binary);
+    CHECK(temp_file.is_open());
+
+    auto data = 0xAABBCCDDEEFF0011;
+    temp_file.write(reinterpret_cast<const char*>(&data), sizeof(data));
+    temp_file.close();
+
+    auto binDictArg = str::format<std::string>("--" ARG_BINDICT   "=%s", temp_bin_dict.string().c_str());
+
+    std::vector<const char*> argv =
+    {
         APP_NAME,
         "--" ARG_INPUTS    "=0xC65D52A0A81FD504,0xCCA9B335A81FD504,0xE0DA7372A81FD504",
         "--" ARG_BLOCKS    "=32",
@@ -50,7 +68,7 @@ TEST_CASE("cli: full invocation populates alphabets, modes, and run flags")
         "--" ARG_LTYPE     "=0,1,2,3,4",
 
         "--" ARG_WORDDICT  "=0xFDE4531BBACAD12,FDE4531BBACAD13,0xFDE4531BBACAD14,examples/dictionary.words",
-        "--" ARG_BINDICT   "=examples/dictionary.bin",
+        binDictArg.c_str(),
         "--" ARG_BINDMODE  "=2",
 
         "--" ARG_START     "=1",
@@ -76,6 +94,8 @@ TEST_CASE("cli: full invocation populates alphabets, modes, and run flags")
     CHECK(args.match_stop);
     CHECK(args.run_bench);
     CHECK(args.inputs.size() == 3);
+
+    std::filesystem::remove(temp_bin_dict);
 }
 
 // ---------------------------------------------------------------------------

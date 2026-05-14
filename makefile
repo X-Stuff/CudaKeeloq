@@ -44,8 +44,8 @@ else
   CONFIG ?= debug
 endif
 
-OBJ_DIR := ./$(ARCH)/$(CONFIG)/obj
-EXE_DIR := ./$(ARCH)/$(CONFIG)/bin
+OBJ_DIR := ./.build/$(ARCH)/$(CONFIG)/linux/obj
+EXE_DIR := ./.build/$(ARCH)/$(CONFIG)/linux/bin
 
 # ----------------------------------------------------------------------
 # Compilers + flags
@@ -168,4 +168,5 @@ $(OBJ_DIR)/%.o: %.cu
 	$(NVCC) $(NVCC_FLAGS) $(NVCC_INC) -c $< -o $@
 
 clean:
-	rm -rf ./$(ARCH)
+	rm -rf $(OBJ_DIR)
+	rm -rf $(EXE_DIR)
