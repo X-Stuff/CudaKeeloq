@@ -2,6 +2,7 @@
 
 #include <cstring>
 #include <functional>
+#include <memory>
 
 #include "common.h"
 
@@ -27,6 +28,13 @@ struct BruteforceConfig;
  */
 struct IKeeloqKernelInputBase
 {
+    /**
+     *  Type of inputs.
+     *      Multi - inputs when kernel calculates all learnings with modifications and single input mutation at one call
+     *      Single - inputs when kernel calculates only one learning and one mutation and one modification at call
+     */
+    enum Type { Single, Multi };
+
     using GetMatchProgressCallback = std::function<void(size_t current, size_t total)>;
 
     using Ptr = IKeeloqKernelInputBase*;
@@ -37,11 +45,17 @@ struct IKeeloqKernelInputBase
     }
 
 public:
+    /** Copies self object (shallow copy) to GPU */
+    virtual __host__ IKeeloqKernelInputBase::Type type() const = 0;
+
     /** Get first matched result, final ancestors should return a match by searching own results array */
     virtual __host__ BruteforceResult getMatch(GetMatchProgressCallback onProgress = nullptr) const = 0;
 
     /** Get specific result by index */
     virtual __host__ BruteforceResult getResult(size_t index) const = 0;
+
+    /** Prepare inputs for the next batch, basically set up internal fields so they become valid in kernels */
+    virtual __host__ void prepareBatch(const KeeloqLearning::Matrix& learningMatrix, InputsMutation inputMutations) = 0;
 
 public:
     /** Copies self object (shallow copy) to GPU */
@@ -95,6 +109,9 @@ public:
 
 public:
     static void InitInputsCache(const std::vector<EncParcel>& inputs);
+
+    template<typename TDerived>
+    static std::unique_ptr<IKeeloqKernelInputBase> Create() { return std::make_unique<TDerived>(); }
 
 protected:
     /** A helper method for ancestor to get input for bruteforce match struct */

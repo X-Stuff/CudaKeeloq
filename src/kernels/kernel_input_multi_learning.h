@@ -43,6 +43,10 @@ public:
     KeeloqKernelMultiLearningInput& operator=(const KeeloqKernelMultiLearningInput& other) = delete;
 
 public:
+    /** Multi inputs type */
+    virtual __host__ IKeeloqKernelInputBase::Type type() const final override { return IKeeloqKernelInputBase::Type::Multi; }
+
+    /*  Allocates GPU memory for results and call base method to allocate memory for decryptors */
     virtual __host__ cudaError_t AllocateGPU(size_t totalNumDecryptors, uint8_t numInputs) final override;
 
     /** Release allocated GPU memory for results and decryptors */
@@ -57,6 +61,9 @@ public:
     /** Get specific result by index */
     virtual __host__ BruteforceResult getResult(size_t index) const final override;
 
+    /** Prepare inputs for the next batch, basically set up internal fields so they become valid in kernels */
+    virtual __host__ void prepareBatch(const KeeloqLearning::Matrix& learningMatrix, InputsMutation inputMutations) final override;
+
 public:
     /** Learning-type selection matrix for the current run. */
     __device__ __host__ __inline__ const KeeloqLearning::Matrix& GetLearningMatrix() const { return learnings; }
@@ -66,9 +73,6 @@ public:
 
     /** Active input mutation for the next kernel launch. */
     __device__ __host__ __inline__ InputsMutation InputsMutationMask() const { return mutationsMask; }
-
-    /** Each time before bruteforce called, this method should be called */
-    __host__ void BruteforcePrepare(const KeeloqLearning::Matrix& inLearnings, InputsMutation mutations);
 
 public:
     // Single-run results accessible from GPU

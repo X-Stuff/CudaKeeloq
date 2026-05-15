@@ -39,6 +39,8 @@ struct Bruteforcer
 
             Success,
 
+            InvalidConfiguration,
+
             KernelFailure,
 
             UserCancelled,
@@ -48,8 +50,14 @@ struct Bruteforcer
         /** Whole round time */
         std::chrono::milliseconds roundTime = std::chrono::milliseconds(0);
 
-        /** Number of total calculations per batch (including input mutations) */
-        uint64_t batchCalcs = 0;
+        /**
+         *  Number of total checks per batch (including input mutations) with single decryptor.
+         * A decryptor may check only single algorithm with no modifiers, and could be all possible learnings,
+         * depending on the selected brute type, learning matrix, etc.
+         *
+         * Decryptor may check only one input or all three, depending if each input decrypted into valid data.
+         */
+        uint64_t checksInBatch = 0;
 
         /** Average time in ms elapsed per batch (moving average) */
         double batchAverageMs = 0;
@@ -68,14 +76,14 @@ struct Bruteforcer
         /** Allocated GPU memory size in GB */
         inline float allocatedGB() const { return static_cast<float>(allocatedBytesGPU / (1024.0 * 1024.0 * 1024.0)); }
 
-        /** Total calculations for whole round */
-        inline uint64_t totalCalcs() const { return numBatches * batchCalcs; }
+        /** Total number of checks for whole round */
+        inline uint64_t totalChecks() const { return numBatches * checksInBatch; }
 
         /** Average round speed in Kkeys/s */
-        inline double avgRoundSpeed() const { return static_cast<double>(totalCalcs() / roundTime.count()); }
+        inline double avgRoundSpeed() const { return static_cast<double>(totalChecks() / roundTime.count()); }
 
         /** Average batch speed in Kkeys/s */
-        inline double avgBatchSpeed() const { return batchAverageMs != 0.0 ? batchCalcs / batchAverageMs : 0.0; }
+        inline double avgBatchSpeed() const { return batchAverageMs != 0.0 ? checksInBatch / batchAverageMs : 0.0; }
 
     private:
         void setResult(const KernelResult& round, bool stopped);
@@ -85,8 +93,14 @@ struct Bruteforcer
     Bruteforcer(const std::vector<EncParcel>& inputs, bool breakOnEsc = false, AppVerbosity verbosity = AppVerbosity::Debug);
 
 public:
-    /** Run one bruteforce round and return a matching result (or `SingleResult::Invalid()`). */
+    /** Run one bruteforce round and return a matching result (or `BruteforceResult::Invalid()`). */
     BruteforceResult run(const BruteforceConfig& config, const CudaConfig& cuda, const KeeloqLearning::Matrix& learningMatrix);
+
+    /** Run the bruteforce round with mutli-learning inputs and return a matching result (or `BruteforceResult::Invalid()`). */
+    BruteforceResult runMulti(BruteforceRound& round, const CudaConfig& cuda, const KeeloqLearning::Matrix& learningMatrix, const std::vector<InputsMutation> inputMutations);
+
+    /** Run the bruteforce round with single-learning inputs and return a matching result (or `BruteforceResult::Invalid()`). */
+    BruteforceResult runSingle(BruteforceRound& round, const CudaConfig& cuda, const KeeloqLearning::Matrix& learningMatrix, const std::vector<InputsMutation> inputMutations);
 
     /** Set callback for round completion event*/
     void setOnRoundComplete(RoundCompleteCallback&& callback) { onRoundComplete = std::move(callback); }
@@ -95,10 +109,11 @@ public:
     const Stats& getStats() const { return stats; }
 
 private:
+
     BruteforceResult getMatchResult(const BruteforceRound& round, bool first = true);
 
     void printBruteforceProgress(const BruteforceRound& round, const int64_t batchTime, const std::chrono::seconds& roundTime,
-        const size_t batchIndex, const uint8_t mutationIndex, const uint8_t mutationsNum, InputsMutation mutation);
+        const size_t batchIndex, const size_t subIndex, const size_t subNum, InputsMutation mutation);
 
     void printGpuMemorySearchProgress(const size_t index, const size_t count, const std::chrono::seconds& time);
 
@@ -106,7 +121,7 @@ private:
     // Input data for bruteforce (captured encoded)
     std::vector<EncParcel> inputs;
 
-    // Last run stats
+    // Last round stats
     Stats stats;
 
     // Flag allows skip on Esc press (usefull in benchmark)

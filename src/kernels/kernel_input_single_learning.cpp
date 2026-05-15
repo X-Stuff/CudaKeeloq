@@ -97,11 +97,20 @@ BruteforceResult KeeloqKernelSingleLearningInput::getResult(size_t index) const
     );
 }
 
-void KeeloqKernelSingleLearningInput::BruteforcePrepare(InputsMutation mutations, KeeloqLearning::LearningType learningType, KeeloqLearning::Modifier::Algo algorithModifier)
-{
-    inputsMutation = mutations;
-    learning = learningType;
-    algorithModifier = algorithModifier;
 
-    SetReady(true);
+void KeeloqKernelSingleLearningInput::prepareBatch(const KeeloqLearning::Matrix& learningMatrix, InputsMutation inputMutations)
+{
+    auto items = learningMatrix.asItems();
+    if (items.size() > 0)
+    {
+        assert(items.size() == 1 && "With single learning input there must be only single learning item in matrix!");
+        auto learningItem = items.front();
+
+        inputsMutation = inputMutations;
+
+        learning = learningItem.learning;
+        algorithModifier = learningItem.amod;
+
+        SetReady(true);
+    }
 }

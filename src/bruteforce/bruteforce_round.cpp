@@ -11,7 +11,10 @@
 #include "generators/generator_bruteforce.h"
 
 #include "bruteforce/bruteforce_config.h"
+
 #include "kernels/kernel_result.h"
+#include "kernels/kernel_input_multi_learning.h"
+#include "kernels/kernel_input_single_learning.h"
 
 
 BruteforceRound::BruteforceRound(const std::vector<EncParcel>& inputs, const BruteforceConfig& config, const CudaConfig& cuda)
@@ -23,7 +26,10 @@ BruteforceRound::BruteforceRound(const std::vector<EncParcel>& inputs, const Bru
 
     num_decryptors_per_batch = cudaConfig.blocks * cudaConfig.threads * cudaConfig.substeps;
 
-    kernel_inputs = std::make_unique<KeeloqKernelMultiLearningInput>();
+    kernel_inputs = config.useSingleLearningKernels ?
+        IKeeloqKernelInputBase::Create<KeeloqKernelSingleLearningInput>() :
+        IKeeloqKernelInputBase::Create<KeeloqKernelMultiLearningInput>();
+
     kernel_inputs->Initialize(config, inputs);
 }
 
@@ -97,6 +103,16 @@ void BruteforceRound::init()
         alloc();
 
         inited = true;
+    }
+}
+
+void BruteforceRound::prepareBatch(const KeeloqLearning::Matrix& learningMatrix, InputsMutation inputsMutation)
+{
+    assert(kernel_inputs && "Inputs were not constructed!");
+
+    if (kernel_inputs)
+    {
+        kernel_inputs->prepareBatch(learningMatrix, inputsMutation);
     }
 }
 

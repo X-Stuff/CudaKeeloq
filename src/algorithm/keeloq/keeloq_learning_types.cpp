@@ -96,6 +96,25 @@ std::string Matrix::toString(const BruteforceConfig* bruteConfig) const
     return std::string(buffer);
 }
 
+std::vector<KeeloqLearning::LearningItem> Matrix::asItems() const
+{
+    std::vector<KeeloqLearning::LearningItem> items;
+
+    for (auto a = 0; a < Modifier::AlgoModCount; ++a)
+    {
+        auto amod = static_cast<Modifier::Algo>(a);
+        for (auto learning : EveryLearningType{})
+        {
+            if (isEnabled(learning, amod))
+            {
+                items.emplace_back(learning, amod);
+            }
+        }
+    }
+
+    return items;
+}
+
 const char* name(LearningType type)
 {
     switch (type)

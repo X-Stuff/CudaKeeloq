@@ -21,11 +21,10 @@
 /**
  * A single attack "round" — the full sweep of one BruteforceConfig.
  *
- * A round is composed of batches; each batch runs `B` CUDA blocks × `T` threads,
+ * A round is composed of batches; each batch runs `B` CUDA blocks x `T` threads,
  * each thread checks one or more decryptors, and each check evaluates one or
  * more keeloq learning types.
  *
- * Total batches in a round ≈ (keys to check) / (B * T * I).
  */
 struct BruteforceRound
 {
@@ -39,6 +38,9 @@ struct BruteforceRound
 public:
     /** One-shot allocation of GPU buffers; must be called before running batches. */
     void init();
+
+    /** New batch preparation, set up kernel inputs */
+    void prepareBatch(const KeeloqLearning::Matrix& learningMatrix, InputsMutation inputsMutation);
 
     /** Inspects a kernel result and returns true if the round should stop (match or fatal error). */
     bool checkResults(const KernelResult& result, AppVerbosity verbosity = AppVerbosity::Debug);
@@ -70,6 +72,9 @@ public:
 
     /** Const kernel inputs (requires init()). */
     inline const IKeeloqKernelInputBase& inputs() const { assert(kernel_inputs); return *kernel_inputs; }
+
+    /** Returns true if the current inputs are for single learning brute mode. */
+    inline bool isSingleLearningInputs() const { assert(kernel_inputs); return kernel_inputs->type() == IKeeloqKernelInputBase::Type::Single; }
 
     /** Launches decryptors generator kernels and returns true if succeeded. */
     bool prepareInputs(uint64_t batchIdx);

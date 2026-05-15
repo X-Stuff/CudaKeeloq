@@ -47,6 +47,9 @@ public:
     // GPU SET. UPDATING. Last generated decryptor (will be initial for next block run)
     Decryptor last;
 
+    // Experimental, single learning kernel mode
+    bool useSingleLearningKernels = false;
+
 public:
 
     BruteforceConfig() : BruteforceConfig(Decryptor::Invalid(), BruteforceType::LAST, InputsMutation::None, 0)

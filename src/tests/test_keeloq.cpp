@@ -17,6 +17,7 @@
 #include "kernels/kernel_result.h"
 #include "kernels/kernel_input_multi_learning.h"
 
+#include "host/console.h"
 #include "tests/support/keeloq_inputs.h"
 
 #include <cstdio>
@@ -35,7 +36,7 @@ constexpr auto kDebugSeed = 158500;
 //
 // Returns early on the first real failure so the CAPTURE() block explains what
 // combination failed.
-void runEveryLearningWithMod(const BruteforceConfig& config)
+void runEveryLearningWithMod(const BruteforceConfig& config, bool useSingleLearning = false)
 {
     static const CudaConfig cudaConfig = CudaConfig::Tests();
 
@@ -48,11 +49,6 @@ void runEveryLearningWithMod(const BruteforceConfig& config)
     {
         const auto learningType = static_cast<LearningType>(lType);
 
-        // MESSAGE() would prepend file:line. For simple progress output we want
-        // just the label — print to stdout directly.
-        std::printf("TESTING LEARNING: %s\n", KeeloqLearning::name(learningType));
-        std::fflush(stdout);
-
         auto inputMutations = config.getMutations();
 
         for (auto mutation : inputMutations)
@@ -63,6 +59,10 @@ void runEveryLearningWithMod(const BruteforceConfig& config)
 
             for (auto aMod = 0; aMod < Modifier::AlgoModCount; ++aMod)
             {
+                static int spinner = 0;
+                std::printf("\r%c", WAIT_CHAR(++spinner));
+                std::fflush(stdout);
+
                 const auto algoModifier   = static_cast<Modifier::Algo>(aMod);
                 const auto learningItem = LearningItem(learningType, algoModifier);
 
@@ -85,6 +85,7 @@ void runEveryLearningWithMod(const BruteforceConfig& config)
 
                     Bruteforcer bruteforcer(inputs, false, AppVerbosity::Error);
                     auto ccopy = config;
+                    ccopy.useSingleLearningKernels = useSingleLearning;
                     ccopy.overrideMutationMask(mutation, true);
                     bruteforcer.setOnRoundComplete([&](const BruteforceRound& round, const KernelResult& kernelResult)
                     {
@@ -119,56 +120,13 @@ void runEveryLearningWithMod(const BruteforceConfig& config)
                             CHECK(matched_result.decrypted == encryptor.unencrypted());
                         }
                     });
-                    bruteforcer.run(ccopy, cudaConfig, KeeloqLearning::Matrix::Everything());
+                    bruteforcer.run(ccopy, cudaConfig, KeeloqLearning::Matrix { learningItem });
                 }
             }
         }
     }
-
-    MESSAGE("Finished. Total matches: ", totalMatches);
 }
 }  // namespace
-
-
-TEST_CASE("keeloq: flat")
-{
-    static const CudaConfig cudaConfig = CudaConfig::Tests();
-
-    static const auto config = BruteforceConfig::GetBruteforce(Decryptor::Make(kDebugKey, kDebugSeed, true), InputsMutation::All, 1);
-
-    for (auto lType = 0; lType < LearningTypesCount; ++lType)
-    {
-        const auto learningType = static_cast<LearningType>(lType);
-
-        auto inputMutations = config.getMutations();
-
-        for (auto mutation : inputMutations)
-        {
-            for (auto aMod = 0; aMod < Modifier::AlgoModCount; ++aMod)
-            {
-                const auto algoModifier = static_cast<Modifier::Algo>(aMod);
-
-                for (auto numInputs = 1; numInputs <= 3; ++numInputs)
-                {
-                    Encryptor encryptor(kDebugKey, kDebugSeed);
-                    const auto inputs = tests::keeloq::genInputs(encryptor, numInputs, mutation, learningType);
-
-                    KeeloqKernelSingleLearningInput kernelInputs;
-                    kernelInputs.Initialize(config, inputs);
-                    kernelInputs.AllocateGPU(cudaConfig.total(), numInputs);
-
-                    auto cudaError = GeneratorBruteforce::PrepareDecryptors(kernelInputs, cudaConfig);
-                    REQUIRE(cudaError == cudaSuccess);
-
-                    auto decryptors = kernelInputs.decryptors->read();
-
-                    kernelInputs.BruteforcePrepare(mutation, learningType, algoModifier);
-                    keeloq::kernels::cuda_brute(kernelInputs, cudaConfig);
-                }
-            }
-        }
-    }
-}
 
 TEST_CASE("keeloq: KernelResult accumulates match flag and thread count")
 {
@@ -213,33 +171,28 @@ TEST_CASE("keeloq: EncParcel round-trips between OTA and fix/hop")
 // independent so a single failure does not obscure the others; MESSAGE() prints
 // the name unconditionally so the reporter shows progress while the sweep runs.
 
-TEST_CASE("keeloq: Dictionary")
+TEST_CASE("keeloq: ML: Dictionary")
 {
-    MESSAGE("Dictionary");
     runEveryLearningWithMod(BruteforceConfig::GetDictionary({ Decryptor::Make(kDebugKey, kDebugSeed, true) }, InputsMutation::All));
 }
 
-TEST_CASE("keeloq: Bruteforce (no seed)")
+TEST_CASE("keeloq: ML: Bruteforce (no seed)")
 {
-    MESSAGE("Bruteforce (no seed)");
     runEveryLearningWithMod(BruteforceConfig::GetBruteforce(Decryptor::MakeNoSeed(kDebugKey), InputsMutation::All, 1));
 }
 
-TEST_CASE("keeloq: Bruteforce (with seed)")
+TEST_CASE("keeloq: ML: Bruteforce (with seed)")
 {
-    MESSAGE("Bruteforce (with seed)");
     runEveryLearningWithMod(BruteforceConfig::GetBruteforce(Decryptor::Make(kDebugKey, kDebugSeed, true), InputsMutation::All, 1));
 }
 
-TEST_CASE("keeloq: Seed")
+TEST_CASE("keeloq: ML: Seed")
 {
-    MESSAGE("Seed");
     runEveryLearningWithMod(BruteforceConfig::GetSeedBruteforce(Decryptor::Make(kDebugKey, kDebugSeed, true), InputsMutation::All, 1));
 }
 
-TEST_CASE("keeloq: Pattern")
+TEST_CASE("keeloq: ML: Pattern")
 {
-    MESSAGE("Pattern");
     std::vector<std::vector<uint8_t>> bytes = {
         { kDebugKey & 0xFF },         { (kDebugKey >> 8)  & 0xFF },
         { (kDebugKey >> 16) & 0xFF }, { (kDebugKey >> 24) & 0xFF },
@@ -249,9 +202,8 @@ TEST_CASE("keeloq: Pattern")
     runEveryLearningWithMod(BruteforceConfig::GetPattern(Decryptor::Make(kDebugKey, kDebugSeed, true), InputsMutation::All, BruteforcePattern(std::move(bytes)), 1));
 }
 
-TEST_CASE("keeloq: Alphabet")
+TEST_CASE("keeloq: ML: Alphabet")
 {
-    MESSAGE("Alphabet");
     std::vector<uint8_t> alphabet = {
         uint8_t(kDebugKey & 0xFF),         uint8_t((kDebugKey >> 8)  & 0xFF),
         uint8_t((kDebugKey >> 16) & 0xFF), uint8_t((kDebugKey >> 24) & 0xFF),
@@ -259,4 +211,47 @@ TEST_CASE("keeloq: Alphabet")
         uint8_t((kDebugKey >> 48) & 0xFF), uint8_t(kDebugKey >> 56),
     };
     runEveryLearningWithMod(BruteforceConfig::GetAlphabet(Decryptor::MakeNoSeed(kDebugKey), InputsMutation::All, MultibaseDigit(alphabet), 1));
+}
+
+
+TEST_CASE("keeloq: SL: Dictionary")
+{
+    runEveryLearningWithMod(BruteforceConfig::GetDictionary({ Decryptor::Make(kDebugKey, kDebugSeed, true) }, InputsMutation::All), true);
+}
+
+TEST_CASE("keeloq: SL: Bruteforce (no seed)")
+{
+    runEveryLearningWithMod(BruteforceConfig::GetBruteforce(Decryptor::MakeNoSeed(kDebugKey), InputsMutation::All, 1), true);
+}
+
+TEST_CASE("keeloq: SL: Bruteforce (with seed)")
+{
+    runEveryLearningWithMod(BruteforceConfig::GetBruteforce(Decryptor::Make(kDebugKey, kDebugSeed, true), InputsMutation::All, 1), true);
+}
+
+TEST_CASE("keeloq: SL: Seed")
+{
+    runEveryLearningWithMod(BruteforceConfig::GetSeedBruteforce(Decryptor::Make(kDebugKey, kDebugSeed, true), InputsMutation::All, 1), true);
+}
+
+TEST_CASE("keeloq: SL: Pattern")
+{
+    std::vector<std::vector<uint8_t>> bytes = {
+        { kDebugKey & 0xFF },         { (kDebugKey >> 8) & 0xFF },
+        { (kDebugKey >> 16) & 0xFF }, { (kDebugKey >> 24) & 0xFF },
+        { (kDebugKey >> 32) & 0xFF }, { (kDebugKey >> 40) & 0xFF },
+        { (kDebugKey >> 48) & 0xFF }, { uint8_t(kDebugKey >> 56) },
+    };
+    runEveryLearningWithMod(BruteforceConfig::GetPattern(Decryptor::Make(kDebugKey, kDebugSeed, true), InputsMutation::All, BruteforcePattern(std::move(bytes)), 1), true);
+}
+
+TEST_CASE("keeloq: SL: Alphabet")
+{
+    std::vector<uint8_t> alphabet = {
+        uint8_t(kDebugKey & 0xFF),         uint8_t((kDebugKey >> 8) & 0xFF),
+        uint8_t((kDebugKey >> 16) & 0xFF), uint8_t((kDebugKey >> 24) & 0xFF),
+        uint8_t((kDebugKey >> 32) & 0xFF), uint8_t((kDebugKey >> 40) & 0xFF),
+        uint8_t((kDebugKey >> 48) & 0xFF), uint8_t(kDebugKey >> 56),
+    };
+    runEveryLearningWithMod(BruteforceConfig::GetAlphabet(Decryptor::MakeNoSeed(kDebugKey), InputsMutation::All, MultibaseDigit(alphabet), 1), true);
 }

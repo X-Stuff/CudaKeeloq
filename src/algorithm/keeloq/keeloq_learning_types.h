@@ -715,6 +715,9 @@ public:
     /** Human-readable table of enabled learning/modifier entries. */
     __host__ std::string toString(const BruteforceConfig* config = nullptr) const;
 
+    /** Get all enabled learning items as vector */
+    __host__ std::vector<LearningItem> asItems() const;
+
 private:
     //  64 bits are too much, we have only 16 possible learning/algo combinations,
     // and only 11 are valid (e.g. Simple learning has no inverted algorithm variant).

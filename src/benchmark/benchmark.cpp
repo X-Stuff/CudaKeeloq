@@ -126,14 +126,14 @@ int benchmark::run(const std::vector<EncParcel>& inputs, const KeeloqLearning::M
         const auto resText = kernelFailure ? "FAILURE" : " CANCEL";
 
         printf("| CUDA: %5" PRIu32 " x %-5" PRIu16 " | MKeys:%4" PRIu64 " | GPU Mem %4.1f GB | Round time: %s | Avg: %s  | Batch avg : %s  |\n\n",
-            numCudaBlocks, numCudaThreads, stats.totalCalcs() / 1000000, stats.allocatedGB(), resText, resText, resText);
+            numCudaBlocks, numCudaThreads, stats.totalChecks() / 1000000, stats.allocatedGB(), resText, resText, resText);
 
         return kernelFailure ? -1 : 0;
     }
 
     printf("| CUDA: %5" PRIu32 " x %-5" PRIu16 " | MKeys:%4" PRIu64 " | GPU Mem %4.1f GB | Round time:%6" PRIu64 "ms | Avg:%6.1f Mk/s | Batch avg :%6.1f Mk/s |\n\n",
         numCudaBlocks, numCudaThreads,
-        stats.totalCalcs() / 1000000,
+        stats.totalChecks() / 1000000,
         stats.allocatedGB(),
         stats.elapsedMs(),
         stats.avgRoundSpeed() / 1000,

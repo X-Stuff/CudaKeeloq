@@ -104,16 +104,16 @@ BruteforceResult KeeloqKernelMultiLearningInput::getResult(size_t index) const
     );
 }
 
-void KeeloqKernelMultiLearningInput::BruteforcePrepare(const KeeloqLearning::Matrix& inLearnings, InputsMutation mutations)
+void KeeloqKernelMultiLearningInput::prepareBatch(const KeeloqLearning::Matrix& learningMatrix, InputsMutation inputMutations)
 {
-    assert(is_valid(mutations) && "Invalid input mutation mask");
+    assert(is_valid(inputMutations) && "Invalid input mutation mask");
 
-    assert((GetConfig().type != BruteforceType::XorFix || !!(mutations & InputsMutation::XorFix)) &&
+    assert((GetConfig().type != BruteforceType::XorFix || !!(inputMutations & InputsMutation::XorFix)) &&
         "In XorFix bruteforce you should have always XorFix mutation enabled");
 
-    learnings = inLearnings;
+    learnings = learningMatrix;
     allLearnings = learnings.isAllEnabled();
-    mutationsMask = mutations;
+    mutationsMask = inputMutations;
 
     SetReady(true);
 }

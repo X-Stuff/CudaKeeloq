@@ -39,6 +39,8 @@ public:
     KeeloqKernelSingleLearningInput& operator=(KeeloqKernelSingleLearningInput&& other) = delete;
     KeeloqKernelSingleLearningInput& operator=(const KeeloqKernelSingleLearningInput& other) = delete;
 public:
+    /** Single inputs type */
+    virtual __host__ IKeeloqKernelInputBase::Type type() const final override { return IKeeloqKernelInputBase::Type::Single; }
 
     /*  Allocates GPU memory for results and call base method to allocate memory for decryptors */
     virtual __host__ cudaError_t AllocateGPU(size_t totalNumDecryptors, uint8_t numInputs) final override;
@@ -55,9 +57,8 @@ public:
     /** Get specific result by index */
     virtual __host__ BruteforceResult getResult(size_t index) const final override;
 
-public:
-    /** Each time before bruteforce called, this method should be called */
-    void BruteforcePrepare(InputsMutation mutations, KeeloqLearning::LearningType learningType, KeeloqLearning::Modifier::Algo algorithModifier);
+    /** Prepare inputs for the next batch, basically set up internal fields so they become valid in kernels */
+    virtual __host__ void prepareBatch(const KeeloqLearning::Matrix& learningMatrix, InputsMutation inputMutations) final override;
 
 public:
     template<uint8_t InputIndex, uint8_t NumInputs>

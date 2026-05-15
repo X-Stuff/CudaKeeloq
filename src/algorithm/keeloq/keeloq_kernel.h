@@ -13,6 +13,8 @@
 #include "kernels/kernel_input_multi_learning.h"
 
 #include "algorithm/keeloq/keeloq_learning_types.h"
+#include "bruteforce/bruteforce_round.h"
+
 
 #define NLF_LOOKUP_CONSTANT 0x3a5c742e
 
@@ -218,6 +220,18 @@ __host__ KernelResult cuda_brute(KeeloqKernelMultiLearningInput& mainInputs, con
 
 // Experimental kernel launcher wrapper for flat input structure
 __host__ KernelResult cuda_brute(KeeloqKernelSingleLearningInput& flatInputs, const CudaConfig& config);
+
+__host__ __forceinline__ KernelResult cuda_brute(BruteforceRound& round, const CudaConfig& cuda)
+{
+    if (round.isSingleLearningInputs())
+    {
+        return cuda_brute(static_cast<KeeloqKernelSingleLearningInput&>(round.inputs()), cuda);
+    }
+    else
+    {
+        return cuda_brute(static_cast<KeeloqKernelMultiLearningInput&>(round.inputs()), cuda);
+    }
+}
 
 // Single decrypt round with all learning types and modifications, used for testing and debugging
 __host__ SingleResult cuda_encdec(uint64_t ota, uint64_t man, uint32_t seed, bool isDecrypt, InputsMutation inputsMutation);
