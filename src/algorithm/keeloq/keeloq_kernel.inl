@@ -1,7 +1,7 @@
 #include "device/cuda_common.h"
 #include "device/cuda_span.h"
 
-#include "algorithm/keeloq/keeloq_single_result.h"
+#include "algorithm/keeloq/keeloq_thread_result.h"
 
 #include <array>
 
@@ -22,7 +22,7 @@ namespace
 {
 
 template<uint8_t NumInputs>
-__device__ uint8_t is_cnt_match(const Span<SingleResult>& results, KeeloqLearning::ResultIndex resIndex)
+__device__ uint8_t is_cnt_match(const Span<ThreadResult::Multi>& results, KeeloqLearning::ResultIndex resIndex)
 {
     static_assert(NumInputs > 1, "This function is not supposed to be called in single input mode");
 
@@ -43,7 +43,7 @@ __device__ uint8_t is_cnt_match(const Span<SingleResult>& results, KeeloqLearnin
 }
 
 template<uint8_t NumInputs>
-__device__ uint8_t is_btn_match(const Span<SingleResult>& results, KeeloqLearning::ResultIndex resIndex)
+__device__ uint8_t is_btn_match(const Span<ThreadResult::Multi>& results, KeeloqLearning::ResultIndex resIndex)
 {
     static_assert(NumInputs > 1, "This function is not supposed to be called in single input mode");
 
@@ -60,7 +60,7 @@ __device__ uint8_t is_btn_match(const Span<SingleResult>& results, KeeloqLearnin
 }
 
 template<uint8_t NumInputs>
-__device__ uint8_t is_srl_match(const Span<SingleResult>& results, KeeloqLearning::ResultIndex resIndex)
+__device__ uint8_t is_srl_match(const Span<ThreadResult::Multi>& results, KeeloqLearning::ResultIndex resIndex)
 {
     static_assert(NumInputs > 1, "This function is not supposed to be called in single input mode");
 
@@ -78,7 +78,7 @@ __device__ uint8_t is_srl_match(const Span<SingleResult>& results, KeeloqLearnin
 }
 
 template<uint8_t NumInputs, KernelLearningMode LearningMode>
-__device__ KeeloqLearning::ResultIndex get_match_index(const Span<SingleResult>& results, const KeeloqLearning::Matrix& learnings_matrix)
+__device__ KeeloqLearning::ResultIndex get_match_index(const Span<ThreadResult::Multi>& results, const KeeloqLearning::Matrix& learnings_matrix)
 {
     static constexpr bool IgnoreMatrix = !!(LearningMode & KernelLearningMode::Force);
 
@@ -144,7 +144,7 @@ __device__ KeeloqLearning::ResultIndex get_match_index(const Span<SingleResult>&
 
 // run from result[0] to result[num] tries to detect if there is a match (man key valid)
 template<uint8_t NumInputs, KernelLearningMode LearningMode>
-__device__ KeeloqLearning::ResultIndex analyze_multiple_results(const CudaContext& ctx, Span<SingleResult>& results, const KeeloqLearning::Matrix& learnings_matrix)
+__device__ KeeloqLearning::ResultIndex analyze_multiple_results(const CudaContext& ctx, Span<ThreadResult::Multi>& results, const KeeloqLearning::Matrix& learnings_matrix)
 {
     auto match_res_indx = get_match_index<NumInputs, LearningMode>(results, learnings_matrix);
 
@@ -161,7 +161,7 @@ __device__ KeeloqLearning::ResultIndex analyze_multiple_results(const CudaContex
 // In case of single input we checking fixed part of parcel's serial (28-bit serial | 4-bit button)
 // with decoded serial
 template<KernelLearningMode LearningMode>
-__device__ KeeloqLearning::ResultIndex analyze_single_result(const SingleResult& result, uint32_t exp_srl, uint8_t exp_btn, const KeeloqLearning::Matrix& learnings_matrix)
+__device__ KeeloqLearning::ResultIndex analyze_single_result(const ThreadResult::Multi& result, uint32_t exp_srl, uint8_t exp_btn, const KeeloqLearning::Matrix& learnings_matrix)
 {
     static constexpr bool IgnoreMatrix = !!(LearningMode & KernelLearningMode::Force);
 
@@ -408,7 +408,7 @@ __device__ __host__ __forceinline__ void keeloq_encdec_multi_cond(uint32_t data,
  */
 template<bool IgnoreMatrix, bool IsDecrypt, InputsMutation InputsMut, Modifier::Algo AMod>
 __device__ __host__ __forceinline__ void keeloq_encdec_seed_all(uint32_t data, uint32_t fix, const Decryptor& decryptor,
-    const Matrix& learnings_matrix, SingleResult::LearningsArray& decrypted)
+    const Matrix& learnings_matrix, ThreadResult::LearningsArray& decrypted)
 {
     if constexpr (IgnoreMatrix)
     {
@@ -432,7 +432,7 @@ __device__ __host__ __forceinline__ void keeloq_encdec_seed_all(uint32_t data, u
  */
 template<bool IgnoreMatrix, bool IsDecrypt, InputsMutation InputsMut, Modifier::Algo AMod>
 __device__ __host__ __forceinline__ void keeloq_encdec_all(uint32_t data, uint32_t fix, const Decryptor& decryptor,
-    const Matrix& learnings_matrix, SingleResult::LearningsArray& decrypted)
+    const Matrix& learnings_matrix, ThreadResult::LearningsArray& decrypted)
 {
     if constexpr (IgnoreMatrix)
     {
@@ -456,7 +456,7 @@ __device__ __host__ __forceinline__ void keeloq_encdec_all(uint32_t data, uint32
  */
 template<bool IgnoreMatrix, bool IsDecrypt, InputsMutation InputsMut, Modifier::Algo AMod>
 __device__ __host__ __forceinline__ void keeloq_encdec_normal_all(uint32_t data, uint32_t fix, const Decryptor& decryptor,
-    const Matrix& learnings_matrix, SingleResult::LearningsArray& decrypted)
+    const Matrix& learnings_matrix, ThreadResult::LearningsArray& decrypted)
 {
     if constexpr (IgnoreMatrix)
     {
@@ -478,7 +478,7 @@ __device__ __host__ __forceinline__ void keeloq_encdec_normal_all(uint32_t data,
  *   -> keeloq_encdec
  */
 template<KernelLearningMode Mode, bool IsDecrypt = true>
-__device__ __host__ inline void keeloq_encdec(const EncParcel& enc, const Decryptor& decryptor, const Matrix& learnings_matrix, SingleResult::LearningsArray& results)
+__device__ __host__ inline void keeloq_encdec(const EncParcel& enc, const Decryptor& decryptor, const Matrix& learnings_matrix, ThreadResult::LearningsArray& results)
 {
     static constexpr bool IgnoreMatrix     = !!(Mode & KernelLearningMode::Force);
     static constexpr bool ExplicitDecrypt  = !!(Mode & KernelLearningMode::Explicit);
@@ -527,7 +527,7 @@ __device__ __host__ inline void keeloq_encdec(const EncParcel& enc, const Decryp
  *  - if first input doesn't have any match - further calculations pointless
  */
 template<uint8_t NumResults, KernelLearningMode LearningMode, uint8_t FirstResultIndex>
-__device__ uint8_t inline keeloq_decrypt_and_analyze(const CudaContext& ctx, const Decryptor& decryptor, const Matrix& learning_matrix, Span<SingleResult>& results)
+__device__ uint8_t inline keeloq_decrypt_and_analyze(const CudaContext& ctx, const Decryptor& decryptor, const Matrix& learning_matrix, Span<ThreadResult::Multi>& results)
 {
     static_assert(NumResults > 1, "Use `keeloq_decrypt_and_quick_analyze()` if results number is less than 2");
     static_assert(FirstResultIndex < NumResults, "Invalid template parameters!");
@@ -536,7 +536,7 @@ __device__ uint8_t inline keeloq_decrypt_and_analyze(const CudaContext& ctx, con
     UNROLL
     for (uint32_t i = FirstResultIndex; i < NumResults; ++i)
     {
-        SingleResult& result = results[i];
+        ThreadResult::Multi& result = results[i];
         result.match = NoMatch;
 
         result.decryptor = decryptor;
@@ -559,13 +559,13 @@ __device__ uint8_t inline keeloq_decrypt_and_analyze(const CudaContext& ctx, con
  * we want to have indication that this decryptor has a possibility to be the correct one.
  */
 template<KernelLearningMode LearningMode, uint8_t InputIndex>
-__device__ inline void keeloq_decrypt_and_quick_analyze(const CudaContext& ctx, const Decryptor& decryptor, const Matrix& learning_matrix, Span<SingleResult>& results)
+__device__ inline void keeloq_decrypt_and_quick_analyze(const CudaContext& ctx, const Decryptor& decryptor, const Matrix& learning_matrix, Span<ThreadResult::Multi>& results)
 {
     static_assert(InputIndex < 2, "You want Input index be 1 or 2 MOST LIKELY. Since last check should be the robust one");
 
     const EncParcel& enc = InputsCache[InputIndex];
 
-    SingleResult& result = results[InputIndex];
+    ThreadResult::Multi& result = results[InputIndex];
 
     result.decryptor = decryptor;
     result.setInputIndex(InputIndex);
@@ -577,7 +577,7 @@ __device__ inline void keeloq_decrypt_and_quick_analyze(const CudaContext& ctx, 
 }
 
 template<uint8_t InputIndex, InputsMutation InputMut, LearningType LType, Modifier::Algo AMod>
-__device__ __forceinline__ bool keeloq_decrypt_single_learning(const CudaContext& ctx, const Decryptor& decryptor, SingleLearningResult& result)
+__device__ __forceinline__ bool keeloq_decrypt_single_learning(const CudaContext& ctx, const Decryptor& decryptor, ThreadResult::Single& result)
 {
     const EncParcel& enc = InputsCache[InputIndex];
 
@@ -626,7 +626,7 @@ __device__ void inline keeloq_decryption_run(const CudaContext& ctx, KeeloqKerne
     {
         const Decryptor& decryptor = decryptors[decryptor_index];
 
-        Span<SingleResult> results(&all_results[decryptor_index * inputsCount], NumInputs);
+        Span<ThreadResult::Multi> results(&all_results[decryptor_index * inputsCount], NumInputs);
 
         // Single input
         keeloq_decrypt_and_quick_analyze<LearningMode, First>(ctx, decryptor, learning_matrix, results);
@@ -687,7 +687,7 @@ __device__ uint8_t inline keeloq_check_matches(const CudaContext& ctx, const Kee
         }
         else
         {
-            const SingleResult* decryptor_results = &results[decryptor_index * KernelInputs->inputsCount];
+            const ThreadResult::Multi* decryptor_results = &results[decryptor_index * KernelInputs->inputsCount];
 
             // inner loop for each result of this decryptor
             UNROLL
@@ -1148,7 +1148,7 @@ __host__ KernelResult keeloq::kernels::cuda_brute(KeeloqKernelSingleLearningInpu
     return kernel_results;
 }
 
-__host__ SingleResult keeloq::kernels::cuda_encdec(uint64_t ota, uint64_t man, uint32_t seed, bool isDecrypt, InputsMutation inputsMutation)
+__host__ ThreadResult::Multi keeloq::kernels::cuda_encdec(uint64_t ota, uint64_t man, uint32_t seed, bool isDecrypt, InputsMutation inputsMutation)
 {
     static constexpr auto LaunchTable = MakeLaunchSingleTable(std::make_index_sequence<static_cast<std::size_t>(InputsMutationVariantsCount)>{});
 

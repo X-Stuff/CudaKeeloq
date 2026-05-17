@@ -6,7 +6,7 @@
 #include <cuda_runtime_api.h>
 
 #include "algorithm/keeloq/keeloq_decryptor.h"
-#include "algorithm/keeloq/keeloq_single_result.h"
+#include "algorithm/keeloq/keeloq_thread_result.h"
 
 /**
  * Launch configuration for the bruteforce kernels (grid/block dimensions and per-thread work).
@@ -82,7 +82,7 @@ public:
         cudaGetDeviceProperties(&prop, 0);
 
         threadsPerBlock = threadsPerBlock > 0 ? threadsPerBlock : prop.maxThreadsPerBlock;
-        sizeofResult = sizeofResult > 0 ? sizeofResult : sizeof(SingleResult);
+        sizeofResult = sizeofResult > 0 ? sizeofResult : sizeof(ThreadResult::Multi);
 
         // Usually each thread has 1 decryptor and 3 results (usually need 3 inputs)
         const auto thread_memory = threadsPerBlock * (sizeof(Decryptor) + sizeofResult * 3);

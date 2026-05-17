@@ -106,6 +106,6 @@ uint32_t Encryptor::gpuDecrypt(uint64_t enc, InputsMutation inputsMutation, Keel
 {
     const uint8_t resIndex = KeeloqLearning::DecryptedResults::getIndex(ltype, amod);
 
-    SingleResult result = keeloq::kernels::cuda_dec(enc, key, seed, inputsMutation);
+    ThreadResult::Multi result = keeloq::kernels::cuda_dec(enc, key, seed, inputsMutation);
     return result.decrypted.data[resIndex];
 }

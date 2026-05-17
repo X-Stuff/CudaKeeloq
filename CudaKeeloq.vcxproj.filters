@@ -44,7 +44,7 @@
     <ClInclude Include="src\algorithm\keeloq\keeloq_learning_types.h">
       <Filter>algorithm\keeloq</Filter>
     </ClInclude>
-    <ClInclude Include="src\algorithm\keeloq\keeloq_single_result.h">
+    <ClInclude Include="src\algorithm\keeloq\keeloq_thread_result.h">
       <Filter>algorithm\keeloq</Filter>
     </ClInclude>
     <ClInclude Include="src\kernels\kernel_result.h">
@@ -110,9 +110,6 @@
     <ClInclude Include="src\bruteforce\bruteforce_result.h">
       <Filter>bruteforce</Filter>
     </ClInclude>
-    <ClInclude Include="src\algorithm\keeloq\keeloq_learning_result.h">
-      <Filter>algorithm\keeloq</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp" />
@@ -141,9 +138,6 @@
       <Filter>bruteforce\generators</Filter>
     </ClCompile>
     <ClCompile Include="src\algorithm\keeloq\keeloq_learning_types.cpp">
-      <Filter>algorithm\keeloq</Filter>
-    </ClCompile>
-    <ClCompile Include="src\algorithm\keeloq\keeloq_single_result.cpp">
       <Filter>algorithm\keeloq</Filter>
     </ClCompile>
     <ClCompile Include="src\bruteforce\bruteforce_pattern.cpp">

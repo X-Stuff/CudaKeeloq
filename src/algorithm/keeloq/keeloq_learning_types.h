@@ -129,9 +129,11 @@ struct ValuesSet
 {
     static constexpr CudaFixedArray<T, sizeof...(Values)> values = { Values... };
 
-    __host__ __device__ __inline__ constexpr auto begin() const { return &values[0]; }
+    static constexpr uint8_t Size = sizeof...(Values);
 
-    __host__ __device__ __inline__ constexpr auto end() const { return &values[values.size()]; }
+    __host__ __device__ __inline__ constexpr auto begin() const { return values.begin(); }
+
+    __host__ __device__ __inline__ constexpr auto end() const { return values.end(); }
 };
 
 /** Number of learning types */
@@ -382,7 +384,7 @@ public:
 using ResultIndex = uint8_t;
 
 /** Size of the indices cache, all possible variations including impossible */
-static constexpr const uint8_t IndicesCacheSize = LearningTypesCount * Modifier::AlgoModCount;
+static constexpr const uint8_t IndicesCacheSize = LearningTypesCount * EveryModifierType::Size;
 
 /** Size of the decrypted array (reduced only to real) */
 static constexpr const uint8_t DecryptedArraySize = RegistryInfo::RealResultsNum;
@@ -568,14 +570,11 @@ public:
     /** Does reverse lookup by index, not allowed on device! */
     __host__ __inline__ static constexpr const auto getByIndex(ResultIndex index)
     {
-        for (auto iLearning = 0; iLearning < LearningTypesCount; ++iLearning)
+        for (auto learning : EveryLearningType{})
         {
-            for (auto aMod = 0; aMod < Modifier::AlgoModCount; ++aMod)
+            for (auto algoModifier : EveryModifierType{})
             {
-                const auto l = static_cast<LearningType>(iLearning);
-                const auto amod = static_cast<Modifier::Algo>(aMod);
-
-                const auto item = LearningItem(l, amod);
+                const auto item = LearningItem(learning, algoModifier);
 
                 if (ResultIndicesCache::get(item.asIndex()) == index)
                 {

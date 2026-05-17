@@ -50,7 +50,7 @@
     <ClInclude Include="src\algorithm\keeloq\keeloq_learning_types.h">
       <Filter>algorithm\keeloq</Filter>
     </ClInclude>
-    <ClInclude Include="src\algorithm\keeloq\keeloq_single_result.h">
+    <ClInclude Include="src\algorithm\keeloq\keeloq_thread_result.h">
       <Filter>algorithm\keeloq</Filter>
     </ClInclude>
     <ClInclude Include="src\algorithm\multibase_digit.h">
@@ -134,9 +134,6 @@
     <ClInclude Include="ThirdParty\doctest\doctest.h">
       <Filter>ThirdParty</Filter>
     </ClInclude>
-    <ClInclude Include="src\algorithm\keeloq\keeloq_learning_result.h">
-      <Filter>algorithm\keeloq</Filter>
-    </ClInclude>
     <ClInclude Include="src\kernels\kernel_input_base.h">
       <Filter>kernels</Filter>
     </ClInclude>
@@ -159,9 +156,6 @@
       <Filter>algorithm\keeloq</Filter>
     </ClCompile>
     <ClCompile Include="src\algorithm\keeloq\keeloq_learning_types.cpp">
-      <Filter>algorithm\keeloq</Filter>
-    </ClCompile>
-    <ClCompile Include="src\algorithm\keeloq\keeloq_single_result.cpp">
       <Filter>algorithm\keeloq</Filter>
     </ClCompile>
     <ClCompile Include="src\bruteforce\bruteforcer.cpp">

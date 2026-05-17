@@ -85,7 +85,7 @@ void benchmark::run(const std::vector<EncParcel>& inputs, const KeeloqLearning::
     static const float    MaxCudaMemory = CudaConfig::MaxGlobalMemoryGB();
 
     const uint32_t MaxCudaBlocks = benchmarkConfig.useSingleLearningKernels ? std::numeric_limits<uint32_t>::max() : 65536;
-    const size_t sizeofResult = benchmarkConfig.useSingleLearningKernels ? sizeof(SingleLearningResult) : sizeof(SingleResult);
+    const size_t sizeofResult = benchmarkConfig.useSingleLearningKernels ? sizeof(ThreadResult::Single) : sizeof(ThreadResult::Multi);
 
     const bool hasSeed = benchmarkConfig.hasSeed();
     const auto reducedMatrix = benchmarkConfig.reduceMatrix(fullMatrix);

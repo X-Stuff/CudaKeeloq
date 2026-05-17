@@ -16,7 +16,7 @@ cudaError_t KeeloqKernelMultiLearningInput::AllocateGPU(size_t totalNumDecryptor
     assert(results == nullptr && "Results data already allocated on GPU");
     if (results == nullptr)
     {
-        results = CudaArray<SingleResult>::allocate(totalNumDecryptors * numInputs);
+        results = CudaArray<ThreadResult::Multi>::allocate(totalNumDecryptors * numInputs);
     }
 
     return results != nullptr ? cudaSuccess : cudaGetLastError();
@@ -55,7 +55,7 @@ BruteforceResult KeeloqKernelMultiLearningInput::getMatch(GetMatchProgressCallba
         }
 
         // Read decryptors in batches, just to save RAM on host, using static method since we already copied object to host
-        auto copied_results = CudaArray<SingleResult>::read(resultsRam, index, MaxElements);
+        auto copied_results = CudaArray<ThreadResult::Multi>::read(resultsRam, index, MaxElements);
 
         for (const auto& result : copied_results)
         {

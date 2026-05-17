@@ -13,7 +13,7 @@
 
 #include "algorithm/keeloq/keeloq_encrypted.h"
 #include "algorithm/keeloq/keeloq_learning_types.h"
-#include "algorithm/keeloq/keeloq_single_result.h"
+#include "algorithm/keeloq/keeloq_thread_result.h"
 
 #include "bruteforce/bruteforce_config.h"
 

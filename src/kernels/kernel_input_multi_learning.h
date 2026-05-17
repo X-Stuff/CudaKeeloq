@@ -12,8 +12,7 @@
 #include "algorithm/keeloq/keeloq_decryptor.h"
 #include "algorithm/keeloq/keeloq_encrypted.h"
 #include "algorithm/keeloq/keeloq_learning_types.h"
-#include "algorithm/keeloq/keeloq_single_result.h"
-#include "algorithm/keeloq/keeloq_learning_result.h"
+#include "algorithm/keeloq/keeloq_thread_result.h"
 
 #include "bruteforce/bruteforce_config.h"
 
@@ -76,7 +75,7 @@ public:
 
 public:
     // Single-run results accessible from GPU
-    CudaArray<SingleResult>* results = nullptr;
+    CudaArray<ThreadResult::Multi>* results = nullptr;
 
 private:
     // Which type of learning use for decryption

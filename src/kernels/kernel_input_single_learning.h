@@ -7,7 +7,7 @@
 
 #include "kernels/kernel_input_base.h"
 
-#include "algorithm/keeloq/keeloq_learning_result.h"
+#include "algorithm/keeloq/keeloq_thread_result.h"
 #include "algorithm/keeloq/keeloq_learning_types.h"
 
 #include "bruteforce/bruteforce_config.h"
@@ -62,7 +62,7 @@ public:
 
 public:
     template<uint8_t InputIndex, uint8_t NumInputs>
-    __device__ __forceinline__ SingleLearningResult& Result(size_t decryptorIndex)
+    __device__ __forceinline__ ThreadResult::Single& Result(size_t decryptorIndex)
     {
         return (*results)[decryptorIndex * NumInputs + InputIndex];
     }
@@ -74,7 +74,7 @@ public:
 
 public:
     // Per-variation results, size is number of decryptors * inputsNum
-    CudaArray<SingleLearningResult>* results = nullptr;
+    CudaArray<ThreadResult::Single>* results = nullptr;
 
     // How inputs should be mutated in Kernel
     InputsMutation inputsMutation = InputsMutation::None;

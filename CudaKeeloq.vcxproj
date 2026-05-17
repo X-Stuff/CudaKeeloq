@@ -177,9 +177,8 @@
     <ClInclude Include="src\algorithm\keeloq\keeloq_kernel.h" />
     <ClInclude Include="src\algorithm\keeloq\keeloq_decryptor.h" />
     <ClInclude Include="src\algorithm\keeloq\keeloq_encrypted.h" />
-    <ClInclude Include="src\algorithm\keeloq\keeloq_learning_result.h" />
     <ClInclude Include="src\algorithm\keeloq\keeloq_learning_types.h" />
-    <ClInclude Include="src\algorithm\keeloq\keeloq_single_result.h" />
+    <ClInclude Include="src\algorithm\keeloq\keeloq_thread_result.h" />
     <ClInclude Include="src\algorithm\multibase_digit.h" />
     <ClInclude Include="src\algorithm\multibase_number.h" />
     <ClInclude Include="src\algorithm\multibase_system.h" />
@@ -215,7 +214,6 @@
   <ItemGroup>
     <ClCompile Include="src\algorithm\keeloq\keeloq_encryptor.cpp" />
     <ClCompile Include="src\algorithm\keeloq\keeloq_learning_types.cpp" />
-    <ClCompile Include="src\algorithm\keeloq\keeloq_single_result.cpp" />
     <ClCompile Include="src\bruteforce\bruteforcer.cpp" />
     <ClCompile Include="src\bruteforce\bruteforce_config.cpp" />
     <ClCompile Include="src\bruteforce\bruteforce_filters.cpp" />

@@ -5,7 +5,7 @@
 #include "algorithm/keeloq/keeloq_encrypted.h"
 #include "algorithm/keeloq/keeloq_kernel.h"
 #include "algorithm/keeloq/keeloq_learning_types.h"
-#include "algorithm/keeloq/keeloq_single_result.h"
+#include "algorithm/keeloq/keeloq_thread_result.h"
 
 #include "bruteforce/bruteforcer.h"
 #include "bruteforce/bruteforce_config.h"
@@ -45,10 +45,8 @@ void runEveryLearningWithMod(const BruteforceConfig& config, bool useSingleLearn
 
     uint16_t totalMatches = 0;
 
-    for (auto lType = 0; lType < LearningTypesCount; ++lType)
+    for (auto learningType : EveryLearningType{})
     {
-        const auto learningType = static_cast<LearningType>(lType);
-
         auto inputMutations = config.getMutations();
 
         for (auto mutation : inputMutations)
@@ -57,13 +55,12 @@ void runEveryLearningWithMod(const BruteforceConfig& config, bool useSingleLearn
 
             const bool canMatch = (config.hasSeed() && KeeloqLearning::hasSeed(learningType)) || (!seedRequired && config.type != BruteforceType::Seed);
 
-            for (auto aMod = 0; aMod < Modifier::AlgoModCount; ++aMod)
+            for (auto algoModifier : EveryModifierType{})
             {
                 static int spinner = 0;
                 std::printf("\r%c", WAIT_CHAR(++spinner));
                 std::fflush(stdout);
 
-                const auto algoModifier   = static_cast<Modifier::Algo>(aMod);
                 const auto learningItem = LearningItem(learningType, algoModifier);
 
                 const auto resIndex = DecryptedResults::getIndex(learningItem);

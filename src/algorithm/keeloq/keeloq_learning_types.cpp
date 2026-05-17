@@ -79,9 +79,8 @@ std::vector<KeeloqLearning::LearningItem> Matrix::asItems() const
 {
     std::vector<KeeloqLearning::LearningItem> items;
 
-    for (auto a = 0; a < Modifier::AlgoModCount; ++a)
+    for (auto amod : EveryModifierType{})
     {
-        auto amod = static_cast<Modifier::Algo>(a);
         for (auto learning : EveryLearningType{})
         {
             if (isEnabled(learning, amod))
