@@ -51,13 +51,14 @@ struct Bruteforcer
         std::chrono::milliseconds roundTime = std::chrono::milliseconds(0);
 
         /**
-         *  Number of total checks per batch (including input mutations) with single decryptor.
-         * A decryptor may check only single algorithm with no modifiers, and could be all possible learnings,
-         * depending on the selected brute type, learning matrix, etc.
-         *
-         * Decryptor may check only one input or all three, depending if each input decrypted into valid data.
+         *  Number of total keys checked per batch (including input mutations) by single decryptor.
          */
-        uint64_t checksInBatch = 0;
+        uint64_t keysInBatch = 0;
+
+        /**
+         *  Real number of total processed keys (all learnings, mutation, modifies), updated after every CUDA kernel launch.
+         */
+        uint64_t realProcessedKeys = 0;
 
         /** Average time in ms elapsed per batch (moving average) */
         double batchAverageMs = 0;
@@ -76,14 +77,11 @@ struct Bruteforcer
         /** Allocated GPU memory size in GB */
         inline float allocatedGB() const { return static_cast<float>(allocatedBytesGPU / (1024.0 * 1024.0 * 1024.0)); }
 
-        /** Total number of checks for whole round */
-        inline uint64_t totalChecks() const { return numBatches * checksInBatch; }
+        /** Average round speed in thousands keys per second */
+        inline double avgRoundSpeed() const { return static_cast<double>(realProcessedKeys / roundTime.count()); }
 
-        /** Average round speed in Kkeys/s */
-        inline double avgRoundSpeed() const { return static_cast<double>(totalChecks() / roundTime.count()); }
-
-        /** Average batch speed in Kkeys/s */
-        inline double avgBatchSpeed() const { return batchAverageMs != 0.0 ? checksInBatch / batchAverageMs : 0.0; }
+        /** Average batch speed in thousands keys per second */
+        inline double avgBatchSpeed() const { return batchAverageMs != 0.0 ? keysInBatch / batchAverageMs : 0.0; }
 
     private:
         void setResult(const KernelResult& round, bool stopped);
@@ -96,12 +94,6 @@ public:
     /** Run one bruteforce round and return a matching result (or `BruteforceResult::Invalid()`). */
     BruteforceResult run(const BruteforceConfig& config, const CudaConfig& cuda, const KeeloqLearning::Matrix& learningMatrix);
 
-    /** Run the bruteforce round with mutli-learning inputs and return a matching result (or `BruteforceResult::Invalid()`). */
-    BruteforceResult runMulti(BruteforceRound& round, const CudaConfig& cuda, const KeeloqLearning::Matrix& learningMatrix, const std::vector<InputsMutation> inputMutations);
-
-    /** Run the bruteforce round with single-learning inputs and return a matching result (or `BruteforceResult::Invalid()`). */
-    BruteforceResult runSingle(BruteforceRound& round, const CudaConfig& cuda, const KeeloqLearning::Matrix& learningMatrix, const std::vector<InputsMutation> inputMutations);
-
     /** Set callback for round completion event*/
     void setOnRoundComplete(RoundCompleteCallback&& callback) { onRoundComplete = std::move(callback); }
 
@@ -109,11 +101,26 @@ public:
     const Stats& getStats() const { return stats; }
 
 private:
+    /**
+     * Single unit of work within a batch: a learning matrix to apply and an input mutation variant.
+     * In multi-learning mode each entry carries the full matrix; in single-learning mode each entry
+     * carries a one-item matrix so the kernel processes one learning type at a time.
+     */
+    struct SubCheck
+    {
+        /** Learning matrix to pass to the kernel for this sub-check */
+        KeeloqLearning::Matrix matrix;
+
+        /** Input mutation variant to apply for this sub-check */
+        InputsMutation mutation;
+    };
+
+    BruteforceResult runImpl(BruteforceRound& round, const std::vector<SubCheck>& subChecks);
 
     BruteforceResult getMatchResult(const BruteforceRound& round, bool first = true);
 
-    void printBruteforceProgress(const BruteforceRound& round, const int64_t batchTime, const std::chrono::seconds& roundTime,
-        const size_t batchIndex, const size_t subIndex, const size_t subNum, InputsMutation mutation);
+    void printBruteforceProgress(const BruteforceRound& round, const std::chrono::seconds& roundTime, const size_t batchIndex, const int64_t batchTime,
+        const size_t subIndex, const size_t subNum, const uint8_t learningsNum, InputsMutation mutation);
 
     void printGpuMemorySearchProgress(const size_t index, const size_t count, const std::chrono::seconds& time);
 

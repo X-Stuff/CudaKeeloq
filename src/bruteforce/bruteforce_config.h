@@ -8,6 +8,7 @@
 #include "common.h"
 
 #include "algorithm/keeloq/keeloq_decryptor.h"
+#include "algorithm/keeloq/keeloq_learning_types.h"
 #include "kernels/inputs_mutation.h"
 
 #include "bruteforce/bruteforce_filters.h"
@@ -116,6 +117,13 @@ public:
 
     /** Human-readable description of the given mutation mask. */
     std::string mutationsToString() const;
+
+    /**
+     *  Reduce some learning types depends on config,
+     * e.g. Seed-Only bruteforce type doesn't require non-seed learning types,
+     *  or if decryptors doesn't have seed, we should not brute learning types that require seed.
+     */
+    KeeloqLearning::Matrix reduceMatrix(const KeeloqLearning::Matrix& matrix) const;
 
 private:
     BruteforceConfig(Decryptor start, BruteforceType::Type t, InputsMutation im, size_t num) :

@@ -46,15 +46,10 @@ Matrix::Matrix(const std::vector<LearningType>& types, const std::vector<Modifie
     }
 }
 
-std::string Matrix::toString(const BruteforceConfig* bruteConfig) const
+std::string Matrix::toString() const
 {
     char buffer[8196];
     int at = 0;
-
-    const bool withSeed = bruteConfig == nullptr || bruteConfig->hasSeed();
-    const bool seedOnly = bruteConfig != nullptr && bruteConfig->type == BruteforceType::Seed;
-
-    uint8_t enabledCount = 0;
 
     at += snprintf(&buffer[at], sizeof(buffer) - at, "Learning matrix:\n"
         "           _______________________________________________________________________________\n"
@@ -62,36 +57,20 @@ std::string Matrix::toString(const BruteforceConfig* bruteConfig) const
     at += snprintf(&buffer[at], sizeof(buffer) - at,
         "__________|_________|_________|_________|_________|_________|_________|_________|_________|\n");
 
-    for (auto a = 0; a < Modifier::AlgoModCount; ++a)
+    for (auto amod : EveryModifierType{})
     {
-        auto amod = static_cast<Modifier::Algo>(a);
-
         at += snprintf(&buffer[at], sizeof(buffer) - at, "%8s: |", KeeloqLearning::name(amod));
 
         for (auto learning : EveryLearningType{})
         {
-            bool isLearningEnabled = isEnabled(learning, amod);
-
-            if (hasSeed(learning))
-            {
-                if (!withSeed)
-                {
-                    isLearningEnabled = false;
-                }
-            }
-            else if (seedOnly)
-            {
-                isLearningEnabled = false;
-            }
-
-            enabledCount += static_cast<uint8_t>(isLearningEnabled);
+            const bool isLearningEnabled = isEnabled(learning, amod);
             at += snprintf(&buffer[at], sizeof(buffer) - at, "    %s    |", isLearningEnabled ? "+" : " ");
         }
         at += snprintf(&buffer[at], sizeof(buffer) - at, "\n");
     }
 
     at += snprintf(&buffer[at], sizeof(buffer) - at,            "¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯\n");
-    at += snprintf(&buffer[at], sizeof(buffer) - at, "Total enabled learnings: %u\n", enabledCount);
+    at += snprintf(&buffer[at], sizeof(buffer) - at, "Total enabled learnings: %u\n", numEnabled());
 
     return std::string(buffer);
 }

@@ -179,3 +179,5 @@ private:
     // Safety flag
     bool readyForBrute = false;
 };
+
+std::string_view toString(IKeeloqKernelInputBase::Type type);

@@ -4,6 +4,7 @@
 
 #include "common.h"
 
+#include "algorithm/keeloq/keeloq_kernel.h"
 #include "algorithm/keeloq/keeloq_encrypted.h"
 #include "algorithm/keeloq/keeloq_learning_types.h"
 #include "algorithm/keeloq/keeloq_single_result.h"
@@ -76,24 +77,24 @@ size_t BruteforceRound::numBatches() const
     assert(inited);
     if (type() == BruteforceType::Dictionary)
     {
-        uint8_t non_align = config().dictSize() % keysPerBatch() == 0 ? 0 : 1;
-        return config().dictSize() / keysPerBatch() + non_align;
+        const uint8_t non_align = config().dictSize() % decryptorsPerBatch() == 0 ? 0 : 1;
+        return config().dictSize() / decryptorsPerBatch() + non_align;
     }
     else
     {
-        uint8_t non_align = config().bruteSize() % keysPerBatch() == 0 ? 0 : 1;
-        return config().bruteSize() / keysPerBatch() + non_align;
+        const uint8_t non_align = config().bruteSize() % decryptorsPerBatch() == 0 ? 0 : 1;
+        return config().bruteSize() / decryptorsPerBatch() + non_align;
     }
 }
 
-size_t BruteforceRound::keysPerBatch() const
+size_t BruteforceRound::decryptorsPerBatch() const
 {
     return num_decryptors_per_batch;
 }
 
 size_t BruteforceRound::resultsPerBatch() const
 {
-    return keysPerBatch() * inputsNum;
+    return decryptorsPerBatch() * inputsNum;
 }
 
 void BruteforceRound::init()
@@ -106,14 +107,16 @@ void BruteforceRound::init()
     }
 }
 
-void BruteforceRound::prepareBatch(const KeeloqLearning::Matrix& learningMatrix, InputsMutation inputsMutation)
+KernelResult BruteforceRound::update(const KeeloqLearning::Matrix& learningMatrix, InputsMutation inputsMutation)
 {
-    assert(kernel_inputs && "Inputs were not constructed!");
-
-    if (kernel_inputs)
+    if (!kernel_inputs)
     {
-        kernel_inputs->prepareBatch(learningMatrix, inputsMutation);
+        assert(kernel_inputs && "Inputs were not constructed!");
+        return KernelResult::NotStarted();
     }
+
+    kernel_inputs->prepareBatch(learningMatrix, inputsMutation);
+    return keeloq::kernels::cuda_brute(*this, cudaConfig);
 }
 
 std::string BruteforceRound::toString() const
@@ -134,16 +137,18 @@ std::string BruteforceRound::toString() const
         "----------------------------------------\n"
         "Results per batch:   %8zd\n"
         "Decryptors per batch:%8zd\n"
+        "Kernel Inputs:       %8s\n"
         "----------------------------------------\n"
         "Config: %s\n"
         "----------------------------------------",
         cudaConfig.blocks, cudaConfig.threads, cudaConfig.substeps, (getMemSize(false) / static_cast<float>(1024 * 1024 * 1024)),
         inputsNum, config().mutationsToString().c_str(),
-        resultsPerBatch(), keysPerBatch(), config().toString().c_str());
+        resultsPerBatch(), decryptorsPerBatch(), kernel_inputs ? ::toString(kernel_inputs->type()).data() : "NULL",
+        config().toString().c_str());
 }
 
 
-bool BruteforceRound::prepareInputs(uint64_t batchIdx)
+bool BruteforceRound::generateDecryptors(uint64_t batchIdx)
 {
     if (type() != BruteforceType::Dictionary)
     {
@@ -165,7 +170,7 @@ bool BruteforceRound::prepareInputs(uint64_t batchIdx)
     else
     {
         // Write next batch of keys from dictionary
-        inputs().WriteDecryptors(config().dictDecryptors, batchIdx * keysPerBatch(), keysPerBatch());
+        inputs().WriteDecryptors(config().dictDecryptors, batchIdx * decryptorsPerBatch(), decryptorsPerBatch());
     }
 
     return true;

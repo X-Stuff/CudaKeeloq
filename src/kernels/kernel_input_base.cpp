@@ -107,3 +107,16 @@ void IKeeloqKernelInputBase::NextDecryptor()
     assert(config.type != BruteforceType::Dictionary);
     config.nextDecryptor();
 }
+
+std::string_view toString(IKeeloqKernelInputBase::Type type)
+{
+    switch (type)
+    {
+    case IKeeloqKernelInputBase::Type::Single:
+        return "Single";
+    case IKeeloqKernelInputBase::Type::Multi:
+        return "Multi ";
+    default:
+        return "Unknown";
+    }
+}

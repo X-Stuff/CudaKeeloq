@@ -374,7 +374,7 @@ __device__ __host__ __forceinline__ void keeloq_encdec_single(uint32_t data, uin
  */
 template<bool IsDecrypt, InputsMutation InputsMut, Modifier::Algo AMod, LearningType... LTypes>
 __device__ __host__ __forceinline__ void keeloq_encdec_multi(uint32_t data, uint32_t fix, const Decryptor& decryptor,
-    DecryptedResults& results, LearningTypesSet<LTypes...>)
+    DecryptedResults& results, ValuesSet<LearningType, LTypes...>)
 {
     ((keeloq_encdec_single<IsDecrypt, InputsMut, LTypes, AMod>(data, fix, decryptor, results)), ...);
 }
@@ -391,7 +391,7 @@ __device__ __host__ __forceinline__ void keeloq_encdec_multi(uint32_t data, uint
  */
 template<bool IsDecrypt, InputsMutation InputsMut, Modifier::Algo AMod, LearningType... LTypes>
 __device__ __host__ __forceinline__ void keeloq_encdec_multi_cond(uint32_t data, uint32_t fix, const Decryptor& decryptor,
-    const Matrix& learnings_matrix, DecryptedResults& results, LearningTypesSet<LTypes...>)
+    const Matrix& learnings_matrix, DecryptedResults& results, ValuesSet<LearningType, LTypes...>)
 {
     ((learnings_matrix.template isEnabled<LTypes, AMod>() ? keeloq_encdec_single<IsDecrypt, InputsMut, LTypes, AMod>(data, fix, decryptor, results) : void()), ...);
 }

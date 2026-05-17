@@ -110,6 +110,9 @@
     <ClInclude Include="src\bruteforce\bruteforce_result.h">
       <Filter>bruteforce</Filter>
     </ClInclude>
+    <ClInclude Include="src\algorithm\keeloq\keeloq_learning_result.h">
+      <Filter>algorithm\keeloq</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp" />

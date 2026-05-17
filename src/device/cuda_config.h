@@ -76,15 +76,16 @@ public:
     }
 
     /** Maximum block count that fits in the device's memory and grid limits for this workload. */
-    static uint32_t MaxCudaBlocks(int threadsPerBlock = 0)
+    static uint32_t MaxCudaBlocks(int threadsPerBlock = 0, size_t sizeofResult = 0)
     {
         cudaDeviceProp prop;
         cudaGetDeviceProperties(&prop, 0);
 
         threadsPerBlock = threadsPerBlock > 0 ? threadsPerBlock : prop.maxThreadsPerBlock;
+        sizeofResult = sizeofResult > 0 ? sizeofResult : sizeof(SingleResult);
 
         // Usually each thread has 1 decryptor and 3 results (usually need 3 inputs)
-        const auto thread_memory = threadsPerBlock * (sizeof(Decryptor) + sizeof(SingleResult) * 3);
+        const auto thread_memory = threadsPerBlock * (sizeof(Decryptor) + sizeofResult * 3);
     #if _DEBUG
         // Limit to 5GB in debug
         static constexpr size_t MaxMeoryInDebug = (1024 * 1024 * 1024) * static_cast<size_t>(5);

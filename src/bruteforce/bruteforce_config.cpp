@@ -154,6 +154,37 @@ std::string BruteforceConfig::mutationsToString() const
     return std::string(result);
 }
 
+
+KeeloqLearning::Matrix BruteforceConfig::reduceMatrix(const KeeloqLearning::Matrix& matrix) const
+{
+    auto result = matrix;
+
+    for (auto ltype : KeeloqLearning::EveryLearningType{})
+    {
+        for (auto mtype : KeeloqLearning::EveryModifierType{})
+        {
+            if (type == BruteforceType::Seed)
+            {
+                // Seed only brute only for seeded learning types
+                if (!KeeloqLearning::hasSeed(ltype))
+                {
+                    result.disable(ltype, mtype);
+                }
+            }
+            else
+            {
+                // If current config doesn't have seed, we can't brute learning types that require seed
+                if (KeeloqLearning::hasSeed(ltype) && !hasSeed())
+                {
+                    result.disable(ltype, mtype);
+                }
+            }
+        }
+    }
+
+    return result;
+}
+
 std::string BruteforceConfig::toString() const
 {
     const char* bruteTypeName = BruteforceType::name(type);

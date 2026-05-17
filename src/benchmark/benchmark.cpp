@@ -44,7 +44,95 @@ std::vector<EncParcel> makeBenchmarkInputs(uint64_t key, uint8_t num, KeeloqLear
 }
 }
 
-void benchmark::real()
+int benchmark::run(const std::vector<EncParcel>& inputs, const KeeloqLearning::Matrix& learningMatrix,
+    const BruteforceConfig& benchmarkConfig, uint32_t numCudaBlocks, uint16_t numCudaThreads)
+{
+    Bruteforcer bruteforcer(inputs, true, AppVerbosity::Progress);
+    CudaConfig cudaConfig{ numCudaBlocks, numCudaThreads, 1 };
+
+    bruteforcer.run(benchmarkConfig, cudaConfig, learningMatrix);
+    const auto& stats = bruteforcer.getStats();
+
+    console::clearLinesUp(1);
+
+    const bool kernelFailure = stats.result == Bruteforcer::Stats::KernelFailure;
+    const bool userCancelled = stats.result == Bruteforcer::Stats::UserCancelled;
+
+    if (kernelFailure || userCancelled)
+    {
+        const auto resText = kernelFailure ? "FAILURE" : " CANCEL";
+
+        printf("| CUDA: %6" PRIu32 " x %-4" PRIu16 " | MKeys:%5" PRIu64 " | GPU Mem %4.1f GB | Round time: %s | Avg: %s  | Batch avg : %s  |\n\n",
+            numCudaBlocks, numCudaThreads, stats.realProcessedKeys / 1000000, stats.allocatedGB(), resText, resText, resText);
+
+        return kernelFailure ? -1 : 0;
+    }
+
+    printf("| CUDA: %6" PRIu32 " x %-4" PRIu16 " | MKeys:%5" PRIu64 " | GPU Mem %4.1f GB | Round time:%6" PRIu64 "ms | Avg:%6.1f Mk/s | Batch avg :%6.1f Mk/s |\n\n",
+        numCudaBlocks, numCudaThreads,
+        stats.realProcessedKeys / 1000000,
+        stats.allocatedGB(),
+        stats.elapsedMs(),
+        stats.avgRoundSpeed() / 1000,
+        stats.avgBatchSpeed() / 1000);
+
+    return static_cast<int>(stats.avgRoundSpeed());
+}
+
+void benchmark::run(const std::vector<EncParcel>& inputs, const KeeloqLearning::Matrix& fullMatrix, const BruteforceConfig& benchmarkConfig)
+{
+    static const uint32_t MaxCudaThreads = CudaConfig::MaxCudaThreads();
+    static const float    MaxCudaMemory = CudaConfig::MaxGlobalMemoryGB();
+
+    const uint32_t MaxCudaBlocks = benchmarkConfig.useSingleLearningKernels ? std::numeric_limits<uint32_t>::max() : 65536;
+    const size_t sizeofResult = benchmarkConfig.useSingleLearningKernels ? sizeof(SingleLearningResult) : sizeof(SingleResult);
+
+    const bool hasSeed = benchmarkConfig.hasSeed();
+    const auto reducedMatrix = benchmarkConfig.reduceMatrix(fullMatrix);
+
+    printf("BENCHMARK BEGIN (Esc to skip)\n\nConfig is: %s\n", BruteforceType::name(benchmarkConfig.type));
+    printf(
+        "Max Available CUDA Blocks          : %u\n"
+        "Max Available GPU Memory           : %.1fGB\n"
+        "CUDA Threads per block             : %u\n"
+        "Total decryptors number            : %" PRIu64 " (Millions)\n"
+        "Seed specified                     : %s\n"
+        "Inputs mutations:                  : %s\n"
+        "Kernel inputs:                     : %s\n"
+        "Learning                           : %s\n\n",
+        MaxCudaBlocks, MaxCudaMemory, MaxCudaThreads,
+        (benchmarkConfig.size / 1000000),
+        (hasSeed ? "true" : "false"),
+        benchmarkConfig.mutationsToString().c_str(),
+        benchmarkConfig.useSingleLearningKernels ? "Single" : "Multiple",
+        reducedMatrix.toString().c_str());
+
+    std::vector<Result> results;
+
+    for (uint32_t numThreads = 256; numThreads <= MaxCudaThreads; numThreads *= 2)
+    {
+        uint32_t maxBlocksForThreads = std::min(CudaConfig::MaxCudaBlocks(numThreads, sizeofResult), MaxCudaBlocks);
+
+        for (uint32_t numBlocks = 4096; numBlocks <= maxBlocksForThreads; numBlocks *= 2)
+        {
+            auto avgSpeed = run(inputs, reducedMatrix, benchmarkConfig, numBlocks, numThreads);
+            if (!avgSpeed)
+            {
+                // Cancel request
+                return;
+            }
+
+            results.push_back({ numBlocks, numThreads, static_cast<int>(avgSpeed) });
+        }
+    }
+
+    std::sort(results.begin(), results.end(), [](const Result& a, const Result& b) { return a.avgSpeed > b.avgSpeed; });
+
+    printf("\nBENCHMARK FINISHED: Best result: %u blocks, %u threads, %.3f million keys/s\n\n\n",
+        results.front().numBlocks, results.front().numThreads, results.front().avgSpeed / 1000.0f);
+}
+
+void benchmark::becnhmarkReal(bool useSingleLearningKernels)
 {
     {
         constexpr uint64_t manDH = 0x8455F43584941223;
@@ -57,11 +145,12 @@ void benchmark::real()
 
         Bruteforcer bruteforcer(dhInputs, true);
         BruteforceConfig simple = BruteforceConfig::GetBruteforce(dhStartDecryptor, InputsMutation::None, 0xFFFFFFFF);
+        simple.useSingleLearningKernels = useSingleLearningKernels;
 
         CudaConfig cudaConfig = CudaConfig::Optimal();
 
         const auto learningItem = KeeloqLearning::LearningItem(learningDH);
-        auto result = bruteforcer.run(simple, cudaConfig, KeeloqLearning::Matrix{ learningItem });
+        auto result = bruteforcer.run(simple, cudaConfig, KeeloqLearning::Matrix::Everything());// { learningItem });
         const auto& stats = bruteforcer.getStats();
 
         if (stats.result != Bruteforcer::Stats::UserCancelled)
@@ -87,11 +176,12 @@ void benchmark::real()
 
         Bruteforcer bruteforcer(sommerInputs, true);
         BruteforceConfig simple = BruteforceConfig::GetBruteforce(smStartDecryptor, InputsMutation::RevKey, 0xFFFFFFFF);
+        simple.useSingleLearningKernels = useSingleLearningKernels;
 
         CudaConfig cudaConfig = CudaConfig::Optimal();
 
         const auto learningItem = KeeloqLearning::LearningItem(learningSommer);
-        auto result = bruteforcer.run(simple, cudaConfig, KeeloqLearning::Matrix({ learningItem }));
+        auto result = bruteforcer.run(simple, cudaConfig, KeeloqLearning::Matrix::Everything());// { learningItem });
         const auto& stats = bruteforcer.getStats();
 
         if (stats.result != Bruteforcer::Stats::UserCancelled)
@@ -107,87 +197,86 @@ void benchmark::real()
     }
 }
 
-int benchmark::run(const std::vector<EncParcel>& inputs, const KeeloqLearning::Matrix& learningMatrix,
-    const BruteforceConfig& benchmarkConfig, uint32_t numCudaBlocks, uint16_t numCudaThreads)
+void benchmark::benchmarkSeedAttack(uint32_t TargetCalculationsNumber, bool useSingleLearningKernels)
 {
-    Bruteforcer bruteforcer(inputs, true, AppVerbosity::Progress);
-    CudaConfig cudaConfig{ numCudaBlocks, numCudaThreads, 1 };
+    using namespace KeeloqLearning;
 
-    bruteforcer.run(benchmarkConfig, cudaConfig, learningMatrix);
-    const auto& stats = bruteforcer.getStats();
+    constexpr auto NumInputs = 3;
+    auto inputs = makeBenchmarkInputs(0xFF123FF3434FFFFF, NumInputs, LearningType::Serial3);
 
-    console::clearLinesUp(1);
+    auto configSeedOnly = BruteforceConfig::GetSeedBruteforce(Decryptor::Make(0xAABBCCDDEEFFFFFF, 0, true), InputsMutation::None, TargetCalculationsNumber);
+    configSeedOnly.useSingleLearningKernels = useSingleLearningKernels;
 
-    const bool kernelFailure = stats.result == Bruteforcer::Stats::KernelFailure;
-    const bool userCancelled = stats.result == Bruteforcer::Stats::UserCancelled;
-
-    if (kernelFailure || userCancelled)
-    {
-        const auto resText = kernelFailure ? "FAILURE" : " CANCEL";
-
-        printf("| CUDA: %5" PRIu32 " x %-5" PRIu16 " | MKeys:%4" PRIu64 " | GPU Mem %4.1f GB | Round time: %s | Avg: %s  | Batch avg : %s  |\n\n",
-            numCudaBlocks, numCudaThreads, stats.totalChecks() / 1000000, stats.allocatedGB(), resText, resText, resText);
-
-        return kernelFailure ? -1 : 0;
-    }
-
-    printf("| CUDA: %5" PRIu32 " x %-5" PRIu16 " | MKeys:%4" PRIu64 " | GPU Mem %4.1f GB | Round time:%6" PRIu64 "ms | Avg:%6.1f Mk/s | Batch avg :%6.1f Mk/s |\n\n",
-        numCudaBlocks, numCudaThreads,
-        stats.totalChecks() / 1000000,
-        stats.allocatedGB(),
-        stats.elapsedMs(),
-        stats.avgRoundSpeed() / 1000,
-        stats.avgBatchSpeed() / 1000);
-
-    return static_cast<int>(stats.avgRoundSpeed());
+    run(inputs, KeeloqLearning::Matrix::Everything(), configSeedOnly);
 }
 
-void benchmark::run(const std::vector<EncParcel>& inputs, const KeeloqLearning::Matrix& learningMatrix, const BruteforceConfig& benchmarkConfig)
+void benchmark::benchmarkNormalAttack(uint32_t TargetCalculationsNumber, bool useSingleLearningKernels)
 {
-    static const uint32_t MaxCudaThreads = CudaConfig::MaxCudaThreads();
-    static const uint32_t MaxCudaBlocks  = 65536;
-    static const float    MaxCudaMemory  = CudaConfig::MaxGlobalMemoryGB();
+    using namespace KeeloqLearning;
 
-    const bool hasSeed = benchmarkConfig.hasSeed();
+    constexpr auto NumInputs = 3;
+    auto inputs = makeBenchmarkInputs(0xFF123FF3434FFFFF, NumInputs, LearningType::Serial3);
 
-    printf("BENCHMARK BEGIN (Esc to skip)\n\nConfig is: %s\n", BruteforceType::name(benchmarkConfig.type));
-    printf(
-        "Max Available CUDA Blocks          : %u\n"
-        "Max Available GPU Memory           : %.1fGB\n"
-        "CUDA Threads per block             : %u\n"
-        "Num total calculations             : %" PRIu64 " (Millions)\n"
-        "Seed specified                     : %s\n"
-        "Inputs mutations:                  : %s\n"
-        "Learning                           : %s\n\n",
-        MaxCudaBlocks, MaxCudaMemory, MaxCudaThreads,
-        (benchmarkConfig.size * benchmarkConfig.getMutations().size() / 1000000),
-        (hasSeed ? "true" : "false"),
-        benchmarkConfig.mutationsToString().c_str(),
-        learningMatrix.toString(&benchmarkConfig).c_str());
+    // Just using no seed decryptor should turn off all seed-based learning types
+    auto configNoSeed = BruteforceConfig::GetBruteforce(Decryptor::MakeNoSeed(0xAABBCCDDEEFFFFFF), InputsMutation::None, TargetCalculationsNumber);
+    configNoSeed.useSingleLearningKernels = useSingleLearningKernels;
 
-    std::vector<Result> results;
+    run(inputs, KeeloqLearning::Matrix::Everything(), configNoSeed);
+}
 
-    for (uint32_t numThreads = 256; numThreads <= MaxCudaThreads; numThreads *= 2)
+void benchmark::benchmarkXoredAttack(uint32_t TargetCalculationsNumber, bool useSingleLearningKernels)
+{
+    using namespace KeeloqLearning;
+
+    constexpr auto NumInputs = 3;
+    auto inputs = makeBenchmarkInputs(0xFF123FF3434FFFFF, NumInputs, LearningType::Serial3);
+
+    // XORed only
+    auto configXorFixed = BruteforceConfig::GetXorFixBruteforce(Decryptor::Make(0xAABBCCDDEEFFFFFF, 0, true), InputsMutation::RevKey, TargetCalculationsNumber);
+    configXorFixed.useSingleLearningKernels = useSingleLearningKernels;
+
+    run(inputs, KeeloqLearning::Matrix::Everything(), configXorFixed);
+}
+
+void benchmark::benchmarkEveryLearningAlone(uint32_t TargetCalculationsNumber, bool useSingleLearningKernels)
+{
+    using namespace KeeloqLearning;
+
+    constexpr auto NumInputs = 3;
+    auto inputs = makeBenchmarkInputs(0xFF123FF3434FFFFF, NumInputs, LearningType::Serial3);
+
+
+    // Alphabet brute benchmarks
+    auto alphabetSeeded = BruteforceConfig::GetAlphabet(Decryptor::Make(0, 1234567, true), InputsMutation::None, "0123456789abcdefgh"_b, TargetCalculationsNumber);
+    alphabetSeeded.useSingleLearningKernels = useSingleLearningKernels;
+
+    // Simple+1 brute benchmarks
+    auto simplePlusOne = BruteforceConfig::GetBruteforce(Decryptor::Make(0, 1234567, true), InputsMutation::None, TargetCalculationsNumber);
+    simplePlusOne.useSingleLearningKernels = useSingleLearningKernels;
+
+    for (auto learningItem : KeeloqLearning::Matrix::Everything().asItems())
     {
-        uint32_t maxBlocksForThreads = std::min(CudaConfig::MaxCudaBlocks(numThreads), MaxCudaBlocks);
-
-        for (uint32_t numBlocks = 1024; numBlocks <= maxBlocksForThreads; numBlocks *= 2)
-        {
-            auto avgSpeed = run(inputs, learningMatrix, benchmarkConfig, numBlocks, numThreads);
-            if (!avgSpeed)
-            {
-                // Cancel request
-                return;
-            }
-
-            results.push_back({ numBlocks, numThreads, static_cast<int>(avgSpeed) });
-        }
+        run(inputs, KeeloqLearning::Matrix{ learningItem }, alphabetSeeded);
+        run(inputs, KeeloqLearning::Matrix{ learningItem }, simplePlusOne);
     }
+}
 
-    std::sort(results.begin(), results.end(), [](const Result& a, const Result& b) { return a.avgSpeed > b.avgSpeed; });
+void benchmark::benchmarkEveryLearningAtOnce(uint32_t TargetCalculationsNumber, bool useSingleLearningKernels)
+{
+    using namespace KeeloqLearning;
 
-    printf("\nBENCHMARK FINISHED: Best result: %u blocks, %u threads, %.3f million keys/s\n\n\n",
-        results.front().numBlocks, results.front().numThreads, results.front().avgSpeed / 1000.0f);
+    constexpr auto NumInputs = 3;
+    auto inputs = makeBenchmarkInputs(0xFF123FF3434FFFFF, NumInputs, LearningType::Serial3);
+
+    // Simple+1 brute benchmarks
+    auto benchConfigSimpleBrute = BruteforceConfig::GetBruteforce(Decryptor::Make(0, 1234567, true), InputsMutation::None, TargetCalculationsNumber);
+    benchConfigSimpleBrute.useSingleLearningKernels = useSingleLearningKernels;
+
+    // HARDEST: Full brute 11 x 4 permutations
+    benchConfigSimpleBrute.overrideMutationMask(InputsMutation::All);
+    benchConfigSimpleBrute.size = TargetCalculationsNumber;
+
+    run(inputs, KeeloqLearning::Matrix::Everything(), benchConfigSimpleBrute);
 }
 
 void benchmark::all(const CommandLineArgs& /*args*/)
@@ -198,66 +287,18 @@ void benchmark::all(const CommandLineArgs& /*args*/)
     constexpr size_t TargetCalculationsNumber = 100000000;
 #endif
 
-    using namespace KeeloqLearning;
     console_clear();
 
-    constexpr auto NumInputs = 3;
-    auto inputs = makeBenchmarkInputs(0xFF123FF3434FFFFF, NumInputs, LearningType::Serial3);
-
-
+    for (bool useSingleLearningKernels : { false, true })
     {
-        real();
-    }
+        becnhmarkReal(useSingleLearningKernels);
 
-    {
-        auto benchConfigSimpleBrute = BruteforceConfig::GetBruteforce(
-            Decryptor::Make(0, 1234567, true), InputsMutation::None, TargetCalculationsNumber);
+        benchmarkEveryLearningAtOnce(TargetCalculationsNumber / 10, useSingleLearningKernels);
+        benchmarkEveryLearningAlone(TargetCalculationsNumber, useSingleLearningKernels);
 
-        // EASIEST: Single easiest brute type only
-        auto learningMatrix = KeeloqLearning::Matrix{ LearningType::Simple };
-        run(inputs, learningMatrix, benchConfigSimpleBrute);
+        benchmarkSeedAttack(TargetCalculationsNumber, useSingleLearningKernels);
+        benchmarkNormalAttack(TargetCalculationsNumber, useSingleLearningKernels);
 
-        // HARDEST: Full brute 11 x 2 x 4 permutations
-        learningMatrix = KeeloqLearning::Matrix::Everything();
-        benchConfigSimpleBrute.overrideMutationMask(InputsMutation::All);
-        benchConfigSimpleBrute.size = TargetCalculationsNumber / 10;
-
-        run(inputs, learningMatrix, benchConfigSimpleBrute);
-    }
-
-    {
-        auto configXorFixed = BruteforceConfig::GetXorFixBruteforce(Decryptor::Make(0xAABBCCDDEEFFFFFF, 0, true), InputsMutation::RevKey, TargetCalculationsNumber);
-
-        // XORed only
-        auto learningMatrix = KeeloqLearning::Matrix::Everything();
-        run(inputs, learningMatrix, configXorFixed);
-    }
-
-    {
-        auto configSeedOnly = BruteforceConfig::GetSeedBruteforce(Decryptor::Make(0xAABBCCDDEEFFFFFF, 0, true), InputsMutation::None, TargetCalculationsNumber);
-
-        // Seed only
-        auto learningMatrix = KeeloqLearning::Matrix{ LearningType::Secure };
-        run(inputs, learningMatrix, configSeedOnly);
-    }
-
-
-    {
-        // Alphabet brute benchmarks
-        auto configNoSeed = BruteforceConfig::GetAlphabet(Decryptor::MakeNoSeed(0), InputsMutation::None, "0123456789abcdefgh"_b, TargetCalculationsNumber);
-        auto configSeeded = BruteforceConfig::GetAlphabet(Decryptor::Make(0, 1234567, true), InputsMutation::None, "0123456789abcdefgh"_b, TargetCalculationsNumber);
-
-        auto learningMatrix = KeeloqLearning::Matrix{ LearningType::Simple };
-        run(inputs, learningMatrix, configSeeded);
-        run(inputs, learningMatrix, configNoSeed);
-
-        learningMatrix = KeeloqLearning::Matrix{ LearningType::Secure };
-        run(inputs, learningMatrix, configSeeded);
-
-        learningMatrix = KeeloqLearning::Matrix{ LearningType::Faac };
-        run(inputs, learningMatrix, configSeeded);
-
-        learningMatrix = KeeloqLearning::Matrix{ LearningType::Simple, LearningType::Normal, LearningType::Xor };
-        run(inputs, learningMatrix, configNoSeed);
+        benchmarkXoredAttack(TargetCalculationsNumber, useSingleLearningKernels);
     }
 }

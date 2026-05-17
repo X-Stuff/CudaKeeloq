@@ -16,7 +16,7 @@ void BruteforceResult::print() const
 std::string BruteforceResult::toString() const
 {
     return str::format<std::string>(
-        "[%-8s: %-8s: %-8s] | Man Key: 0x%016X (Seed: %u) | Btn:0x%02X | Serial:0x%08X (0x%03" PRIX32 ") | Counter:0x%04X | %7s |",
+        "[%-8s: %-8s: %-8s] | Man Key: 0x%" PRIX64 " (Seed: %u) | Btn:0x%02X | Serial:0x%08X (0x%03" PRIX32 ") | Counter:0x%04X | %7s |",
         KeeloqLearning::name(algoModifier), KeeloqLearning::name(learningType), name(mutation),
         decryptor.man(), decryptor.seed(),
 

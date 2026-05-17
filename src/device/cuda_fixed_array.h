@@ -27,6 +27,11 @@ struct CudaFixedArray
     T data[N];
 
 public:
+    __host__ __device__ __inline__ constexpr auto begin() const { return &data[0]; }
+
+    __host__ __device__ __inline__ constexpr auto end() const { return &data[N]; }
+
+public:
     /** Copy the payload of `src` into a `__constant__` memory symbol `target`. */
     inline static bool constantCopy(CudaFixedArray& target, const CudaFixedArray& src)
     {

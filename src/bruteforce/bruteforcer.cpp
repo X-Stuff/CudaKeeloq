@@ -1,6 +1,7 @@
 #include "bruteforce/bruteforcer.h"
 
 #include <chrono>
+#include <numeric>
 
 #include "algorithm/keeloq/keeloq_kernel.h"
 #include "algorithm/keeloq/keeloq_learning_types.h"
@@ -22,9 +23,11 @@ Bruteforcer::Bruteforcer(const std::vector<EncParcel>& inputs, bool breakOnEsc, 
 
 }
 
-BruteforceResult Bruteforcer::run(const BruteforceConfig& config, const CudaConfig& cuda, const KeeloqLearning::Matrix& learningMatrix)
+BruteforceResult Bruteforcer::run(const BruteforceConfig& config, const CudaConfig& cuda, const KeeloqLearning::Matrix& fullMatrix)
 {
     auto hideCursor = console::ScopedHideCursor();
+
+    const auto reducedMatrix = config.reduceMatrix(fullMatrix);
 
     BruteforceRound attackRound(inputs, config, cuda);
 
@@ -32,23 +35,50 @@ BruteforceResult Bruteforcer::run(const BruteforceConfig& config, const CudaConf
     attackRound.init();
     stats.allocatedBytesGPU = attackRound.getMemSize();
     LOG_INFO("\rRunning...");
-    LOG_INFO("\n%s\n%s\n\n", attackRound.toString().c_str(), learningMatrix.toString(&attackRound.config()).c_str());
+    LOG_INFO("\n%s\n%s\n\n", attackRound.toString().c_str(), reducedMatrix.toString().c_str());
 
-    return config.useSingleLearningKernels ?
-        runSingle(attackRound, cuda, learningMatrix, config.getMutations()) :
-        runMulti(attackRound, cuda, learningMatrix, config.getMutations());
+    const auto inputMutations = config.getMutations();
+
+    std::vector<SubCheck> subChecks;
+    if (config.useSingleLearningKernels)
+    {
+        const auto learningItems = reducedMatrix.asItems();
+        subChecks.reserve(learningItems.size() * inputMutations.size());
+
+        for (const auto& item : learningItems)
+        {
+            if (KeeloqLearning::hasSeed(item.learning) && !config.hasSeed())
+            {
+                // If config doesn't have seed and learning requires seed - skip
+                continue;
+            }
+            else if (config.type == BruteforceType::Seed)
+            {
+                // seedonly bruteforce type only meaningful for seeded learning types
+                continue;
+            }
+
+            for (const auto& mutation : inputMutations)
+            {
+                subChecks.push_back({ KeeloqLearning::Matrix{ item }, mutation });
+            }
+        }
+    }
+    else
+    {
+        subChecks.reserve(inputMutations.size());
+        for (const auto& mutation : inputMutations)
+        {
+            subChecks.push_back({ reducedMatrix, mutation });
+        }
+    }
+
+    return runImpl(attackRound, subChecks);
 }
 
-BruteforceResult Bruteforcer::runMulti(BruteforceRound& round, const CudaConfig& cuda, const KeeloqLearning::Matrix& learningMatrix, const std::vector<InputsMutation> inputMutations)
+BruteforceResult Bruteforcer::runImpl(BruteforceRound& round, const std::vector<SubCheck>& subChecks)
 {
     stats = Stats();
-
-    if (round.isSingleLearningInputs())
-    {
-        LOG_ERROR("Round is NOT configured for multi-learning brute mode!");
-        stats.result = Stats::InvalidConfiguration;
-        return BruteforceResult::Invalid();
-    }
 
     if (round.numBatches() == 0)
     {
@@ -58,17 +88,16 @@ BruteforceResult Bruteforcer::runMulti(BruteforceRound& round, const CudaConfig&
         return BruteforceResult::Invalid();
     }
 
-    // does nothing if already inited
     round.init();
     stats.allocatedBytesGPU = round.getMemSize();
 
-    const size_t batchesInRound = round.numBatches();
-    assert(batchesInRound > 0 && "Invalid number of batches for attack round");
+    const uint32_t numKeysInSubChecks = std::accumulate(subChecks.begin(), subChecks.end(), 0, [](uint32_t sum, const SubCheck& check)
+        {
+            return sum + check.matrix.numEnabled();
+        });
 
-    const size_t decryptorsInBatch = round.keysPerBatch();
-
-    // Total checks per batch is keys in batch multiplied by number of input mutations
-    stats.checksInBatch = decryptorsInBatch * inputMutations.size();
+    const size_t numBatches = round.numBatches();
+    stats.keysInBatch = round.decryptorsPerBatch() * numKeysInSubChecks;
 
     auto stop = false;
     auto roundTimer = Timer<std::chrono::steady_clock>::start();
@@ -76,31 +105,30 @@ BruteforceResult Bruteforcer::runMulti(BruteforceRound& round, const CudaConfig&
 
     LOG_PROGRESS("\n\n");
     KernelResult lastResult;
-    for (size_t batch = 0; !stop && batch < batchesInRound; ++batch)
+    for (size_t batch = 0; !stop && batch < numBatches; ++batch)
     {
-        if (!round.prepareInputs(batch))
+        if (!round.generateDecryptors(batch))
         {
             stats.result = Stats::KernelFailure;
             return BruteforceResult::Invalid();
         }
 
-        for (auto mIndex = 0; !stop && mIndex < inputMutations.size(); ++mIndex)
+        for (size_t si = 0; !stop && si < subChecks.size(); ++si)
         {
-            // Setup learning matrix and inputs mutation for this batch
-            const auto currentInputMutation = inputMutations[mIndex];
-            round.prepareBatch(learningMatrix, currentInputMutation);
+            const auto& [matrix, mutation] = subChecks[si];
 
-            // do the bruteforce
-            lastResult = keeloq::kernels::cuda_brute(round, cuda);
+            lastResult = round.update(matrix, mutation);
             stop = round.checkResults(lastResult, verbosity);
 
-            printBruteforceProgress(round, batchTimer.elapsed().count(), roundTimer.elapsedSeconds(), batch, mIndex, inputMutations.size(), currentInputMutation);
+            printBruteforceProgress(round, roundTimer.elapsedSeconds(), batch, batchTimer.elapsed().count(), si, subChecks.size(), matrix.numEnabled(), mutation);
+
+            // Single subcheck process all decryptors multiplied by (1 or up to 11) keys depending on learning matrix
+            stats.realProcessedKeys += round.decryptorsPerBatch() * matrix.numEnabled();
 
             if (breakOnEsc && console::readEscPress())
             {
                 LOG_PROGRESS("Bruteforce stopped by user\n");
                 stats.result = Stats::UserCancelled;
-
                 return BruteforceResult::Invalid();
             }
         }
@@ -130,122 +158,15 @@ BruteforceResult Bruteforcer::runMulti(BruteforceRound& round, const CudaConfig&
 
     if (stop && !lastResult.hasMatch())
     {
-        // print was in `checkResults`
         return BruteforceResult::Invalid();
     }
 
-    LOG_INFO("\n\nAfter: %zd batches no results was found. Keys checked:%zd\n\n", batchesInRound, stats.totalChecks());
+    LOG_INFO("\n\nAfter: %zd batches no results was found. Keys checked:%zd\n\n", numBatches, stats.realProcessedKeys);
     return BruteforceResult::Invalid();
 }
 
-BruteforceResult Bruteforcer::runSingle(BruteforceRound& round, const CudaConfig& cuda, const KeeloqLearning::Matrix& learningMatrix, const std::vector<InputsMutation> inputMutations)
-{
-    stats = Stats();
-
-    if (!round.isSingleLearningInputs())
-    {
-        LOG_ERROR("Round is NOT configured for single learning brute mode!");
-        stats.result = Stats::InvalidConfiguration;
-        return BruteforceResult::Invalid();
-    }
-
-    if (round.numBatches() == 0)
-    {
-        assert(false && "Invalid number of batches for attack round");
-        LOG_ERROR("Invalid number of batches for attack round");
-        stats.result = Stats::InvalidConfiguration;
-        return BruteforceResult::Invalid();
-    }
-
-    // does nothing if already inited
-    round.init();
-    stats.allocatedBytesGPU = round.getMemSize();
-
-    const auto learningItems = learningMatrix.asItems();
-
-    // Number of sub checks per batch
-    const auto subChecksNum = learningItems.size() * inputMutations.size();
-
-    // Total checks per batch is keys in batch multiplied by number of input mutations
-    // Single mode does more checks but theoretically can do it faster due to greater number of allocated decryptors
-    stats.checksInBatch = round.keysPerBatch() * subChecksNum;
-
-    auto stop = false;
-    auto roundTimer = Timer<std::chrono::steady_clock>::start();
-    auto batchTimer = Timer<std::chrono::steady_clock>::start();
-
-    LOG_PROGRESS("\n\n");
-    KernelResult lastResult;
-    for (size_t batch = 0; !stop && batch < round.numBatches(); ++batch)
-    {
-        if (!round.prepareInputs(batch))
-        {
-            stats.result = Stats::KernelFailure;
-            return BruteforceResult::Invalid();
-        }
-
-        for (auto lIndex = 0; !stop && lIndex < learningItems.size(); ++lIndex)
-        {
-            const auto& learningItem = learningItems[lIndex];
-
-            for (auto mIndex = 0; !stop && mIndex < inputMutations.size(); ++mIndex)
-            {
-                // Setup learning matrix (which is just single item) and inputs mutation for this batch
-                const auto currentMutation = inputMutations[mIndex];
-                round.prepareBatch(KeeloqLearning::Matrix { learningItem }, currentMutation);
-
-                // do the bruteforce
-                lastResult = keeloq::kernels::cuda_brute(round, cuda);
-                stop = round.checkResults(lastResult, verbosity);
-
-                const auto subCheckIndex = lIndex * inputMutations.size() + mIndex;
-                printBruteforceProgress(round, batchTimer.elapsed().count(), roundTimer.elapsedSeconds(), batch, subCheckIndex, subChecksNum, currentMutation);
-
-                if (breakOnEsc && console::readEscPress())
-                {
-                    LOG_PROGRESS("Bruteforce stopped by user\n");
-                    stats.result = Stats::UserCancelled;
-
-                    return BruteforceResult::Invalid();
-                }
-            }
-        }
-
-        const double batchDuration = batchTimer.reset().count() / 1.0;
-        stats.numBatches++;
-        stats.batchAverageMs += (batchDuration - stats.batchAverageMs) / stats.numBatches;
-    }
-
-    if (verbosity <= AppVerbosity::Progress)
-    {
-        console::clearLinesUp(2);
-    }
-
-    stats.roundTime = roundTimer.elapsed();
-    stats.setResult(lastResult, stop);
-
-    if (onRoundComplete)
-    {
-        onRoundComplete(round, lastResult);
-    }
-
-    if (lastResult.hasMatch())
-    {
-        return getMatchResult(round);
-    }
-
-    if (stop && !lastResult.hasMatch())
-    {
-        // print was in `checkResults`
-        return BruteforceResult::Invalid();
-    }
-
-    LOG_INFO("\n\nAfter: %zd batches no results was found. Keys checked:%zd\n\n", round.numBatches(), stats.totalChecks());
-    return BruteforceResult::Invalid();
-}
-
-void Bruteforcer::printBruteforceProgress(const BruteforceRound& round, const int64_t batchTime, const std::chrono::seconds& roundTime,
-    const size_t batchIndex, const size_t subIndex, const size_t subNum, InputsMutation mutation)
+void Bruteforcer::printBruteforceProgress(const BruteforceRound& round, const std::chrono::seconds& roundTime,
+    const size_t batchIndex, const int64_t batchTime, const size_t subIndex, const size_t subNum, const uint8_t learningsNum, InputsMutation mutation)
 {
     if (verbosity > AppVerbosity::Progress)
     {
@@ -253,12 +174,13 @@ void Bruteforcer::printBruteforceProgress(const BruteforceRound& round, const in
     }
 
     const size_t batchesInRound = round.numBatches();
-    const size_t keysInBatch = round.keysPerBatch();
+    const size_t keysInBatch = round.decryptorsPerBatch();
+    const size_t keysInSubCheck = keysInBatch * learningsNum;
 
     // Incremental, each mutation cycle will be increased
     const auto batchElapsedMs = batchTime;
-    const auto calculatedNum = keysInBatch * (subIndex + 1);
-    const auto avgPerBatchSpeed = batchElapsedMs / (subIndex + 1);
+    const auto calculatedNum = keysInSubCheck * (subIndex + 1);
+    const auto avgPerBatchSpeed = (batchElapsedMs / (subIndex + 1)) * subNum;
 
     const auto calculationIndex = (batchIndex * subNum + (subIndex + 1));
     const auto progressPercent = calculationIndex / static_cast<double>(batchesInRound * subNum);

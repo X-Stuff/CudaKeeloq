@@ -518,6 +518,10 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv, AppVerbosity
 
     // benchmarks
     args.run_bench = result[ARG_BENCHMARK].as<bool>();
+    if (args.run_bench)
+    {
+        return args;
+    }
 
     // CUDA setup
     args.initCuda(result[ARG_BLOCKS].as<uint16_t>(), result[ARG_THREADS].as<uint16_t>(),

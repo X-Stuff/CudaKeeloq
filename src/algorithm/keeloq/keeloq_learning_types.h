@@ -124,13 +124,14 @@ enum LearningType : uint8_t
 };
 
 /** Compile-time set of learning types, used to expand template packs. */
-template<LearningType... Values> struct LearningTypesSet
+template<typename T, T... Values>
+struct ValuesSet
 {
-    static constexpr CudaFixedArray<LearningType, sizeof...(Values)> values = { Values... };
+    static constexpr CudaFixedArray<T, sizeof...(Values)> values = { Values... };
 
-    constexpr auto begin() const { return &values[0]; }
+    __host__ __device__ __inline__ constexpr auto begin() const { return &values[0]; }
 
-    constexpr auto end() const { return &values[values.size()]; }
+    __host__ __device__ __inline__ constexpr auto end() const { return &values[values.size()]; }
 };
 
 /** Number of learning types */
@@ -143,27 +144,27 @@ using LearningTypesSequence = std::make_index_sequence<LearningTypesCount>;
 
 namespace helpers
 {
-    template<std::size_t... I>
-    using EveryLearningTypeImpl = LearningTypesSet<static_cast<LearningType>(I)...>;
+    template<typename T, std::size_t... I>
+    using TypedValuesSetImpl = ValuesSet<T, static_cast<T>(I)...>;
 
-    template<typename Seq>
-    struct MakeEveryLearningType;
+    template<typename T, typename Seq>
+    struct MakeTypedValuesSet;
 
-    template<std::size_t... I>
-    struct MakeEveryLearningType<std::index_sequence<I...>>
+    template<typename T, std::size_t... I>
+    struct MakeTypedValuesSet<T, std::index_sequence<I...>>
     {
-        using type = EveryLearningTypeImpl<I...>;
+        using type = TypedValuesSetImpl<T, I...>;
     };
 }
 
 /** Defined all learning types as set of values */
-using EveryLearningType = helpers::MakeEveryLearningType<LearningTypesSequence>::type;
+using EveryLearningType = helpers::MakeTypedValuesSet<LearningType, LearningTypesSequence>::type;
 
 /** Defined all seeded learning types as set of values */
-using SeededTypes = LearningTypesSet<LearningType::Secure, LearningType::Faac>;
+using SeededTypes = ValuesSet<LearningType, LearningType::Secure, LearningType::Faac>;
 
 /** Defined all normal (no seed) learning types as set of values */
-using NormalTypes = LearningTypesSet<LearningType::Simple, LearningType::Normal, LearningType::Xor, LearningType::Serial1, LearningType::Serial2, LearningType::Serial3>;
+using NormalTypes = ValuesSet<LearningType, LearningType::Simple, LearningType::Normal, LearningType::Xor, LearningType::Serial1, LearningType::Serial2, LearningType::Serial3>;
 
 /** True if the given learning type requires a seed. */
 constexpr bool hasSeed(LearningType type)
@@ -198,6 +199,10 @@ struct Modifier
 
     using TypeSequence = std::make_index_sequence<AlgoModCount>;
 };
+
+
+/** Defined all learning types as set of values */
+using EveryModifierType = helpers::MakeTypedValuesSet<Modifier::Algo, Modifier::TypeSequence>::type;
 
 /** Single cell (learning type + algo modifiers) in the learning matrix. */
 struct LearningItem
@@ -520,6 +525,22 @@ public:
         };
     }
 
+    /**
+     *  Returns bitmask of valid learning type/modifier combinations based on Registry::Available definition, used for quick checks in kernels.
+     */
+    __host__ __device__ __inline__ static constexpr uint64_t getValidMask()
+    {
+        uint64_t mask = 0;
+        for (const auto index : ResultIndicesCache::values)
+        {
+            if (index != InvalidResultIndex)
+            {
+                mask |= (1ULL << index);
+            }
+        }
+        return mask;
+    }
+
 public:
     /** Get index in DecryptedResults for specific learning type with modification */
     template<LearningType LType, Modifier::Algo AMod>
@@ -586,6 +607,8 @@ public:
 struct Matrix
 {
     static constexpr auto kEverything = static_cast<uint64_t>(-1);
+
+    static constexpr auto kValuesMask = DecryptedResults::getValidMask();
 
     __host__ __device__ __inline__ constexpr explicit Matrix(uint64_t value = 0) : matrix(value)
     {
@@ -696,6 +719,18 @@ public:
     }
 
     /**
+     *  Number of enabled bits in matrix
+     */
+    __host__ __device__ __inline__ uint8_t numEnabled() const
+    {
+    #if __CUDA_ARCH__
+        return static_cast<uint8_t>(__popcll(matrix & kValuesMask));
+    #else
+        return static_cast<uint8_t>(__popcnt64(matrix & kValuesMask));
+    #endif
+    }
+
+    /**
      *  Check if matrix has at least something
      */
     __host__ __device__ __inline__ bool isValid() const
@@ -712,8 +747,17 @@ public:
         matrix |= (1ULL << bitIndex);
     }
 
+    /**
+     *  Set specific bit to 0 according to learning type and modification
+     */
+    __host__ __inline__ void disable(LearningType type, Modifier::Algo aMod = Modifier::Algo::Normal)
+    {
+        const auto bitIndex = DecryptedResults::getIndex(type, aMod);
+        matrix &= ~(1ULL << bitIndex);
+    }
+
     /** Human-readable table of enabled learning/modifier entries. */
-    __host__ std::string toString(const BruteforceConfig* config = nullptr) const;
+    __host__ std::string toString() const;
 
     /** Get all enabled learning items as vector */
     __host__ std::vector<LearningItem> asItems() const;
