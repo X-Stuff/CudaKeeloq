@@ -137,7 +137,7 @@
     <ClInclude Include="src\kernels\kernel_input_base.h">
       <Filter>kernels</Filter>
     </ClInclude>
-    <ClInclude Include="src\kernels\inputs_mutation.h">
+    <ClInclude Include="src\kernels\input_transform.h">
       <Filter>kernels</Filter>
     </ClInclude>
     <ClInclude Include="src\kernels\kernel_input_multi_learning.h">

@@ -51,12 +51,12 @@ struct Bruteforcer
         std::chrono::milliseconds roundTime = std::chrono::milliseconds(0);
 
         /**
-         *  Number of total keys checked per batch (including input mutations) by single decryptor.
+         *  Number of total keys checked per batch (including input transforms) by single decryptor.
          */
         uint64_t keysInBatch = 0;
 
         /**
-         *  Real number of total processed keys (all learnings, mutation, modifies), updated after every CUDA kernel launch.
+         *  Real number of total processed keys (all learnings, transforms, modifiers), updated after every CUDA kernel launch.
          */
         uint64_t realProcessedKeys = 0;
 
@@ -102,7 +102,7 @@ public:
 
 private:
     /**
-     * Single unit of work within a batch: a learning matrix to apply and an input mutation variant.
+     * Single unit of work within a batch: a learning matrix to apply and an input transform variant.
      * In multi-learning mode each entry carries the full matrix; in single-learning mode each entry
      * carries a one-item matrix so the kernel processes one learning type at a time.
      */
@@ -111,8 +111,8 @@ private:
         /** Learning matrix to pass to the kernel for this sub-check */
         KeeloqLearning::Matrix matrix;
 
-        /** Input mutation variant to apply for this sub-check */
-        InputsMutation mutation;
+        /** Input transform to apply for this sub-check */
+        InputTransform transform;
     };
 
     BruteforceResult runImpl(BruteforceRound& round, const std::vector<SubCheck>& subChecks);
@@ -120,7 +120,7 @@ private:
     BruteforceResult getMatchResult(const BruteforceRound& round, bool first = true);
 
     void printBruteforceProgress(const BruteforceRound& round, const std::chrono::seconds& roundTime, const size_t batchIndex, const int64_t batchTime,
-        const size_t subIndex, const size_t subNum, const uint8_t learningsNum, InputsMutation mutation);
+        const size_t subIndex, const size_t subNum, const uint8_t learningsNum, InputTransform transform);
 
     void printGpuMemorySearchProgress(const size_t index, const size_t count, const std::chrono::seconds& time);
 

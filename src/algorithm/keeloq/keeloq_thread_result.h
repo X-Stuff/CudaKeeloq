@@ -10,7 +10,7 @@
 #include "algorithm/keeloq/keeloq_decryptor.h"
 #include "algorithm/keeloq/keeloq_encrypted.h"
 #include "algorithm/keeloq/keeloq_learning_types.h"
-#include "kernels/inputs_mutation.h"
+#include "kernels/input_transform.h"
 
 
 /**
@@ -49,21 +49,21 @@ struct Decode
 
 
 /**
- * Packed byte that stores per-result metadata: which captured input was used and what mutation was applied.
+ * Packed byte that stores per-result metadata: which captured input was used and what transform was applied.
  * Encoding differs between Multi and Single modes due to Single needing a match flag in the same byte.
  */
 struct InputInfo
 {
     /**
-     * Multi-mode packing: [7:4] = inputsMutation, [3:0] = inputIndex.
+     * Multi-mode packing: [7:4] = inputTransform, [3:0] = inputIndex.
      * No match flag needed here because Multi stores match separately.
      */
     struct Multi
     {
-        /** Pack input index and mutation into a single byte. */
-        __host__ __device__ __forceinline__ static uint8_t pack(uint8_t inputIndex, InputsMutation mutation)
+        /** Pack input index and transform into a single byte. */
+        __host__ __device__ __forceinline__ static uint8_t pack(uint8_t inputIndex, InputTransform transform)
         {
-            return (static_cast<uint8_t>(mutation) << 4) | (inputIndex & 0x0F);
+            return (static_cast<uint8_t>(transform) << 4) | (inputIndex & 0x0F);
         }
 
         /** Extract input index [3:0]. */
@@ -72,23 +72,23 @@ struct InputInfo
             return packed & 0x0F;
         }
 
-        /** Extract inputs mutation [7:4]. */
-        __host__ __device__ __forceinline__ static InputsMutation mutation(uint8_t packed)
+        /** Extract input transform [7:4]. */
+        __host__ __device__ __forceinline__ static InputTransform transform(uint8_t packed)
         {
-            return static_cast<InputsMutation>(packed >> 4);
+            return static_cast<InputTransform>(packed >> 4);
         }
     };
 
     /**
-     * Single-mode packing: [7:4] = inputsMutation, [3:1] = inputIndex, [0] = hasMatch.
+     * Single-mode packing: [7:4] = inputTransform, [3:1] = inputIndex, [0] = hasMatch.
      * The match flag is stored inline because Single mode has no separate match field.
      */
     struct Single
     {
         /** Pack all fields into a single byte. */
-        __host__ __device__ __forceinline__ static uint8_t pack(uint8_t hasMatch, uint8_t inputIndex, InputsMutation mutation)
+        __host__ __device__ __forceinline__ static uint8_t pack(uint8_t hasMatch, uint8_t inputIndex, InputTransform transform)
         {
-            return (static_cast<uint8_t>(mutation) << 4) | ((inputIndex << 1) & 0x0E) | (hasMatch & 0x01);
+            return (static_cast<uint8_t>(transform) << 4) | ((inputIndex << 1) & 0x0E) | (hasMatch & 0x01);
         }
 
         /** Extract match flag [0]. */
@@ -103,10 +103,10 @@ struct InputInfo
             return (packed >> 1) & 0x07;
         }
 
-        /** Extract inputs mutation [7:4]. */
-        __host__ __device__ __forceinline__ static InputsMutation mutation(uint8_t packed)
+        /** Extract input transform [7:4]. */
+        __host__ __device__ __forceinline__ static InputTransform transform(uint8_t packed)
         {
-            return static_cast<InputsMutation>(packed >> 4);
+            return static_cast<InputTransform>(packed >> 4);
         }
     };
 };
@@ -160,7 +160,7 @@ public:
  */
 struct Multi
 {
-    /** Packed input metadata: [7:4] mutation, [3:0] input index */
+    /** Packed input metadata: [7:4] transform, [3:0] input index */
     uint8_t inputData = 0xFF;
 
     /** The manufacturer key and seed used by this thread */
@@ -176,14 +176,14 @@ public:
     /** Which captured input (0,1,2) this result corresponds to */
     __host__ __device__ __forceinline__ uint8_t inputIndex() const { return InputInfo::Multi::inputIndex(inputData); }
 
-    /** Which mutation was applied to inputs */
-    __host__ __device__ __forceinline__ InputsMutation inputsMutation() const { return InputInfo::Multi::mutation(inputData); }
+    /** Which input transform was applied */
+    __host__ __device__ __forceinline__ InputTransform inputTransform() const { return InputInfo::Multi::transform(inputData); }
 
     /** Set the captured input index */
     __host__ __device__ __forceinline__ void setInputIndex(uint8_t index) { inputData = (inputData & 0xF0) | (index & 0x0F); }
 
-    /** Set the inputs mutation */
-    __host__ __device__ __forceinline__ void setInputsMutation(InputsMutation m) { inputData = (inputData & 0x0F) | (static_cast<uint8_t>(m) << 4); }
+    /** Set the input transform */
+    __host__ __device__ __forceinline__ void setInputTransform(InputTransform m) { inputData = (inputData & 0x0F) | (static_cast<uint8_t>(m) << 4); }
 
     /** Returns an invalid/empty result sentinel */
     static Multi Invalid() { return Multi(); }
@@ -200,7 +200,7 @@ public:
  */
 struct Single
 {
-    /** Packed metadata: [7:4] mutation, [3:1] input index, [0] match flag */
+    /** Packed metadata: [7:4] transform, [3:1] input index, [0] match flag */
     uint8_t results = 0;
 
     /** The manufacturer key and seed used by this thread */
@@ -231,11 +231,11 @@ public:
     /** Which captured input (0,1,2) this result corresponds to */
     __host__ __device__ __forceinline__ uint8_t inputIndex() const { return InputInfo::Single::inputIndex(results); }
 
-    /** Set the inputs mutation */
-    __host__ __device__ __forceinline__ void setInputsMutation(InputsMutation m) { results = (results & 0x0F) | (static_cast<uint8_t>(m) << 4); }
+    /** Set the input transform */
+    __host__ __device__ __forceinline__ void setInputTransform(InputTransform m) { results = (results & 0x0F) | (static_cast<uint8_t>(m) << 4); }
 
-    /** Which mutation was applied to inputs */
-    __host__ __device__ __forceinline__ InputsMutation inputsMutation() const { return InputInfo::Single::mutation(results); }
+    /** Which input transform was applied */
+    __host__ __device__ __forceinline__ InputTransform inputTransform() const { return InputInfo::Single::transform(results); }
 };
 
 } // namespace ThreadResult

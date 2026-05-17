@@ -47,7 +47,7 @@ enum class KernelLearningMode
     /************************************************************************/
 
     // Explicit 0 flag that won't affect other bits during bitwise OR
-    NoInputsMutation = 0,
+    NoInputTransform = 0,
 
     // Inputs Modifier: Mirrors InputMutations enum
     RevKey = 1 << 16,

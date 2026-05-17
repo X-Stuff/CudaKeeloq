@@ -10,7 +10,7 @@
 #include "algorithm/keeloq/keeloq_encrypted.h"
 #include "algorithm/keeloq/keeloq_learning_types.h"
 
-#include "kernels/inputs_mutation.h"
+#include "kernels/input_transform.h"
 
 #include "bruteforce/bruteforce_config.h"
 
@@ -58,8 +58,8 @@ struct CommandLineArgs
     // Do not do all 19 calculations, use predefined one
     std::vector<KeeloqLearning::LearningType> selected_learning = {};
 
-    // Select additional input mutation flags. None is always checked.
-    InputsMutation inputsMutation = InputsMutation::None;
+    // Additional input transform flags selected by the user via CLI.
+    InputTransform inputTransform = InputTransform::None;
 
     // Select specific modifications for algorithm
     std::vector<KeeloqLearning::Modifier::Algo> selected_algo_mods = {};

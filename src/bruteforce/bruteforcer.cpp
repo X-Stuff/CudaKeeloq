@@ -37,7 +37,7 @@ BruteforceResult Bruteforcer::run(const BruteforceConfig& config, const CudaConf
     LOG_INFO("\rRunning...");
     LOG_INFO("\n%s\n%s\n\n", attackRound.toString().c_str(), reducedMatrix.toString().c_str());
 
-    const auto inputMutations = config.getMutations();
+    const auto& inputMutations = config.getTransforms();
 
     std::vector<SubCheck> subChecks;
     if (config.useSingleLearningKernels)
@@ -58,18 +58,18 @@ BruteforceResult Bruteforcer::run(const BruteforceConfig& config, const CudaConf
                 continue;
             }
 
-            for (const auto& mutation : inputMutations)
+            for (const auto& transform : inputMutations)
             {
-                subChecks.push_back({ KeeloqLearning::Matrix{ item }, mutation });
+                subChecks.push_back({ KeeloqLearning::Matrix{ item }, transform });
             }
         }
     }
     else
     {
         subChecks.reserve(inputMutations.size());
-        for (const auto& mutation : inputMutations)
+        for (const auto& transform : inputMutations)
         {
-            subChecks.push_back({ reducedMatrix, mutation });
+            subChecks.push_back({ reducedMatrix, transform });
         }
     }
 
@@ -115,12 +115,12 @@ BruteforceResult Bruteforcer::runImpl(BruteforceRound& round, const std::vector<
 
         for (size_t si = 0; !stop && si < subChecks.size(); ++si)
         {
-            const auto& [matrix, mutation] = subChecks[si];
+            const auto& [matrix, transform] = subChecks[si];
 
-            lastResult = round.update(matrix, mutation);
+            lastResult = round.update(matrix, transform);
             stop = round.checkResults(lastResult, verbosity);
 
-            printBruteforceProgress(round, roundTimer.elapsedSeconds(), batch, batchTimer.elapsed().count(), si, subChecks.size(), matrix.numEnabled(), mutation);
+            printBruteforceProgress(round, roundTimer.elapsedSeconds(), batch, batchTimer.elapsed().count(), si, subChecks.size(), matrix.numEnabled(), transform);
 
             // Single subcheck process all decryptors multiplied by (1 or up to 11) keys depending on learning matrix
             stats.realProcessedKeys += round.decryptorsPerBatch() * matrix.numEnabled();
@@ -166,7 +166,7 @@ BruteforceResult Bruteforcer::runImpl(BruteforceRound& round, const std::vector<
 }
 
 void Bruteforcer::printBruteforceProgress(const BruteforceRound& round, const std::chrono::seconds& roundTime,
-    const size_t batchIndex, const int64_t batchTime, const size_t subIndex, const size_t subNum, const uint8_t learningsNum, InputsMutation mutation)
+    const size_t batchIndex, const int64_t batchTime, const size_t subIndex, const size_t subNum, const uint8_t learningsNum, InputTransform transform)
 {
     if (verbosity > AppVerbosity::Progress)
     {
@@ -177,7 +177,7 @@ void Bruteforcer::printBruteforceProgress(const BruteforceRound& round, const st
     const size_t keysInBatch = round.decryptorsPerBatch();
     const size_t keysInSubCheck = keysInBatch * learningsNum;
 
-    // Incremental, each mutation cycle will be increased
+    // Incremental, each transform cycle will be increased
     const auto batchElapsedMs = batchTime;
     const auto calculatedNum = keysInSubCheck * (subIndex + 1);
     const auto avgPerBatchSpeed = (batchElapsedMs / (subIndex + 1)) * subNum;
@@ -193,9 +193,9 @@ void Bruteforcer::printBruteforceProgress(const BruteforceRound& round, const st
     console_cursor_ret_up(2);
 
     // Overwrite lines
-    printf("[%c][%zd/%zd]  %" PRIu64 "(ms)/batch, %4.1f Mk/s,  Last key:0x%" PRIX64 " (%u)  Last mutation: %-20s\n",
+    printf("[%c][%zd/%zd]  %" PRIu64 "(ms)/batch, %4.1f Mk/s,  Last key:0x%" PRIX64 " (%u)  Last transform: %-20s\n",
         WAIT_CHAR(calculationIndex), batchIndex, batchesInRound,
-        avgPerBatchSpeed, mResultPerSecond, lastUsedDecryptor.man(), lastUsedDecryptor.seed(), name(mutation));
+        avgPerBatchSpeed, mResultPerSecond, lastUsedDecryptor.man(), lastUsedDecryptor.seed(), name(transform));
     console::progressBar(progressPercent, roundTime);
 }
 

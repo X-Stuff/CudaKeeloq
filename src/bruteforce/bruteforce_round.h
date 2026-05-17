@@ -43,7 +43,7 @@ public:
     bool generateDecryptors(uint64_t batchIdx);
 
     /** Launch bruteforce kernel and get result */
-    KernelResult update(const KeeloqLearning::Matrix& learningMatrix, InputsMutation inputsMutation);
+    KernelResult update(const KeeloqLearning::Matrix& learningMatrix, InputTransform inputTransform);
 
     /** Inspects a kernel result and returns true if the round should stop (match or fatal error). */
     bool checkResults(const KernelResult& result, AppVerbosity verbosity = AppVerbosity::Debug);

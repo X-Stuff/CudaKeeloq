@@ -8,7 +8,7 @@
 #include "device/cuda_context.h"
 
 #include "kernels/kernel_result.h"
-#include "kernels/inputs_mutation.h"
+#include "kernels/input_transform.h"
 #include "kernels/kernel_input_single_learning.h"
 #include "kernels/kernel_input_multi_learning.h"
 
@@ -234,18 +234,18 @@ __host__ __forceinline__ KernelResult cuda_brute(BruteforceRound& round, const C
 }
 
 // Single decrypt round with all learning types and modifications, used for testing and debugging
-__host__ ThreadResult::Multi cuda_encdec(uint64_t ota, uint64_t man, uint32_t seed, bool isDecrypt, InputsMutation inputsMutation);
+__host__ ThreadResult::Multi cuda_encdec(uint64_t ota, uint64_t man, uint32_t seed, bool isDecrypt, InputTransform inputTransform);
 
 // Single decrypt round with all learning types and modifications, used for testing and debugging
-__host__ __forceinline__ ThreadResult::Multi cuda_enc(uint64_t ota, uint64_t man, uint32_t seed, InputsMutation inputsMutation)
+__host__ __forceinline__ ThreadResult::Multi cuda_enc(uint64_t ota, uint64_t man, uint32_t seed, InputTransform inputTransform)
 {
-    return cuda_encdec(ota, man, seed, false, inputsMutation);
+    return cuda_encdec(ota, man, seed, false, inputTransform);
 }
 
 // Single decrypt round with all learning types and modifications, used for testing and debugging
-__host__ __forceinline__ ThreadResult::Multi cuda_dec(uint64_t ota, uint64_t man, uint32_t seed, InputsMutation inputsMutation)
+__host__ __forceinline__ ThreadResult::Multi cuda_dec(uint64_t ota, uint64_t man, uint32_t seed, InputTransform inputTransform)
 {
-    return cuda_encdec(ota, man, seed, true, inputsMutation);
+    return cuda_encdec(ota, man, seed, true, inputTransform);
 }
 
 } // namespace keeloq::kernels

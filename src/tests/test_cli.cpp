@@ -1,5 +1,6 @@
 #include "doctest/doctest.h"
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <cstddef>
@@ -83,7 +84,6 @@ TEST_CASE("cli: full invocation populates alphabets, modes, and run flags")
         "--" ARG_PATTERN   "=0x01:*:0x43-0x10:0xA0-FF:AA|0x34|0xBB:0x66|0x77:AL0,0x88:ingored:w1:88:*:AL2:BB:73",
 
         "--" ARG_FMATCH,
-        "--" ARG_BENCHMARK "=1",
     };
 
     auto args = parseArgs(argv);
@@ -92,7 +92,6 @@ TEST_CASE("cli: full invocation populates alphabets, modes, and run flags")
     CHECK(args.alphabets.size() == 2);
     CHECK(args.brute_configs.size() == 9);
     CHECK(args.match_stop);
-    CHECK(args.run_bench);
     CHECK(args.inputs.size() == 3);
 
     std::filesystem::remove(temp_bin_dict);
@@ -259,12 +258,17 @@ TEST_CASE("cli: mode-5 variation selects only the single chosen input/algo modif
 
     REQUIRE(args.selected_algo_mods.size() == 1);
     CHECK(args.selected_algo_mods[0] == KeeloqLearning::Modifier::Algo::Inverted);
-    CHECK(args.inputsMutation == InputsMutation::RevKey);
+    CHECK(args.inputTransform == InputTransform::RevKey);
     REQUIRE(args.brute_configs.size() == 1);
-    CHECK(args.brute_configs[0].hasMutation(InputsMutation::RevKey));
+    auto hasTransform = [](const BruteforceConfig& cfg, InputTransform t) {
+        const auto& ts = cfg.getTransforms();
+        return std::find(ts.begin(), ts.end(), t) != ts.end();
+    };
+
+    CHECK(hasTransform(args.brute_configs[0], InputTransform::RevKey));
 }
 
-TEST_CASE("cli: --check-xorfix enables every selected input mutation permutation")
+TEST_CASE("cli: --check-xorfix enables every selected input transform permutation")
 {
     const char* argv[] = {
         APP_NAME,
@@ -278,11 +282,17 @@ TEST_CASE("cli: --check-xorfix enables every selected input mutation permutation
     auto args = parseArgs(argv);
     CHECK_FALSE(args.has_errors);
 
-    const auto allMutations = InputsMutation::RevKey | InputsMutation::XorFix;
-    CHECK(args.inputsMutation == allMutations);
+    const auto allMutations = InputTransform::RevKey | InputTransform::XorFix;
+    CHECK(args.inputTransform == allMutations);
     REQUIRE(args.brute_configs.size() == 1);
-    CHECK(args.brute_configs[0].hasMutation(InputsMutation::None));
-    CHECK(args.brute_configs[0].hasMutation(InputsMutation::RevKey));
-    CHECK(args.brute_configs[0].hasMutation(InputsMutation::XorFix));
-    CHECK(args.brute_configs[0].hasMutation(allMutations));
+
+    auto hasTransform = [](const BruteforceConfig& cfg, InputTransform t) {
+        const auto& ts = cfg.getTransforms();
+        return std::find(ts.begin(), ts.end(), t) != ts.end();
+    };
+
+    CHECK(hasTransform(args.brute_configs[0], InputTransform::None));
+    CHECK(hasTransform(args.brute_configs[0], InputTransform::RevKey));
+    CHECK(hasTransform(args.brute_configs[0], InputTransform::XorFix));
+    CHECK(hasTransform(args.brute_configs[0], allMutations));
 }

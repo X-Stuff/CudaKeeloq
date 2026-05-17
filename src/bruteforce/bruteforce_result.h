@@ -4,7 +4,7 @@
 
 #include <common.h>
 
-#include <kernels/inputs_mutation.h>
+#include <kernels/input_transform.h>
 
 #include <algorithm/keeloq/keeloq_decryptor.h>
 #include <algorithm/keeloq/keeloq_encrypted.h>
@@ -25,8 +25,8 @@ struct BruteforceResult
     /** One of the used input */
     EncParcel input = {};
 
-    /** Mutation applied to the input */
-    InputsMutation mutation = InputsMutation::None;
+    /** Input transform applied during decryption */
+    InputTransform transform = InputTransform::None;
 
     /** Learning type used in decryption */
     KeeloqLearning::LearningType learningType = KeeloqLearning::LearningType::Simple;
@@ -35,8 +35,8 @@ struct BruteforceResult
     KeeloqLearning::Modifier::Algo algoModifier = KeeloqLearning::Modifier::Algo::Normal;
 
 public:
-    BruteforceResult(bool isMatched, const Decryptor& inDecryptor, uint32_t inDecrypted, const EncParcel& inInput, InputsMutation inMutation, KeeloqLearning::LearningType inLearningType, KeeloqLearning::Modifier::Algo inAlgoModifier)
-        : decryptor(inDecryptor), decrypted(inDecrypted), input(inInput), mutation(inMutation), learningType(inLearningType), algoModifier(inAlgoModifier), match(isMatched)
+    BruteforceResult(bool isMatched, const Decryptor& inDecryptor, uint32_t inDecrypted, const EncParcel& inInput, InputTransform inTransform, KeeloqLearning::LearningType inLearningType, KeeloqLearning::Modifier::Algo inAlgoModifier)
+        : decryptor(inDecryptor), decrypted(inDecrypted), input(inInput), transform(inTransform), learningType(inLearningType), algoModifier(inAlgoModifier), match(isMatched)
     {
     }
 

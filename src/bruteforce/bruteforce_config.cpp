@@ -8,49 +8,49 @@
 #include "bruteforce/bruteforce_type.h"
 
 
-BruteforceConfig BruteforceConfig::GetDictionary(std::vector<Decryptor>&& dictionary, InputsMutation inputsMutation)
+BruteforceConfig BruteforceConfig::GetDictionary(std::vector<Decryptor>&& dictionary, InputTransform inputTransform)
 {
-    BruteforceConfig result(Decryptor::Invalid(), BruteforceType::Dictionary, inputsMutation, dictionary.size());
+    BruteforceConfig result(Decryptor::Invalid(), BruteforceType::Dictionary, inputTransform, dictionary.size());
     result.dictDecryptors = std::move(dictionary);
     return result;
 };
 
-BruteforceConfig BruteforceConfig::GetBruteforce(Decryptor first, InputsMutation inputsMutation, size_t size)
+BruteforceConfig BruteforceConfig::GetBruteforce(Decryptor first, InputTransform inputTransform, size_t size)
 {
-    return BruteforceConfig(first, BruteforceType::Simple, inputsMutation, size);
+    return BruteforceConfig(first, BruteforceType::Simple, inputTransform, size);
 }
 
-BruteforceConfig BruteforceConfig::GetBruteforce(Decryptor first, InputsMutation inputsMutation, size_t size, const BruteforceFilters& filters)
+BruteforceConfig BruteforceConfig::GetBruteforce(Decryptor first, InputTransform inputTransform, size_t size, const BruteforceFilters& filters)
 {
-    BruteforceConfig result(first, BruteforceType::Filtered, inputsMutation, size);
+    BruteforceConfig result(first, BruteforceType::Filtered, inputTransform, size);
     result.filters = filters;
     return result;
 }
 
-BruteforceConfig BruteforceConfig::GetSeedBruteforce(Decryptor first, InputsMutation inputsMutation, uint32_t size)
+BruteforceConfig BruteforceConfig::GetSeedBruteforce(Decryptor first, InputTransform inputTransform, uint32_t size)
 {
-    return BruteforceConfig(first, BruteforceType::Seed, inputsMutation, size);
+    return BruteforceConfig(first, BruteforceType::Seed, inputTransform, size);
 }
 
-BruteforceConfig BruteforceConfig::GetXorFixBruteforce(Decryptor first, InputsMutation inputsMutation, uint32_t size /*= static_cast<uint32_t>(-1)*/)
+BruteforceConfig BruteforceConfig::GetXorFixBruteforce(Decryptor first, InputTransform inputTransform, uint32_t size /*= static_cast<uint32_t>(-1)*/)
 {
-    return BruteforceConfig(first, BruteforceType::XorFix, inputsMutation | InputsMutation::XorFix, size);
+    return BruteforceConfig(first, BruteforceType::XorFix, inputTransform | InputTransform::XorFix, size);
 }
 
-BruteforceConfig BruteforceConfig::GetAlphabet(Decryptor first, InputsMutation inputsMutation, const MultibaseDigit& alphabet, size_t num, const std::string& name)
+BruteforceConfig BruteforceConfig::GetAlphabet(Decryptor first, InputTransform inputTransform, const MultibaseDigit& alphabet, size_t num, const std::string& name)
 {
-    auto result = GetPattern(first, inputsMutation, BruteforcePattern(alphabet, name.empty() ? str::format<std::string>("Alphabet. Size: %d", alphabet.count()) : name), num);
+    auto result = GetPattern(first, inputTransform, BruteforcePattern(alphabet, name.empty() ? str::format<std::string>("Alphabet. Size: %d", alphabet.count()) : name), num);
     result.type = BruteforceType::Alphabet;
     return result;
 }
 
-BruteforceConfig BruteforceConfig::GetPattern(Decryptor first, InputsMutation inputsMutation, const BruteforcePattern& pattern, size_t num)
+BruteforceConfig BruteforceConfig::GetPattern(Decryptor first, InputTransform inputTransform, const BruteforcePattern& pattern, size_t num)
 {
     num = std::min(pattern.size(), num);
 
     first = Decryptor::Make(pattern.init(first.man()).number(), first.seed(), first.has_seed());
 
-    BruteforceConfig result(first, BruteforceType::Pattern, inputsMutation, num);
+    BruteforceConfig result(first, BruteforceType::Pattern, inputTransform, num);
     result.pattern = pattern;
     return result;
 }
@@ -110,45 +110,19 @@ bool BruteforceConfig::hasSeed() const
 }
 
 
-bool BruteforceConfig::hasMutation(InputsMutation m) const
+void BruteforceConfig::setTransforms(std::vector<InputTransform> schedule)
 {
-    if (maskAsSingleMutation)
-    {
-        return m == allowedMutations;
-    }
-
-    if (type == BruteforceType::XorFix)
-    {
-        // only mutation with XorFix flag
-        return !!(m & InputsMutation::XorFix);
-    }
-
-    // Including None if allowed
-    return (m & allowedMutations) == m;
+    transforms = std::move(schedule);
 }
 
-std::vector<InputsMutation> BruteforceConfig::getMutations() const
-{
-    std::vector<InputsMutation> mutations;
-    for (uint8_t i = 0; i < InputsMutationVariantsCount; ++i)
-    {
-        const auto flag = static_cast<InputsMutation>(i);
-        if (hasMutation(flag))
-        {
-            mutations.push_back(flag);
-        }
-    }
-    return mutations;
-}
-
-std::string BruteforceConfig::mutationsToString() const
+std::string BruteforceConfig::transformsToString() const
 {
     char result[512] = {};
     size_t at = 0;
 
-    for (const auto& mutation : getMutations())
+    for (const auto& t : transforms)
     {
-        at += snprintf(result + at, sizeof(result) - at, "%s%s", at == 0 ? "" : ", ", name(mutation));
+        at += snprintf(result + at, sizeof(result) - at, "%s%s", at == 0 ? "" : ", ", name(t));
     }
 
     return std::string(result);
@@ -238,8 +212,29 @@ std::string BruteforceConfig::toString() const
     return str::format<std::string>("UNSUPPORTED Type (%d): %s", (int)type, bruteTypeName);
 }
 
-void BruteforceConfig::overrideMutationMask(InputsMutation mask, bool alone)
+BruteforceConfig::BruteforceConfig(Decryptor start, BruteforceType::Type t, InputTransform mask, size_t num) :
+    type(t), start(start), size(num), dictDecryptors(), filters(), pattern(), last(start)
 {
-    allowedMutations = static_cast<InputsMutation>(static_cast<uint8_t>(mask) & InputsMutationMask);
-    maskAsSingleMutation = alone;
+    if (t == BruteforceType::XorFix)
+    {
+        for (uint8_t i = 0; i < InputTransformVariantsCount; ++i)
+        {
+            const auto flag = static_cast<InputTransform>(i);
+            if (!!(flag & InputTransform::XorFix))
+            {
+                transforms.push_back(flag);
+            }
+        }
+    }
+    else
+    {
+        for (uint8_t i = 0; i < InputTransformVariantsCount; ++i)
+        {
+            const auto flag = static_cast<InputTransform>(i);
+            if ((flag & mask) == flag)
+            {
+                transforms.push_back(flag);
+            }
+        }
+    }
 }

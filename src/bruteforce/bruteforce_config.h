@@ -9,7 +9,7 @@
 
 #include "algorithm/keeloq/keeloq_decryptor.h"
 #include "algorithm/keeloq/keeloq_learning_types.h"
-#include "kernels/inputs_mutation.h"
+#include "kernels/input_transform.h"
 
 #include "bruteforce/bruteforce_filters.h"
 #include "bruteforce/bruteforce_pattern.h"
@@ -53,32 +53,32 @@ public:
 
 public:
 
-    BruteforceConfig() : BruteforceConfig(Decryptor::Invalid(), BruteforceType::LAST, InputsMutation::None, 0)
+    BruteforceConfig() : BruteforceConfig(Decryptor::Invalid(), BruteforceType::LAST, InputTransform::None, 0)
     {
     }
 
 public:
 
     /** Dictionary attack over an explicit list of decryptors. */
-    static BruteforceConfig GetDictionary(std::vector<Decryptor>&& dictionary, InputsMutation inputsMutation);
+    static BruteforceConfig GetDictionary(std::vector<Decryptor>&& dictionary, InputTransform inputTransform);
 
     /** Plain +1 bruteforce over a contiguous key range. */
-    static BruteforceConfig GetBruteforce(Decryptor first, InputsMutation inputsMutation, size_t size);
+    static BruteforceConfig GetBruteforce(Decryptor first, InputTransform inputTransform, size_t size);
 
     /** +1 bruteforce with include/exclude filters applied. */
-    static BruteforceConfig GetBruteforce(Decryptor first, InputsMutation inputsMutation, size_t size, const BruteforceFilters& filters);
+    static BruteforceConfig GetBruteforce(Decryptor first, InputTransform inputTransform, size_t size, const BruteforceFilters& filters);
 
     /** +1 bruteforce over the 32-bit seed space for a fixed manufacturer key. */
-    static BruteforceConfig GetSeedBruteforce(Decryptor first, InputsMutation inputsMutation, uint32_t size = static_cast<uint32_t>(-1));
+    static BruteforceConfig GetSeedBruteforce(Decryptor first, InputTransform inputTransform, uint32_t size = static_cast<uint32_t>(-1));
 
-    /** +1 bruteforce over the 32-bit space for a xor key for fixed part in ota. InputsMutation will be forced set to XorFix */
-    static BruteforceConfig GetXorFixBruteforce(Decryptor first, InputsMutation inputsMutation, uint32_t size = static_cast<uint32_t>(-1));
+    /** +1 bruteforce over the 32-bit space for a xor key for fixed part in ota. InputTransform will be forced set to XorFix */
+    static BruteforceConfig GetXorFixBruteforce(Decryptor first, InputTransform inputTransform, uint32_t size = static_cast<uint32_t>(-1));
 
     /** Alphabet (same byte set on every position) bruteforce. */
-    static BruteforceConfig GetAlphabet(Decryptor first, InputsMutation inputsMutation, const MultibaseDigit& alphabet, size_t num = MaxDecryptorsNum, const std::string& name = "");
+    static BruteforceConfig GetAlphabet(Decryptor first, InputTransform inputTransform, const MultibaseDigit& alphabet, size_t num = MaxDecryptorsNum, const std::string& name = "");
 
     /** Pattern bruteforce (per-position byte sets). */
-    static BruteforceConfig GetPattern(Decryptor first, InputsMutation inputsMutation, const BruteforcePattern& pattern, size_t num = MaxDecryptorsNum);
+    static BruteforceConfig GetPattern(Decryptor first, InputTransform inputTransform, const BruteforcePattern& pattern, size_t num = MaxDecryptorsNum);
 
 public:
 
@@ -106,17 +106,14 @@ public:
     std::string toString() const;
 
 public:
-    /** override mutation mask, allow set it not as mask but as value - basically run only single mutation */
-    void overrideMutationMask(InputsMutation mask, bool alone = false);
+    /** Replace the transform schedule with an explicit list. */
+    void setTransforms(std::vector<InputTransform> schedule);
 
-    /** Checks if specific inputs mutation is allowed in config. `None` is always allowed (if not XorFix bruteforce) */
-    bool hasMutation(InputsMutation m) const;
+    /** Get the ordered list of input transforms to apply per batch. */
+    const std::vector<InputTransform>& getTransforms() const { return transforms; }
 
-    /** Get all allowed mutation as vector (useful for iteration) */
-    std::vector<InputsMutation> getMutations() const;
-
-    /** Human-readable description of the given mutation mask. */
-    std::string mutationsToString() const;
+    /** Human-readable description of the configured transforms. */
+    std::string transformsToString() const;
 
     /**
      *  Reduce some learning types depends on config,
@@ -126,18 +123,11 @@ public:
     KeeloqLearning::Matrix reduceMatrix(const KeeloqLearning::Matrix& matrix) const;
 
 private:
-    BruteforceConfig(Decryptor start, BruteforceType::Type t, InputsMutation im, size_t num) :
-        type(t), start(start), size(num), dictDecryptors(), filters(), pattern(), last(start), allowedMutations(im)
-    {
-    }
+    BruteforceConfig(Decryptor start, BruteforceType::Type t, InputTransform mask, size_t num);
 
 private:
-    // HOST SET. Additional mutation flags to expand into CPU-side kernel launch variants.
-    // The unmutated input path is always included.
-    InputsMutation allowedMutations = InputsMutation::None;
-
-    // Flag allows force disable all other mutations except one
-    bool maskAsSingleMutation = false;
+    // Ordered list of input transforms to try per batch (built from mask at construction).
+    std::vector<InputTransform> transforms;
 };
 
 inline std::vector<uint8_t> operator "" _b(const char* ascii, size_t num)

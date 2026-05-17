@@ -33,7 +33,7 @@ public:
         results = other.results;
         learnings = other.learnings;
         allLearnings = other.allLearnings;
-        mutationsMask = other.mutationsMask;
+        activeTransform = other.activeTransform;
 
         other.results = nullptr;
     }
@@ -61,7 +61,7 @@ public:
     virtual __host__ BruteforceResult getResult(size_t index) const final override;
 
     /** Prepare inputs for the next batch, basically set up internal fields so they become valid in kernels */
-    virtual __host__ void prepareBatch(const KeeloqLearning::Matrix& learningMatrix, InputsMutation inputMutations) final override;
+    virtual __host__ void prepareBatch(const KeeloqLearning::Matrix& learningMatrix, InputTransform inputMutations) final override;
 
 public:
     /** Learning-type selection matrix for the current run. */
@@ -70,8 +70,8 @@ public:
     /** Fast path indicator: true when every learning entry is enabled. */
     __device__ __host__ __inline__ bool AllLearningsEnabled() const { return allLearnings; }
 
-    /** Active input mutation for the next kernel launch. */
-    __device__ __host__ __inline__ InputsMutation InputsMutationMask() const { return mutationsMask; }
+    /** Active input transform for the next kernel launch. */
+    __device__ __host__ __inline__ InputTransform GetInputTransform() const { return activeTransform; }
 
 public:
     // Single-run results accessible from GPU
@@ -84,6 +84,6 @@ private:
     // optimizations. Just a bool field that could be accessed from GPU
     bool allLearnings = false;
 
-    // Inputs mutation mask
-    InputsMutation mutationsMask = InputsMutation::None;
+    // Active input transform for the current kernel launch
+    InputTransform activeTransform = InputTransform::None;
 };

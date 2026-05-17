@@ -107,7 +107,7 @@ void BruteforceRound::init()
     }
 }
 
-KernelResult BruteforceRound::update(const KeeloqLearning::Matrix& learningMatrix, InputsMutation inputsMutation)
+KernelResult BruteforceRound::update(const KeeloqLearning::Matrix& learningMatrix, InputTransform inputTransform)
 {
     if (!kernel_inputs)
     {
@@ -115,7 +115,7 @@ KernelResult BruteforceRound::update(const KeeloqLearning::Matrix& learningMatri
         return KernelResult::NotStarted();
     }
 
-    kernel_inputs->prepareBatch(learningMatrix, inputsMutation);
+    kernel_inputs->prepareBatch(learningMatrix, inputTransform);
     return keeloq::kernels::cuda_brute(*this, cudaConfig);
 }
 
@@ -133,7 +133,7 @@ std::string BruteforceRound::toString() const
         "----------------------------------------\n"
         "Inputs:\n"
         "\tCount: %u\n"
-        "\tMutations:   %s\n"
+        "\tTransforms:  %s\n"
         "----------------------------------------\n"
         "Results per batch:   %8zd\n"
         "Decryptors per batch:%8zd\n"
@@ -142,7 +142,7 @@ std::string BruteforceRound::toString() const
         "Config: %s\n"
         "----------------------------------------",
         cudaConfig.blocks, cudaConfig.threads, cudaConfig.substeps, (getMemSize(false) / static_cast<float>(1024 * 1024 * 1024)),
-        inputsNum, config().mutationsToString().c_str(),
+        inputsNum, config().transformsToString().c_str(),
         resultsPerBatch(), decryptorsPerBatch(), kernel_inputs ? ::toString(kernel_inputs->type()).data() : "NULL",
         config().toString().c_str());
 }

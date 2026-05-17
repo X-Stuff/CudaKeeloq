@@ -38,7 +38,7 @@ std::vector<EncParcel> makeBenchmarkInputs(uint64_t key, uint8_t num, KeeloqLear
     result.reserve(num);
     for (uint8_t i = 0; i < num; ++i)
     {
-        result.emplace_back(encryptor.click(InputsMutation::None, lType, KeeloqLearning::Modifier::Algo::Normal));
+        result.emplace_back(encryptor.click(InputTransform::None, lType, KeeloqLearning::Modifier::Algo::Normal));
     }
     return result;
 }
@@ -97,13 +97,13 @@ void benchmark::run(const std::vector<EncParcel>& inputs, const KeeloqLearning::
         "CUDA Threads per block             : %u\n"
         "Total decryptors number            : %" PRIu64 " (Millions)\n"
         "Seed specified                     : %s\n"
-        "Inputs mutations:                  : %s\n"
+        "Inputs transforms:                  : %s\n"
         "Kernel inputs:                     : %s\n"
         "Learning                           : %s\n\n",
         MaxCudaBlocks, MaxCudaMemory, MaxCudaThreads,
         (benchmarkConfig.size / 1000000),
         (hasSeed ? "true" : "false"),
-        benchmarkConfig.mutationsToString().c_str(),
+        benchmarkConfig.transformsToString().c_str(),
         benchmarkConfig.useSingleLearningKernels ? "Single" : "Multiple",
         reducedMatrix.toString().c_str());
 
@@ -144,7 +144,7 @@ void benchmark::becnhmarkReal(bool useSingleLearningKernels)
         const auto dhStartDecryptor = Decryptor::MakeNoSeed(manDH & 0xFFFFFFFF00000000);
 
         Bruteforcer bruteforcer(dhInputs, true);
-        BruteforceConfig simple = BruteforceConfig::GetBruteforce(dhStartDecryptor, InputsMutation::None, 0xFFFFFFFF);
+        BruteforceConfig simple = BruteforceConfig::GetBruteforce(dhStartDecryptor, InputTransform::None, 0xFFFFFFFF);
         simple.useSingleLearningKernels = useSingleLearningKernels;
 
         CudaConfig cudaConfig = CudaConfig::Optimal();
@@ -175,7 +175,7 @@ void benchmark::becnhmarkReal(bool useSingleLearningKernels)
         const auto smStartDecryptor = Decryptor::MakeNoSeed(manSommer & 0xFFFFFFFF00000000);
 
         Bruteforcer bruteforcer(sommerInputs, true);
-        BruteforceConfig simple = BruteforceConfig::GetBruteforce(smStartDecryptor, InputsMutation::RevKey, 0xFFFFFFFF);
+        BruteforceConfig simple = BruteforceConfig::GetBruteforce(smStartDecryptor, InputTransform::RevKey, 0xFFFFFFFF);
         simple.useSingleLearningKernels = useSingleLearningKernels;
 
         CudaConfig cudaConfig = CudaConfig::Optimal();
@@ -204,7 +204,7 @@ void benchmark::benchmarkSeedAttack(uint32_t TargetCalculationsNumber, bool useS
     constexpr auto NumInputs = 3;
     auto inputs = makeBenchmarkInputs(0xFF123FF3434FFFFF, NumInputs, LearningType::Serial3);
 
-    auto configSeedOnly = BruteforceConfig::GetSeedBruteforce(Decryptor::Make(0xAABBCCDDEEFFFFFF, 0, true), InputsMutation::None, TargetCalculationsNumber);
+    auto configSeedOnly = BruteforceConfig::GetSeedBruteforce(Decryptor::Make(0xAABBCCDDEEFFFFFF, 0, true), InputTransform::None, TargetCalculationsNumber);
     configSeedOnly.useSingleLearningKernels = useSingleLearningKernels;
 
     run(inputs, KeeloqLearning::Matrix::Everything(), configSeedOnly);
@@ -218,7 +218,7 @@ void benchmark::benchmarkNormalAttack(uint32_t TargetCalculationsNumber, bool us
     auto inputs = makeBenchmarkInputs(0xFF123FF3434FFFFF, NumInputs, LearningType::Serial3);
 
     // Just using no seed decryptor should turn off all seed-based learning types
-    auto configNoSeed = BruteforceConfig::GetBruteforce(Decryptor::MakeNoSeed(0xAABBCCDDEEFFFFFF), InputsMutation::None, TargetCalculationsNumber);
+    auto configNoSeed = BruteforceConfig::GetBruteforce(Decryptor::MakeNoSeed(0xAABBCCDDEEFFFFFF), InputTransform::None, TargetCalculationsNumber);
     configNoSeed.useSingleLearningKernels = useSingleLearningKernels;
 
     run(inputs, KeeloqLearning::Matrix::Everything(), configNoSeed);
@@ -232,7 +232,7 @@ void benchmark::benchmarkXoredAttack(uint32_t TargetCalculationsNumber, bool use
     auto inputs = makeBenchmarkInputs(0xFF123FF3434FFFFF, NumInputs, LearningType::Serial3);
 
     // XORed only
-    auto configXorFixed = BruteforceConfig::GetXorFixBruteforce(Decryptor::Make(0xAABBCCDDEEFFFFFF, 0, true), InputsMutation::RevKey, TargetCalculationsNumber);
+    auto configXorFixed = BruteforceConfig::GetXorFixBruteforce(Decryptor::Make(0xAABBCCDDEEFFFFFF, 0, true), InputTransform::RevKey, TargetCalculationsNumber);
     configXorFixed.useSingleLearningKernels = useSingleLearningKernels;
 
     run(inputs, KeeloqLearning::Matrix::Everything(), configXorFixed);
@@ -247,11 +247,11 @@ void benchmark::benchmarkEveryLearningAlone(uint32_t TargetCalculationsNumber, b
 
 
     // Alphabet brute benchmarks
-    auto alphabetSeeded = BruteforceConfig::GetAlphabet(Decryptor::Make(0, 1234567, true), InputsMutation::None, "0123456789abcdefgh"_b, TargetCalculationsNumber);
+    auto alphabetSeeded = BruteforceConfig::GetAlphabet(Decryptor::Make(0, 1234567, true), InputTransform::None, "0123456789abcdefgh"_b, TargetCalculationsNumber);
     alphabetSeeded.useSingleLearningKernels = useSingleLearningKernels;
 
     // Simple+1 brute benchmarks
-    auto simplePlusOne = BruteforceConfig::GetBruteforce(Decryptor::Make(0, 1234567, true), InputsMutation::None, TargetCalculationsNumber);
+    auto simplePlusOne = BruteforceConfig::GetBruteforce(Decryptor::Make(0, 1234567, true), InputTransform::None, TargetCalculationsNumber);
     simplePlusOne.useSingleLearningKernels = useSingleLearningKernels;
 
     for (auto learningItem : KeeloqLearning::Matrix::Everything().asItems())
@@ -269,11 +269,11 @@ void benchmark::benchmarkEveryLearningAtOnce(uint32_t TargetCalculationsNumber, 
     auto inputs = makeBenchmarkInputs(0xFF123FF3434FFFFF, NumInputs, LearningType::Serial3);
 
     // Simple+1 brute benchmarks
-    auto benchConfigSimpleBrute = BruteforceConfig::GetBruteforce(Decryptor::Make(0, 1234567, true), InputsMutation::None, TargetCalculationsNumber);
+    auto benchConfigSimpleBrute = BruteforceConfig::GetBruteforce(Decryptor::Make(0, 1234567, true), InputTransform::None, TargetCalculationsNumber);
     benchConfigSimpleBrute.useSingleLearningKernels = useSingleLearningKernels;
 
     // HARDEST: Full brute 11 x 4 permutations
-    benchConfigSimpleBrute.overrideMutationMask(InputsMutation::All);
+    benchConfigSimpleBrute.setTransforms({InputTransform::None, InputTransform::RevKey, InputTransform::XorFix, InputTransform::RevKey | InputTransform::XorFix});
     benchConfigSimpleBrute.size = TargetCalculationsNumber;
 
     run(inputs, KeeloqLearning::Matrix::Everything(), benchConfigSimpleBrute);

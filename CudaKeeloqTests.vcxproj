@@ -198,7 +198,7 @@
     <ClInclude Include="src\host\console.h" />
     <ClInclude Include="src\host\host_utils.h" />
     <ClInclude Include="src\host\timer.h" />
-    <ClInclude Include="src\kernels\inputs_mutation.h" />
+    <ClInclude Include="src\kernels\input_transform.h" />
     <ClInclude Include="src\kernels\kernel_input_base.h" />
     <ClInclude Include="src\kernels\kernel_input_multi_learning.h" />
     <ClInclude Include="src\kernels\kernel_input_single_learning.h" />

@@ -68,7 +68,7 @@ BruteforceResult KeeloqKernelMultiLearningInput::getMatch(GetMatchProgressCallba
                     result.decryptor,
                     result.decrypted.data[result.match],
                     GetInput(result.inputIndex()),
-                    result.inputsMutation(),
+                    result.inputTransform(),
                     Learning,
                     Mod
                 );
@@ -98,22 +98,22 @@ BruteforceResult KeeloqKernelMultiLearningInput::getResult(size_t index) const
         result.decryptor,
         resIndex < result.decrypted.data.size() ? result.decrypted.data[resIndex] : 0,
         GetInput(result.inputIndex()),
-        result.inputsMutation(),
+        result.inputTransform(),
         learning,
         mod
     );
 }
 
-void KeeloqKernelMultiLearningInput::prepareBatch(const KeeloqLearning::Matrix& learningMatrix, InputsMutation inputMutations)
+void KeeloqKernelMultiLearningInput::prepareBatch(const KeeloqLearning::Matrix& learningMatrix, InputTransform inputTransform)
 {
-    assert(is_valid(inputMutations) && "Invalid input mutation mask");
+    assert(is_valid(inputTransform) && "Invalid input transform");
 
-    assert((GetConfig().type != BruteforceType::XorFix || !!(inputMutations & InputsMutation::XorFix)) &&
-        "In XorFix bruteforce you should have always XorFix mutation enabled");
+    assert((GetConfig().type != BruteforceType::XorFix || !!(inputTransform & InputTransform::XorFix)) &&
+        "In XorFix bruteforce you should have always XorFix transform enabled");
 
     learnings = learningMatrix;
     allLearnings = learnings.isAllEnabled();
-    mutationsMask = inputMutations;
+    activeTransform = inputTransform;
 
     SetReady(true);
 }

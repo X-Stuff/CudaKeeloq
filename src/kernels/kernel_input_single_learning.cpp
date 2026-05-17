@@ -64,7 +64,7 @@ BruteforceResult KeeloqKernelSingleLearningInput::getMatch(GetMatchProgressCallb
                     result.decryptor,
                     result.decrypted,
                     GetInput(result.inputIndex()),
-                    result.inputsMutation(),
+                    result.inputTransform(),
                     learning,
                     algorithModifier
                 );
@@ -91,14 +91,14 @@ BruteforceResult KeeloqKernelSingleLearningInput::getResult(size_t index) const
         result.decryptor,
         result.decrypted,
         GetInput(result.inputIndex()),
-        result.inputsMutation(),
+        result.inputTransform(),
         learning,
         algorithModifier
     );
 }
 
 
-void KeeloqKernelSingleLearningInput::prepareBatch(const KeeloqLearning::Matrix& learningMatrix, InputsMutation inputMutations)
+void KeeloqKernelSingleLearningInput::prepareBatch(const KeeloqLearning::Matrix& learningMatrix, InputTransform inputMutations)
 {
     auto items = learningMatrix.asItems();
     if (items.size() > 0)
@@ -106,7 +106,7 @@ void KeeloqKernelSingleLearningInput::prepareBatch(const KeeloqLearning::Matrix&
         assert(items.size() == 1 && "With single learning input there must be only single learning item in matrix!");
         auto learningItem = items.front();
 
-        inputsMutation = inputMutations;
+        inputTransform = inputMutations;
 
         learning = learningItem.learning;
         algorithModifier = learningItem.amod;

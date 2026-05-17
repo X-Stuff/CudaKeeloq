@@ -34,9 +34,9 @@ CommandLineArgs demoTestCommandlineArgs(int num_gen_input = 3)
     Decryptor first_decryptor_ptrn = Decryptor::Make(0, encryptor.getSeed(), true);
 
     CommandLineArgs cmd;
-    cmd.inputs.emplace_back(encryptor.click(InputsMutation::None, KeeloqLearning::LearningType::Faac, KeeloqLearning::Modifier::Algo::Normal));
-    cmd.inputs.emplace_back(encryptor.click(InputsMutation::None, KeeloqLearning::LearningType::Faac, KeeloqLearning::Modifier::Algo::Normal));
-    cmd.inputs.emplace_back(encryptor.click(InputsMutation::None, KeeloqLearning::LearningType::Faac, KeeloqLearning::Modifier::Algo::Normal));
+    cmd.inputs.emplace_back(encryptor.click(InputTransform::None, KeeloqLearning::LearningType::Faac, KeeloqLearning::Modifier::Algo::Normal));
+    cmd.inputs.emplace_back(encryptor.click(InputTransform::None, KeeloqLearning::LearningType::Faac, KeeloqLearning::Modifier::Algo::Normal));
+    cmd.inputs.emplace_back(encryptor.click(InputTransform::None, KeeloqLearning::LearningType::Faac, KeeloqLearning::Modifier::Algo::Normal));
 
     // Dictionary
     cmd.brute_configs.emplace_back(BruteforceConfig::GetDictionary({
@@ -44,19 +44,19 @@ CommandLineArgs demoTestCommandlineArgs(int num_gen_input = 3)
         Decryptor::Make(encryptor.getKey() - 1, encryptor.getSeed(), true),
         Decryptor::Make(encryptor.getKey(),     encryptor.getSeed(), true),
         Decryptor::Make(encryptor.getKey() + 1, encryptor.getSeed(), true)
-    }, InputsMutation::None));
+    }, InputTransform::None));
 
     // Alphabet
     cmd.alphabets.emplace_back(MultibaseDigit("abcdef"_b));
     cmd.alphabets.emplace_back(MultibaseDigit({ 0xC0, 0xFF, 0xEE, 0x00, 0xDE, 0xAD, 0x66 }));
-    cmd.brute_configs.emplace_back(BruteforceConfig::GetAlphabet(first_decryptor_ptrn, InputsMutation::None, cmd.alphabets[1], BruteforceConfig::MaxDecryptorsNum, "Match alphabet"));
-    cmd.brute_configs.emplace_back(BruteforceConfig::GetAlphabet(first_decryptor_ptrn, InputsMutation::None, cmd.alphabets[0], BruteforceConfig::MaxDecryptorsNum, "Wrong alphabet"));
+    cmd.brute_configs.emplace_back(BruteforceConfig::GetAlphabet(first_decryptor_ptrn, InputTransform::None, cmd.alphabets[1], BruteforceConfig::MaxDecryptorsNum, "Match alphabet"));
+    cmd.brute_configs.emplace_back(BruteforceConfig::GetAlphabet(first_decryptor_ptrn, InputTransform::None, cmd.alphabets[0], BruteforceConfig::MaxDecryptorsNum, "Wrong alphabet"));
 
     // Seed
-    cmd.brute_configs.emplace_back(BruteforceConfig::GetSeedBruteforce(Decryptor::Make(encryptor.getKey(), 0, true), InputsMutation::None));
+    cmd.brute_configs.emplace_back(BruteforceConfig::GetSeedBruteforce(Decryptor::Make(encryptor.getKey(), 0, true), InputTransform::None));
 
     // Pattern (reversed)
-    cmd.brute_configs.emplace_back(BruteforceConfig::GetPattern(first_decryptor_ptrn, InputsMutation::RevKey, BruteforcePattern(
+    cmd.brute_configs.emplace_back(BruteforceConfig::GetPattern(first_decryptor_ptrn, InputTransform::RevKey, BruteforcePattern(
         {
             BruteforcePattern::parseBytes("c0|c1|c2|c3"),
             BruteforcePattern::parseBytes("F0-FF"),
@@ -70,10 +70,10 @@ CommandLineArgs demoTestCommandlineArgs(int num_gen_input = 3)
 
     // Simple
     Decryptor first_decryptor_brtf = Decryptor::Make(first, encryptor.getSeed(), true);
-    cmd.brute_configs.emplace_back(BruteforceConfig::GetBruteforce(first_decryptor_brtf, InputsMutation::None, count));
+    cmd.brute_configs.emplace_back(BruteforceConfig::GetBruteforce(first_decryptor_brtf, InputTransform::None, count));
 
     // Filters
-    cmd.brute_configs.emplace_back(BruteforceConfig::GetBruteforce(first_decryptor_brtf, InputsMutation::None, count, BruteforceFilters
+    cmd.brute_configs.emplace_back(BruteforceConfig::GetBruteforce(first_decryptor_brtf, InputTransform::None, count, BruteforceFilters
         {
             // Include only
             BruteforceFilters::Flags::All,

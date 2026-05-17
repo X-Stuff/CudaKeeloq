@@ -15,7 +15,7 @@
 
 /**
  *  Experimental: flattened version of KeeloqKernelInput for testing whether it can improve GPU performance by better memory access patterns.
- * In this mode CUDA kernel computes only one variation of learning/mutation/algomod, but shares produced decryptors
+ * In this mode CUDA kernel computes only one variation of learning/transform/algomod, but shares produced decryptors
  */
 struct KeeloqKernelSingleLearningInput : public TKeeloqKernelInputBase<KeeloqKernelSingleLearningInput>
 {
@@ -29,7 +29,7 @@ public:
         inputsCount = other.inputsCount;
         decryptors = other.decryptors;
         results = other.results;
-        inputsMutation = other.inputsMutation;
+        inputTransform = other.inputTransform;
         learning = other.learning;
         algorithModifier = other.algorithModifier;
     }
@@ -58,7 +58,7 @@ public:
     virtual __host__ BruteforceResult getResult(size_t index) const final override;
 
     /** Prepare inputs for the next batch, basically set up internal fields so they become valid in kernels */
-    virtual __host__ void prepareBatch(const KeeloqLearning::Matrix& learningMatrix, InputsMutation inputMutations) final override;
+    virtual __host__ void prepareBatch(const KeeloqLearning::Matrix& learningMatrix, InputTransform inputMutations) final override;
 
 public:
     template<uint8_t InputIndex, uint8_t NumInputs>
@@ -77,7 +77,7 @@ public:
     CudaArray<ThreadResult::Single>* results = nullptr;
 
     // How inputs should be mutated in Kernel
-    InputsMutation inputsMutation = InputsMutation::None;
+    InputTransform inputTransform = InputTransform::None;
 
     // What type of leaning should Kernel use for decryption
     KeeloqLearning::LearningType learning = KeeloqLearning::LearningType::Simple;

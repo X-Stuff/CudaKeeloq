@@ -47,11 +47,11 @@ void runEveryLearningWithMod(const BruteforceConfig& config, bool useSingleLearn
 
     for (auto learningType : EveryLearningType{})
     {
-        auto inputMutations = config.getMutations();
+        const auto& inputTransforms = config.getTransforms();
 
-        for (auto mutation : inputMutations)
+        for (auto transform : inputTransforms)
         {
-            const bool seedRequired = KeeloqLearning::hasSeed(learningType) || !!(mutation & InputsMutation::XorFix);
+            const bool seedRequired = KeeloqLearning::hasSeed(learningType) || !!(transform & InputTransform::XorFix);
 
             const bool canMatch = (config.hasSeed() && KeeloqLearning::hasSeed(learningType)) || (!seedRequired && config.type != BruteforceType::Seed);
 
@@ -73,17 +73,17 @@ void runEveryLearningWithMod(const BruteforceConfig& config, bool useSingleLearn
                 {
                     CAPTURE(std::string(KeeloqLearning::name(learningType)));
                     CAPTURE(std::string(KeeloqLearning::name(algoModifier)));
-                    CAPTURE(std::string(name(mutation)));
+                    CAPTURE(std::string(name(transform)));
 
                     CAPTURE(numInputs);
 
                     Encryptor encryptor(kDebugKey, kDebugSeed);
-                    const auto inputs = tests::keeloq::genInputs(encryptor, numInputs, mutation, learningType, algoModifier);
+                    const auto inputs = tests::keeloq::genInputs(encryptor, numInputs, transform, learningType, algoModifier);
 
                     Bruteforcer bruteforcer(inputs, false, AppVerbosity::Error);
                     auto ccopy = config;
                     ccopy.useSingleLearningKernels = useSingleLearning;
-                    ccopy.overrideMutationMask(mutation, true);
+                    ccopy.setTransforms({transform});
                     bruteforcer.setOnRoundComplete([&](const BruteforceRound& round, const KernelResult& kernelResult)
                     {
                         auto& kernelInputs = round.inputs();
@@ -108,7 +108,7 @@ void runEveryLearningWithMod(const BruteforceConfig& config, bool useSingleLearn
                             CHECK(matched_result.isValid());
                             CHECK(matched_result.isMatch());
 
-                            CHECK(matched_result.mutation == mutation);
+                            CHECK(matched_result.transform == transform);
                             CHECK(matched_result.learningType == learningType);
                             CHECK(matched_result.algoModifier == algoModifier);
 
@@ -170,22 +170,22 @@ TEST_CASE("keeloq: EncParcel round-trips between OTA and fix/hop")
 
 TEST_CASE("keeloq: ML: Dictionary")
 {
-    runEveryLearningWithMod(BruteforceConfig::GetDictionary({ Decryptor::Make(kDebugKey, kDebugSeed, true) }, InputsMutation::All));
+    runEveryLearningWithMod(BruteforceConfig::GetDictionary({ Decryptor::Make(kDebugKey, kDebugSeed, true) }, InputTransform::All));
 }
 
 TEST_CASE("keeloq: ML: Bruteforce (no seed)")
 {
-    runEveryLearningWithMod(BruteforceConfig::GetBruteforce(Decryptor::MakeNoSeed(kDebugKey), InputsMutation::All, 1));
+    runEveryLearningWithMod(BruteforceConfig::GetBruteforce(Decryptor::MakeNoSeed(kDebugKey), InputTransform::All, 1));
 }
 
 TEST_CASE("keeloq: ML: Bruteforce (with seed)")
 {
-    runEveryLearningWithMod(BruteforceConfig::GetBruteforce(Decryptor::Make(kDebugKey, kDebugSeed, true), InputsMutation::All, 1));
+    runEveryLearningWithMod(BruteforceConfig::GetBruteforce(Decryptor::Make(kDebugKey, kDebugSeed, true), InputTransform::All, 1));
 }
 
 TEST_CASE("keeloq: ML: Seed")
 {
-    runEveryLearningWithMod(BruteforceConfig::GetSeedBruteforce(Decryptor::Make(kDebugKey, kDebugSeed, true), InputsMutation::All, 1));
+    runEveryLearningWithMod(BruteforceConfig::GetSeedBruteforce(Decryptor::Make(kDebugKey, kDebugSeed, true), InputTransform::All, 1));
 }
 
 TEST_CASE("keeloq: ML: Pattern")
@@ -196,7 +196,7 @@ TEST_CASE("keeloq: ML: Pattern")
         { (kDebugKey >> 32) & 0xFF }, { (kDebugKey >> 40) & 0xFF },
         { (kDebugKey >> 48) & 0xFF }, { uint8_t(kDebugKey >> 56) },
     };
-    runEveryLearningWithMod(BruteforceConfig::GetPattern(Decryptor::Make(kDebugKey, kDebugSeed, true), InputsMutation::All, BruteforcePattern(std::move(bytes)), 1));
+    runEveryLearningWithMod(BruteforceConfig::GetPattern(Decryptor::Make(kDebugKey, kDebugSeed, true), InputTransform::All, BruteforcePattern(std::move(bytes)), 1));
 }
 
 TEST_CASE("keeloq: ML: Alphabet")
@@ -207,28 +207,28 @@ TEST_CASE("keeloq: ML: Alphabet")
         uint8_t((kDebugKey >> 32) & 0xFF), uint8_t((kDebugKey >> 40) & 0xFF),
         uint8_t((kDebugKey >> 48) & 0xFF), uint8_t(kDebugKey >> 56),
     };
-    runEveryLearningWithMod(BruteforceConfig::GetAlphabet(Decryptor::MakeNoSeed(kDebugKey), InputsMutation::All, MultibaseDigit(alphabet), 1));
+    runEveryLearningWithMod(BruteforceConfig::GetAlphabet(Decryptor::MakeNoSeed(kDebugKey), InputTransform::All, MultibaseDigit(alphabet), 1));
 }
 
 
 TEST_CASE("keeloq: SL: Dictionary")
 {
-    runEveryLearningWithMod(BruteforceConfig::GetDictionary({ Decryptor::Make(kDebugKey, kDebugSeed, true) }, InputsMutation::All), true);
+    runEveryLearningWithMod(BruteforceConfig::GetDictionary({ Decryptor::Make(kDebugKey, kDebugSeed, true) }, InputTransform::All), true);
 }
 
 TEST_CASE("keeloq: SL: Bruteforce (no seed)")
 {
-    runEveryLearningWithMod(BruteforceConfig::GetBruteforce(Decryptor::MakeNoSeed(kDebugKey), InputsMutation::All, 1), true);
+    runEveryLearningWithMod(BruteforceConfig::GetBruteforce(Decryptor::MakeNoSeed(kDebugKey), InputTransform::All, 1), true);
 }
 
 TEST_CASE("keeloq: SL: Bruteforce (with seed)")
 {
-    runEveryLearningWithMod(BruteforceConfig::GetBruteforce(Decryptor::Make(kDebugKey, kDebugSeed, true), InputsMutation::All, 1), true);
+    runEveryLearningWithMod(BruteforceConfig::GetBruteforce(Decryptor::Make(kDebugKey, kDebugSeed, true), InputTransform::All, 1), true);
 }
 
 TEST_CASE("keeloq: SL: Seed")
 {
-    runEveryLearningWithMod(BruteforceConfig::GetSeedBruteforce(Decryptor::Make(kDebugKey, kDebugSeed, true), InputsMutation::All, 1), true);
+    runEveryLearningWithMod(BruteforceConfig::GetSeedBruteforce(Decryptor::Make(kDebugKey, kDebugSeed, true), InputTransform::All, 1), true);
 }
 
 TEST_CASE("keeloq: SL: Pattern")
@@ -239,7 +239,7 @@ TEST_CASE("keeloq: SL: Pattern")
         { (kDebugKey >> 32) & 0xFF }, { (kDebugKey >> 40) & 0xFF },
         { (kDebugKey >> 48) & 0xFF }, { uint8_t(kDebugKey >> 56) },
     };
-    runEveryLearningWithMod(BruteforceConfig::GetPattern(Decryptor::Make(kDebugKey, kDebugSeed, true), InputsMutation::All, BruteforcePattern(std::move(bytes)), 1), true);
+    runEveryLearningWithMod(BruteforceConfig::GetPattern(Decryptor::Make(kDebugKey, kDebugSeed, true), InputTransform::All, BruteforcePattern(std::move(bytes)), 1), true);
 }
 
 TEST_CASE("keeloq: SL: Alphabet")
@@ -250,5 +250,5 @@ TEST_CASE("keeloq: SL: Alphabet")
         uint8_t((kDebugKey >> 32) & 0xFF), uint8_t((kDebugKey >> 40) & 0xFF),
         uint8_t((kDebugKey >> 48) & 0xFF), uint8_t(kDebugKey >> 56),
     };
-    runEveryLearningWithMod(BruteforceConfig::GetAlphabet(Decryptor::MakeNoSeed(kDebugKey), InputsMutation::All, MultibaseDigit(alphabet), 1), true);
+    runEveryLearningWithMod(BruteforceConfig::GetAlphabet(Decryptor::MakeNoSeed(kDebugKey), InputTransform::All, MultibaseDigit(alphabet), 1), true);
 }
