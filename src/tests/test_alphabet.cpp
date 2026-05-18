@@ -20,11 +20,11 @@ TEST_CASE("alphabet generator: produces expected decryptor sequence")
 
     // 4^8 since we have 8 bytes and each byte can be 4 values
     const auto fullTurn = static_cast<uint32_t>(std::pow(pattern.size(), 8)); // 65536
-    const auto inputTransform = InputTransform::None;
+    const auto inputsTransform = InputsTransform::None;
 
-    auto testConfig = BruteforceConfig::GetAlphabet(Decryptor::Make(0, 0, true), inputTransform, pattern, 0xFFFFFFFF);
+    auto testConfig = BruteforceConfig::GetAlphabet(Decryptor::Make(0, 0, true), inputsTransform, pattern, 0xFFFFFFFF);
 
-    auto inputs = tests::keeloq::genInputs(0x6161616161616161, 3, inputTransform);
+    auto inputs = tests::keeloq::genInputs(0x6161616161616161, 3, inputsTransform);
 
     KeeloqKernelMultiLearningInput generatorInputs;
     generatorInputs.Initialize(testConfig, inputs);

@@ -61,21 +61,21 @@ struct InputInfo
     struct Multi
     {
         /** Pack input index and transform into a single byte. */
-        __host__ __device__ __forceinline__ static uint8_t pack(uint8_t inputIndex, InputTransform transform)
+        __host__ __device__ __forceinline__ static uint8_t pack(uint8_t inputIndex, InputsTransform transform)
         {
             return (static_cast<uint8_t>(transform) << 4) | (inputIndex & 0x0F);
         }
 
         /** Extract input index [3:0]. */
-        __host__ __device__ __forceinline__ static uint8_t inputIndex(uint8_t packed)
+        __host__ __device__ __forceinline__ static uint8_t getInputIndex(uint8_t packed)
         {
             return packed & 0x0F;
         }
 
         /** Extract input transform [7:4]. */
-        __host__ __device__ __forceinline__ static InputTransform transform(uint8_t packed)
+        __host__ __device__ __forceinline__ static InputsTransform getTransform(uint8_t packed)
         {
-            return static_cast<InputTransform>(packed >> 4);
+            return static_cast<InputsTransform>(packed >> 4);
         }
     };
 
@@ -86,7 +86,7 @@ struct InputInfo
     struct Single
     {
         /** Pack all fields into a single byte. */
-        __host__ __device__ __forceinline__ static uint8_t pack(uint8_t hasMatch, uint8_t inputIndex, InputTransform transform)
+        __host__ __device__ __forceinline__ static uint8_t pack(uint8_t hasMatch, uint8_t inputIndex, InputsTransform transform)
         {
             return (static_cast<uint8_t>(transform) << 4) | ((inputIndex << 1) & 0x0E) | (hasMatch & 0x01);
         }
@@ -98,15 +98,15 @@ struct InputInfo
         }
 
         /** Extract input index [3:1]. */
-        __host__ __device__ __forceinline__ static uint8_t inputIndex(uint8_t packed)
+        __host__ __device__ __forceinline__ static uint8_t getInputIndex(uint8_t packed)
         {
             return (packed >> 1) & 0x07;
         }
 
         /** Extract input transform [7:4]. */
-        __host__ __device__ __forceinline__ static InputTransform transform(uint8_t packed)
+        __host__ __device__ __forceinline__ static InputsTransform getTransform(uint8_t packed)
         {
-            return static_cast<InputTransform>(packed >> 4);
+            return static_cast<InputsTransform>(packed >> 4);
         }
     };
 };
@@ -174,16 +174,16 @@ struct Multi
 
 public:
     /** Which captured input (0,1,2) this result corresponds to */
-    __host__ __device__ __forceinline__ uint8_t inputIndex() const { return InputInfo::Multi::inputIndex(inputData); }
+    __host__ __device__ __forceinline__ uint8_t inputIndex() const { return InputInfo::Multi::getInputIndex(inputData); }
 
     /** Which input transform was applied */
-    __host__ __device__ __forceinline__ InputTransform inputTransform() const { return InputInfo::Multi::transform(inputData); }
+    __host__ __device__ __forceinline__ InputsTransform inputTransform() const { return InputInfo::Multi::getTransform(inputData); }
 
     /** Set the captured input index */
     __host__ __device__ __forceinline__ void setInputIndex(uint8_t index) { inputData = (inputData & 0xF0) | (index & 0x0F); }
 
     /** Set the input transform */
-    __host__ __device__ __forceinline__ void setInputTransform(InputTransform m) { inputData = (inputData & 0x0F) | (static_cast<uint8_t>(m) << 4); }
+    __host__ __device__ __forceinline__ void setInputTransform(InputsTransform m) { inputData = (inputData & 0x0F) | (static_cast<uint8_t>(m) << 4); }
 
     /** Returns an invalid/empty result sentinel */
     static Multi Invalid() { return Multi(); }
@@ -229,13 +229,13 @@ public:
     __host__ __device__ __forceinline__ void setInputIndex(uint8_t index) { results = (results & 0xF1) | ((index << 1) & 0x0E); }
 
     /** Which captured input (0,1,2) this result corresponds to */
-    __host__ __device__ __forceinline__ uint8_t inputIndex() const { return InputInfo::Single::inputIndex(results); }
+    __host__ __device__ __forceinline__ uint8_t inputIndex() const { return InputInfo::Single::getInputIndex(results); }
 
     /** Set the input transform */
-    __host__ __device__ __forceinline__ void setInputTransform(InputTransform m) { results = (results & 0x0F) | (static_cast<uint8_t>(m) << 4); }
+    __host__ __device__ __forceinline__ void setInputTransform(InputsTransform m) { results = (results & 0x0F) | (static_cast<uint8_t>(m) << 4); }
 
     /** Which input transform was applied */
-    __host__ __device__ __forceinline__ InputTransform inputTransform() const { return InputInfo::Single::transform(results); }
+    __host__ __device__ __forceinline__ InputsTransform inputsTransform() const { return InputInfo::Single::getTransform(results); }
 };
 
 } // namespace ThreadResult

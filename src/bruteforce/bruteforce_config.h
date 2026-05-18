@@ -53,32 +53,32 @@ public:
 
 public:
 
-    BruteforceConfig() : BruteforceConfig(Decryptor::Invalid(), BruteforceType::LAST, InputTransform::None, 0)
+    BruteforceConfig() : BruteforceConfig(Decryptor::Invalid(), BruteforceType::LAST, InputsTransform::None, 0)
     {
     }
 
 public:
 
     /** Dictionary attack over an explicit list of decryptors. */
-    static BruteforceConfig GetDictionary(std::vector<Decryptor>&& dictionary, InputTransform inputTransform);
+    static BruteforceConfig GetDictionary(std::vector<Decryptor>&& dictionary, InputsTransform inputTransform);
 
     /** Plain +1 bruteforce over a contiguous key range. */
-    static BruteforceConfig GetBruteforce(Decryptor first, InputTransform inputTransform, size_t size);
+    static BruteforceConfig GetBruteforce(Decryptor first, InputsTransform inTransform, size_t size);
 
     /** +1 bruteforce with include/exclude filters applied. */
-    static BruteforceConfig GetBruteforce(Decryptor first, InputTransform inputTransform, size_t size, const BruteforceFilters& filters);
+    static BruteforceConfig GetBruteforce(Decryptor first, InputsTransform inTransform, size_t size, const BruteforceFilters& filters);
 
     /** +1 bruteforce over the 32-bit seed space for a fixed manufacturer key. */
-    static BruteforceConfig GetSeedBruteforce(Decryptor first, InputTransform inputTransform, uint32_t size = static_cast<uint32_t>(-1));
+    static BruteforceConfig GetSeedBruteforce(Decryptor first, InputsTransform inTransform, uint32_t size = static_cast<uint32_t>(-1));
 
     /** +1 bruteforce over the 32-bit space for a xor key for fixed part in ota. InputTransform will be forced set to XorFix */
-    static BruteforceConfig GetXorFixBruteforce(Decryptor first, InputTransform inputTransform, uint32_t size = static_cast<uint32_t>(-1));
+    static BruteforceConfig GetXorFixBruteforce(Decryptor first, InputsTransform inTransform, uint32_t size = static_cast<uint32_t>(-1));
 
     /** Alphabet (same byte set on every position) bruteforce. */
-    static BruteforceConfig GetAlphabet(Decryptor first, InputTransform inputTransform, const MultibaseDigit& alphabet, size_t num = MaxDecryptorsNum, const std::string& name = "");
+    static BruteforceConfig GetAlphabet(Decryptor first, InputsTransform inTransform, const MultibaseDigit& alphabet, size_t num = MaxDecryptorsNum, const std::string& name = "");
 
     /** Pattern bruteforce (per-position byte sets). */
-    static BruteforceConfig GetPattern(Decryptor first, InputTransform inputTransform, const BruteforcePattern& pattern, size_t num = MaxDecryptorsNum);
+    static BruteforceConfig GetPattern(Decryptor first, InputsTransform inTransform, const BruteforcePattern& pattern, size_t num = MaxDecryptorsNum);
 
 public:
 
@@ -107,10 +107,10 @@ public:
 
 public:
     /** Replace the transform schedule with an explicit list. */
-    void setTransforms(std::vector<InputTransform> schedule);
+    void setTransforms(std::vector<InputsTransform> schedule);
 
     /** Get the ordered list of input transforms to apply per batch. */
-    const std::vector<InputTransform>& getTransforms() const { return transforms; }
+    const std::vector<InputsTransform>& getTransforms() const { return transforms; }
 
     /** Human-readable description of the configured transforms. */
     std::string transformsToString() const;
@@ -123,11 +123,11 @@ public:
     KeeloqLearning::Matrix reduceMatrix(const KeeloqLearning::Matrix& matrix) const;
 
 private:
-    BruteforceConfig(Decryptor start, BruteforceType::Type t, InputTransform mask, size_t num);
+    BruteforceConfig(Decryptor start, BruteforceType::Type t, InputsTransform mask, size_t num);
 
 private:
     // Ordered list of input transforms to try per batch (built from mask at construction).
-    std::vector<InputTransform> transforms;
+    std::vector<InputsTransform> transforms;
 };
 
 inline std::vector<uint8_t> operator "" _b(const char* ascii, size_t num)

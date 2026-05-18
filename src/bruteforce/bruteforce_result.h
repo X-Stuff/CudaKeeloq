@@ -26,7 +26,7 @@ struct BruteforceResult
     EncParcel input = {};
 
     /** Input transform applied during decryption */
-    InputTransform transform = InputTransform::None;
+    InputsTransform transform = InputsTransform::None;
 
     /** Learning type used in decryption */
     KeeloqLearning::LearningType learningType = KeeloqLearning::LearningType::Simple;
@@ -35,7 +35,7 @@ struct BruteforceResult
     KeeloqLearning::Modifier::Algo algoModifier = KeeloqLearning::Modifier::Algo::Normal;
 
 public:
-    BruteforceResult(bool isMatched, const Decryptor& inDecryptor, uint32_t inDecrypted, const EncParcel& inInput, InputTransform inTransform, KeeloqLearning::LearningType inLearningType, KeeloqLearning::Modifier::Algo inAlgoModifier)
+    BruteforceResult(bool isMatched, const Decryptor& inDecryptor, uint32_t inDecrypted, const EncParcel& inInput, InputsTransform inTransform, KeeloqLearning::LearningType inLearningType, KeeloqLearning::Modifier::Algo inAlgoModifier)
         : decryptor(inDecryptor), decrypted(inDecrypted), input(inInput), transform(inTransform), learningType(inLearningType), algoModifier(inAlgoModifier), match(isMatched)
     {
     }

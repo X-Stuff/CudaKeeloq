@@ -92,16 +92,16 @@ TEST_CASE("filters: filtered generator produces the target filtered key")
     constexpr auto FilteredKey = 0xAADEADBEEFA63ED2;
     constexpr auto NumInputs = 3;
 
-    const auto inputTransform = InputTransform::None;
+    const auto inputsTransform = InputsTransform::None;
     auto first_decryptor = Decryptor::Make(0xAADEADBEEFA00000, 0, true);
 
-    auto testConfig = BruteforceConfig::GetBruteforce(first_decryptor, inputTransform, NumToGenerate,
+    auto testConfig = BruteforceConfig::GetBruteforce(first_decryptor, inputsTransform, NumToGenerate,
         BruteforceFilters{
             BruteforceFilters::Flags::All,
             BruteforceFilters::Flags::BytesIncremental | BruteforceFilters::Flags::BytesRepeat4,
         });
 
-    auto inputs = tests::keeloq::genInputs(FilteredKey, NumInputs, inputTransform);
+    auto inputs = tests::keeloq::genInputs(FilteredKey, NumInputs, inputsTransform);
 
     KeeloqKernelMultiLearningInput generatorInputs;
     generatorInputs.Initialize(testConfig, inputs);

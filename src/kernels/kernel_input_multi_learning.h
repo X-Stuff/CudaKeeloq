@@ -61,7 +61,7 @@ public:
     virtual __host__ BruteforceResult getResult(size_t index) const final override;
 
     /** Prepare inputs for the next batch, basically set up internal fields so they become valid in kernels */
-    virtual __host__ void prepareBatch(const KeeloqLearning::Matrix& learningMatrix, InputTransform inputMutations) final override;
+    virtual __host__ void prepareBatch(const KeeloqLearning::Matrix& learningMatrix, InputsTransform inputMutations) final override;
 
 public:
     /** Learning-type selection matrix for the current run. */
@@ -71,7 +71,7 @@ public:
     __device__ __host__ __inline__ bool AllLearningsEnabled() const { return allLearnings; }
 
     /** Active input transform for the next kernel launch. */
-    __device__ __host__ __inline__ InputTransform GetInputTransform() const { return activeTransform; }
+    __device__ __host__ __inline__ InputsTransform GetInputsTransform() const { return activeTransform; }
 
 public:
     // Single-run results accessible from GPU
@@ -85,5 +85,5 @@ private:
     bool allLearnings = false;
 
     // Active input transform for the current kernel launch
-    InputTransform activeTransform = InputTransform::None;
+    InputsTransform activeTransform = InputsTransform::None;
 };

@@ -104,16 +104,25 @@ BruteforceResult KeeloqKernelMultiLearningInput::getResult(size_t index) const
     );
 }
 
-void KeeloqKernelMultiLearningInput::prepareBatch(const KeeloqLearning::Matrix& learningMatrix, InputTransform inputTransform)
+void KeeloqKernelMultiLearningInput::prepareBatch(const KeeloqLearning::Matrix& learningMatrix, InputsTransform inTransform)
 {
-    assert(is_valid(inputTransform) && "Invalid input transform");
+    if (GetConfig().type == BruteforceType::XorFix && !(inTransform & InputsTransform::XorFix))
+    {
+        assert(false && "In XorFix bruteforce you should have always XorFix transform enabled");
+        APP_LOG_ERROR(verbosity, "In XorFix bruteforce a xor fix flag for input transform is mandatory, but got %s", name(inTransform));
+        return;
+    }
 
-    assert((GetConfig().type != BruteforceType::XorFix || !!(inputTransform & InputTransform::XorFix)) &&
-        "In XorFix bruteforce you should have always XorFix transform enabled");
+    if (!GetConfig().hasSeed() && !!(inTransform & InputsTransform::XorFix))
+    {
+        assert(false && "XorFix transform requires a seed in decryptor");
+        APP_LOG_ERROR(verbosity, "%s transform requires a seed in decryptor", name(inTransform));
+        return;
+    }
 
     learnings = learningMatrix;
     allLearnings = learnings.isAllEnabled();
-    activeTransform = inputTransform;
+    activeTransform = inTransform;
 
     SetReady(true);
 }

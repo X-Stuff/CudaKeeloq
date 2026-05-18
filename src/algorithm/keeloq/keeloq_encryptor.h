@@ -45,10 +45,10 @@ public:
 
 public:
     /** Generates an OTA parcel and bumps the counter (simulates a button click). */
-    EncParcel click(InputTransform inputTransform, KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Algo amod);
+    EncParcel click(InputsTransform inTransform, KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Algo amod);
 
     /** Derives the effective manufacturer key for the given learning type and modifiers. */
-    uint64_t man(InputTransform inputTransform, KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Algo amod) const;
+    uint64_t man(InputsTransform inTransform, KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Algo amod) const;
 
     /** Assembled hopping-code value prior to encryption. */
     inline uint32_t unencrypted() const { return (uint32_t)button << 28 | ((serial & 0x3FF) << 16) | count; }
@@ -65,16 +65,16 @@ public:
 private:
 
     /** CPU encryption result — raw, not bit-reversed, not OTA. */
-    uint32_t cpuEncrypt(InputTransform inputTransform, KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Algo amod) const;
+    uint32_t cpuEncrypt(InputsTransform inTransform, KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Algo amod) const;
 
     /** CPU decryption of an OTA value with the given learning/modifier. */
-    uint32_t cpuDecrypt(uint64_t enc, InputTransform inputTransform, KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Algo amod) const;
+    uint32_t cpuDecrypt(uint64_t enc, InputsTransform inTransform, KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Algo amod) const;
 
     /** GPU encryption result — raw, not bit-reversed, not OTA. */
-    uint32_t gpuEncrypt(InputTransform inputTransform, KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Algo amod) const;
+    uint32_t gpuEncrypt(InputsTransform inTransform, KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Algo amod) const;
 
     /** GPU decryption of an OTA value with the given learning/modifier. */
-    uint32_t gpuDecrypt(uint64_t enc, InputTransform inputTransform, KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Algo amod) const;
+    uint32_t gpuDecrypt(uint64_t enc, InputsTransform inTransform, KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Algo amod) const;
 
 private:
 

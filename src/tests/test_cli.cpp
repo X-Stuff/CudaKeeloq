@@ -258,14 +258,14 @@ TEST_CASE("cli: mode-5 variation selects only the single chosen input/algo modif
 
     REQUIRE(args.selected_algo_mods.size() == 1);
     CHECK(args.selected_algo_mods[0] == KeeloqLearning::Modifier::Algo::Inverted);
-    CHECK(args.inputTransform == InputTransform::RevKey);
+    CHECK(args.inputsTransform == InputsTransform::RevKey);
     REQUIRE(args.brute_configs.size() == 1);
-    auto hasTransform = [](const BruteforceConfig& cfg, InputTransform t) {
+    auto hasTransform = [](const BruteforceConfig& cfg, InputsTransform t) {
         const auto& ts = cfg.getTransforms();
         return std::find(ts.begin(), ts.end(), t) != ts.end();
     };
 
-    CHECK(hasTransform(args.brute_configs[0], InputTransform::RevKey));
+    CHECK(hasTransform(args.brute_configs[0], InputsTransform::RevKey));
 }
 
 TEST_CASE("cli: --check-xorfix enables every selected input transform permutation")
@@ -282,17 +282,17 @@ TEST_CASE("cli: --check-xorfix enables every selected input transform permutatio
     auto args = parseArgs(argv);
     CHECK_FALSE(args.has_errors);
 
-    const auto allMutations = InputTransform::RevKey | InputTransform::XorFix;
-    CHECK(args.inputTransform == allMutations);
+    const auto allMutations = InputsTransform::RevKey | InputsTransform::XorFix;
+    CHECK(args.inputsTransform == allMutations);
     REQUIRE(args.brute_configs.size() == 1);
 
-    auto hasTransform = [](const BruteforceConfig& cfg, InputTransform t) {
+    auto hasTransform = [](const BruteforceConfig& cfg, InputsTransform t) {
         const auto& ts = cfg.getTransforms();
         return std::find(ts.begin(), ts.end(), t) != ts.end();
     };
 
-    CHECK(hasTransform(args.brute_configs[0], InputTransform::None));
-    CHECK(hasTransform(args.brute_configs[0], InputTransform::RevKey));
-    CHECK(hasTransform(args.brute_configs[0], InputTransform::XorFix));
+    CHECK(hasTransform(args.brute_configs[0], InputsTransform::None));
+    CHECK(hasTransform(args.brute_configs[0], InputsTransform::RevKey));
+    CHECK(hasTransform(args.brute_configs[0], InputsTransform::XorFix));
     CHECK(hasTransform(args.brute_configs[0], allMutations));
 }

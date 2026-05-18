@@ -107,7 +107,7 @@ void BruteforceRound::init()
     }
 }
 
-KernelResult BruteforceRound::update(const KeeloqLearning::Matrix& learningMatrix, InputTransform inputTransform)
+KernelResult BruteforceRound::update(const KeeloqLearning::Matrix& learningMatrix, InputsTransform inTransform)
 {
     if (!kernel_inputs)
     {
@@ -115,7 +115,7 @@ KernelResult BruteforceRound::update(const KeeloqLearning::Matrix& learningMatri
         return KernelResult::NotStarted();
     }
 
-    kernel_inputs->prepareBatch(learningMatrix, inputTransform);
+    kernel_inputs->prepareBatch(learningMatrix, inTransform);
     return keeloq::kernels::cuda_brute(*this, cudaConfig);
 }
 

@@ -115,7 +115,7 @@ inline void parse_dictionary_mode(CommandLineArgs& args, cxxopts::ParseResult& r
 
         if (decryptors.size() > 0)
         {
-            args.brute_configs.push_back(BruteforceConfig::GetDictionary(std::move(decryptors), args.inputTransform));
+            args.brute_configs.push_back(BruteforceConfig::GetDictionary(std::move(decryptors), args.inputsTransform));
         }
     }
 
@@ -135,7 +135,7 @@ inline void parse_dictionary_mode(CommandLineArgs& args, cxxopts::ParseResult& r
 
             if (decryptors.size() > 0)
             {
-                args.brute_configs.push_back(BruteforceConfig::GetDictionary(std::move(decryptors), args.inputTransform));
+                args.brute_configs.push_back(BruteforceConfig::GetDictionary(std::move(decryptors), args.inputsTransform));
             }
             else
             {
@@ -161,7 +161,7 @@ inline void parse_bruteforce_mode(CommandLineArgs& args, cxxopts::ParseResult& r
 
     auto count_key = result[ARG_COUNT].as<size_t>();
 
-    args.brute_configs.push_back(BruteforceConfig::GetBruteforce(first_decryptor, args.inputTransform, count_key));
+    args.brute_configs.push_back(BruteforceConfig::GetBruteforce(first_decryptor, args.inputsTransform, count_key));
 }
 
 inline void parse_seed_mode(CommandLineArgs& args, cxxopts::ParseResult& result, AppVerbosity verbosity)
@@ -178,7 +178,7 @@ inline void parse_seed_mode(CommandLineArgs& args, cxxopts::ParseResult& result,
 
     Decryptor first_decryptor = Decryptor::Make(start_key, seed, seed_valid);
 
-    args.brute_configs.push_back(BruteforceConfig::GetSeedBruteforce(first_decryptor, args.inputTransform));
+    args.brute_configs.push_back(BruteforceConfig::GetSeedBruteforce(first_decryptor, args.inputsTransform));
 }
 
 inline void parse_xorfix_mode(CommandLineArgs& args, cxxopts::ParseResult& result, AppVerbosity verbosity)
@@ -195,7 +195,7 @@ inline void parse_xorfix_mode(CommandLineArgs& args, cxxopts::ParseResult& resul
 
     Decryptor first_decryptor = Decryptor::Make(start_key, start_xor, seed_valid);
 
-    args.brute_configs.push_back(BruteforceConfig::GetXorFixBruteforce(first_decryptor, args.inputTransform));
+    args.brute_configs.push_back(BruteforceConfig::GetXorFixBruteforce(first_decryptor, args.inputsTransform));
 }
 
 inline void parse_bruteforce_filtered_mode(CommandLineArgs& args, cxxopts::ParseResult& result, AppVerbosity verbosity)
@@ -217,7 +217,7 @@ inline void parse_bruteforce_filtered_mode(CommandLineArgs& args, cxxopts::Parse
         exclude_filter,
     };
 
-    args.brute_configs.push_back(BruteforceConfig::GetBruteforce(first_decryptor, args.inputTransform, count_key, filters));
+    args.brute_configs.push_back(BruteforceConfig::GetBruteforce(first_decryptor, args.inputsTransform, count_key, filters));
 }
 
 inline void parse_alphabet_mode(CommandLineArgs& args, cxxopts::ParseResult& result, AppVerbosity verbosity)
@@ -232,7 +232,7 @@ inline void parse_alphabet_mode(CommandLineArgs& args, cxxopts::ParseResult& res
 
     for (const auto& alphabet : args.alphabets)
     {
-        args.brute_configs.push_back(BruteforceConfig::GetAlphabet(first_decryptor, args.inputTransform, alphabet, count_key));
+        args.brute_configs.push_back(BruteforceConfig::GetAlphabet(first_decryptor, args.inputsTransform, alphabet, count_key));
     }
 }
 
@@ -328,7 +328,7 @@ inline void parse_pattern_mode(CommandLineArgs& args, cxxopts::ParseResult& resu
         std::reverse(result.begin(), result.end());
 
         // Add pattern attack to config
-        args.brute_configs.push_back(BruteforceConfig::GetPattern(first_decryptor, args.inputTransform, BruteforcePattern(std::move(result), pattern_arg), count_key));
+        args.brute_configs.push_back(BruteforceConfig::GetPattern(first_decryptor, args.inputsTransform, BruteforcePattern(std::move(result), pattern_arg), count_key));
     }
 }
 
@@ -568,12 +568,12 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv, AppVerbosity
         // By default we check normal keys
         if (result[ARG_CHECKREV].as<bool>())
         {
-            args.inputTransform = args.inputTransform | InputTransform::RevKey;
+            args.inputsTransform = args.inputsTransform | InputsTransform::RevKey;
         }
 
         if (result[ARG_CHECKXORFIX].as<bool>())
         {
-            args.inputTransform = args.inputTransform | InputTransform::XorFix;
+            args.inputsTransform = args.inputsTransform | InputsTransform::XorFix;
         }
 
         // By default we use normal algos

@@ -64,7 +64,7 @@ BruteforceResult KeeloqKernelSingleLearningInput::getMatch(GetMatchProgressCallb
                     result.decryptor,
                     result.decrypted,
                     GetInput(result.inputIndex()),
-                    result.inputTransform(),
+                    result.inputsTransform(),
                     learning,
                     algorithModifier
                 );
@@ -74,7 +74,6 @@ BruteforceResult KeeloqKernelSingleLearningInput::getMatch(GetMatchProgressCallb
 
     return BruteforceResult::Invalid();
 }
-
 
 BruteforceResult KeeloqKernelSingleLearningInput::getResult(size_t index) const
 {
@@ -91,26 +90,46 @@ BruteforceResult KeeloqKernelSingleLearningInput::getResult(size_t index) const
         result.decryptor,
         result.decrypted,
         GetInput(result.inputIndex()),
-        result.inputTransform(),
+        result.inputsTransform(),
         learning,
         algorithModifier
     );
 }
 
-
-void KeeloqKernelSingleLearningInput::prepareBatch(const KeeloqLearning::Matrix& learningMatrix, InputTransform inputMutations)
+void KeeloqKernelSingleLearningInput::prepareBatch(const KeeloqLearning::Matrix& learningMatrix, InputsTransform inTransform)
 {
-    auto items = learningMatrix.asItems();
-    if (items.size() > 0)
+    if (GetConfig().type == BruteforceType::XorFix && !(inTransform & InputsTransform::XorFix))
     {
-        assert(items.size() == 1 && "With single learning input there must be only single learning item in matrix!");
-        auto learningItem = items.front();
-
-        inputTransform = inputMutations;
-
-        learning = learningItem.learning;
-        algorithModifier = learningItem.amod;
-
-        SetReady(true);
+        assert(false && "In XorFix bruteforce you should have always XorFix transform enabled");
+        APP_LOG_ERROR(verbosity, "In XorFix bruteforce a xor fix flag for input transform is mandatory, but got %s", name(inTransform));
+        return;
     }
+
+    if (!GetConfig().hasSeed() && !!(inTransform & InputsTransform::XorFix))
+    {
+        assert(false && "XorFix transform requires a seed in decryptor");
+        APP_LOG_ERROR(verbosity, "%s transform requires a seed in decryptor", name(inTransform));
+        return;
+    }
+
+    auto items = learningMatrix.asItems();
+    if (items.size() == 0)
+    {
+        assert(false && "With single learning input there must be only single learning item in matrix!");
+        APP_LOG_ERROR(verbosity, "With single learning input there must be only single learning item in matrix, but got empty matrix");
+        return;
+    }
+
+    if (items.size() > 1)
+    {
+        assert(false && "With single learning input there must be only single learning item in matrix!");
+        APP_LOG_ERROR(verbosity, "With single learning input there must be only single learning item in matrix, but got %zu items", items.size());
+        return;
+    }
+
+    inputsTransform = inTransform;
+    learning = items.front().learning;
+    algorithModifier = items.front().amod;
+
+    SetReady(true);
 }

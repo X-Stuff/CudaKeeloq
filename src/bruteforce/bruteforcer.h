@@ -112,7 +112,7 @@ private:
         KeeloqLearning::Matrix matrix;
 
         /** Input transform to apply for this sub-check */
-        InputTransform transform;
+        InputsTransform transform;
     };
 
     BruteforceResult runImpl(BruteforceRound& round, const std::vector<SubCheck>& subChecks);
@@ -120,7 +120,7 @@ private:
     BruteforceResult getMatchResult(const BruteforceRound& round, bool first = true);
 
     void printBruteforceProgress(const BruteforceRound& round, const std::chrono::seconds& roundTime, const size_t batchIndex, const int64_t batchTime,
-        const size_t subIndex, const size_t subNum, const uint8_t learningsNum, InputTransform transform);
+        const size_t subIndex, const size_t subNum, const uint8_t learningsNum, InputsTransform transform);
 
     void printGpuMemorySearchProgress(const size_t index, const size_t count, const std::chrono::seconds& time);
 

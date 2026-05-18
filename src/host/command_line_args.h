@@ -59,7 +59,7 @@ struct CommandLineArgs
     std::vector<KeeloqLearning::LearningType> selected_learning = {};
 
     // Additional input transform flags selected by the user via CLI.
-    InputTransform inputTransform = InputTransform::None;
+    InputsTransform inputsTransform = InputsTransform::None;
 
     // Select specific modifications for algorithm
     std::vector<KeeloqLearning::Modifier::Algo> selected_algo_mods = {};

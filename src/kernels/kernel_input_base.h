@@ -55,7 +55,7 @@ public:
     virtual __host__ BruteforceResult getResult(size_t index) const = 0;
 
     /** Prepare inputs for the next batch, basically set up internal fields so they become valid in kernels */
-    virtual __host__ void prepareBatch(const KeeloqLearning::Matrix& learningMatrix, InputTransform inputMutations) = 0;
+    virtual __host__ void prepareBatch(const KeeloqLearning::Matrix& learningMatrix, InputsTransform inputMutations) = 0;
 
 public:
     /** Copies self object (shallow copy) to GPU */
@@ -63,6 +63,9 @@ public:
 
     /** Copies self object (shallow copy) from GPU */
     virtual __host__ cudaError_t sync() = 0;
+
+    /** General validity flag */
+    virtual __host__ bool ready() const = 0;
 
 public:
     /**
@@ -123,6 +126,9 @@ public:
     // Single-run set of decryptors
     CudaArray<Decryptor>* decryptors = nullptr;
 
+    // Temporary, until having normal app logger
+    AppVerbosity verbosity = AppVerbosity::Debug;
+
 private:
     // Config for current bruteforce run, captured on host and used on device
     BruteforceConfig config;
@@ -159,7 +165,7 @@ public:
 
 public:
     /** True if ready for bruteforce (prepare called) */
-    __host__ bool Ready() const { return readyForBrute; }
+    virtual __host__ bool ready() const final override { return readyForBrute; }
 
 public:
     __host__ virtual cudaError_t read() override

@@ -24,25 +24,26 @@ namespace benchmark
         const BruteforceConfig& benchmarkConfig, uint32_t CudaBlocks, uint16_t CudaThreads);
 
     /** Sweep over several block/thread configurations for a single bruteforce config. */
-    void run(const std::vector<EncParcel>& inputs, const KeeloqLearning::Matrix& learningMatrix, const BruteforceConfig& benchmarkConfig);
+    void run(const std::vector<EncParcel>& inputs, const KeeloqLearning::Matrix& learningMatrix,
+        const BruteforceConfig& benchmarkConfig);
 
     /** "Real" captures benchmark: runs known keeloq targets (DH, Sommer) and verifies matches. */
     void becnhmarkReal(bool useSingleLearningKernels);
 
     /** Run benchmark for each learning with simple and alphabet configs */
-    void benchmarkEveryLearningAlone(uint32_t TargetCalculationsNumber, bool useSingleLearningKernels);
+    void benchmarkEveryLearningAlone(uint32_t TargetCalculationsNumber);
 
     /** Run benchmark for all learnings with simple +1 config */
-    void benchmarkEveryLearningAtOnce(uint32_t TargetCalculationsNumber, bool useSingleLearningKernels);
+    void benchmarkEveryLearningAtOnce(uint32_t TargetCalculationsNumber);
 
     /** Run benchmark for seed-only attack */
-    void benchmarkSeedAttack(uint32_t TargetCalculationsNumber, bool useSingleLearningKernels);
+    void benchmarkSeedAttack(uint32_t TargetCalculationsNumber);
 
     /** Run benchmark for normal-only attack */
-    void benchmarkNormalAttack(uint32_t TargetCalculationsNumber, bool useSingleLearningKernels);
+    void benchmarkNormalAttack(uint32_t TargetCalculationsNumber);
 
     /** Run benchmark for XOR-based attack */
-    void benchmarkXoredAttack(uint32_t TargetCalculationsNumber, bool useSingleLearningKernels);
+    void benchmarkXoredAttack(uint32_t TargetCalculationsNumber);
 
     /** Runs the full benchmark suite, including the real captures and all configured sweeps. */
     void all(const CommandLineArgs& args);

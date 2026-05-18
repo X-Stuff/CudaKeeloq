@@ -47,17 +47,6 @@ BruteforceResult Bruteforcer::run(const BruteforceConfig& config, const CudaConf
 
         for (const auto& item : learningItems)
         {
-            if (KeeloqLearning::hasSeed(item.learning) && !config.hasSeed())
-            {
-                // If config doesn't have seed and learning requires seed - skip
-                continue;
-            }
-            else if (config.type == BruteforceType::Seed)
-            {
-                // seedonly bruteforce type only meaningful for seeded learning types
-                continue;
-            }
-
             for (const auto& transform : inputMutations)
             {
                 subChecks.push_back({ KeeloqLearning::Matrix{ item }, transform });
@@ -166,7 +155,7 @@ BruteforceResult Bruteforcer::runImpl(BruteforceRound& round, const std::vector<
 }
 
 void Bruteforcer::printBruteforceProgress(const BruteforceRound& round, const std::chrono::seconds& roundTime,
-    const size_t batchIndex, const int64_t batchTime, const size_t subIndex, const size_t subNum, const uint8_t learningsNum, InputTransform transform)
+    const size_t batchIndex, const int64_t batchTime, const size_t subIndex, const size_t subNum, const uint8_t learningsNum, InputsTransform transform)
 {
     if (verbosity > AppVerbosity::Progress)
     {

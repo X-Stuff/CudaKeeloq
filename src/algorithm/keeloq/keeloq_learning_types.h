@@ -668,6 +668,9 @@ struct Matrix
     /** Creates a learning matrix with everything enabled */
     __host__ __device__ __inline__ static constexpr auto Everything() { return Matrix(kEverything); }
 
+    /** Creates a learning matrix with nothing enabled */
+    __host__ __device__ __inline__ static constexpr auto Invalid() { return Matrix(0); }
+
     /** Creates a learning matrix with all learnings but only with inverted algorithm enabled */
     __host__ static auto Inverted() { return Matrix({}, { Modifier::Algo::Inverted }); }
 
@@ -725,7 +728,11 @@ public:
     #if __CUDA_ARCH__
         return static_cast<uint8_t>(__popcll(matrix & kValuesMask));
     #else
-        return static_cast<uint8_t>(__popcnt64(matrix & kValuesMask));
+        #if _MSC_VER
+            return static_cast<uint8_t>(__popcnt64(matrix & kValuesMask));
+        #else
+            return static_cast<uint8_t>(__builtin_popcountll(matrix & kValuesMask));
+        #endif
     #endif
     }
 

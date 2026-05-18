@@ -211,39 +211,58 @@ namespace keeloq::learning
 
 namespace keeloq::kernels
 {
+namespace internal
+{
+ // Kernel launcher wrapper for multiple learning input structure
+__host__ KernelResult cuda_brute(KeeloqKernelMultiLearningInput& mainInputs, const CudaConfig& config);
+
+// Experimental kernel launcher wrapper for flat input structure
+__host__ KernelResult cuda_brute(KeeloqKernelSingleLearningInput& flatInputs, const CudaConfig& config);
+}
 
 // launch simple keeloq calculation on GPU to check if everything working
 __host__ bool cuda_is_working();
 
 // Main kernel launcher wrapper
-__host__ KernelResult cuda_brute(KeeloqKernelMultiLearningInput& mainInputs, const CudaConfig& config);
-
-// Experimental kernel launcher wrapper for flat input structure
-__host__ KernelResult cuda_brute(KeeloqKernelSingleLearningInput& flatInputs, const CudaConfig& config);
-
 __host__ __forceinline__ KernelResult cuda_brute(BruteforceRound& round, const CudaConfig& cuda)
 {
+    auto& inputs = round.inputs();
+
+    if (!inputs.ready())
+    {
+        assert(false && "Kernel inputs are not ready! Did you forget to call prepare? Check your config and generator.");
+        printf("Kernel inputs are not ready! CUDA launch skipped!\n");
+        return KernelResult::NotStarted();
+    }
+
+    if (inputs.InputsCount() > 1 && !inputs.InputsFixMatch())
+    {
+        assert(false && "Fixed parts of inputs do not match! Kernel launch skipped.");
+        printf("Fixed parts of inputs do not match! CUDA launch skipped!\n");
+        return KernelResult::NotStarted();
+    }
+
     if (round.isSingleLearningInputs())
     {
-        return cuda_brute(static_cast<KeeloqKernelSingleLearningInput&>(round.inputs()), cuda);
+        return internal::cuda_brute(static_cast<KeeloqKernelSingleLearningInput&>(inputs), cuda);
     }
     else
     {
-        return cuda_brute(static_cast<KeeloqKernelMultiLearningInput&>(round.inputs()), cuda);
+        return internal::cuda_brute(static_cast<KeeloqKernelMultiLearningInput&>(inputs), cuda);
     }
 }
 
 // Single decrypt round with all learning types and modifications, used for testing and debugging
-__host__ ThreadResult::Multi cuda_encdec(uint64_t ota, uint64_t man, uint32_t seed, bool isDecrypt, InputTransform inputTransform);
+__host__ ThreadResult::Multi cuda_encdec(uint64_t ota, uint64_t man, uint32_t seed, bool isDecrypt, InputsTransform inputTransform);
 
 // Single decrypt round with all learning types and modifications, used for testing and debugging
-__host__ __forceinline__ ThreadResult::Multi cuda_enc(uint64_t ota, uint64_t man, uint32_t seed, InputTransform inputTransform)
+__host__ __forceinline__ ThreadResult::Multi cuda_enc(uint64_t ota, uint64_t man, uint32_t seed, InputsTransform inputTransform)
 {
     return cuda_encdec(ota, man, seed, false, inputTransform);
 }
 
 // Single decrypt round with all learning types and modifications, used for testing and debugging
-__host__ __forceinline__ ThreadResult::Multi cuda_dec(uint64_t ota, uint64_t man, uint32_t seed, InputTransform inputTransform)
+__host__ __forceinline__ ThreadResult::Multi cuda_dec(uint64_t ota, uint64_t man, uint32_t seed, InputsTransform inputTransform)
 {
     return cuda_encdec(ota, man, seed, true, inputTransform);
 }

@@ -8,49 +8,49 @@
 #include "bruteforce/bruteforce_type.h"
 
 
-BruteforceConfig BruteforceConfig::GetDictionary(std::vector<Decryptor>&& dictionary, InputTransform inputTransform)
+BruteforceConfig BruteforceConfig::GetDictionary(std::vector<Decryptor>&& dictionary, InputsTransform inTransform)
 {
-    BruteforceConfig result(Decryptor::Invalid(), BruteforceType::Dictionary, inputTransform, dictionary.size());
+    BruteforceConfig result(Decryptor::Invalid(), BruteforceType::Dictionary, inTransform, dictionary.size());
     result.dictDecryptors = std::move(dictionary);
     return result;
 };
 
-BruteforceConfig BruteforceConfig::GetBruteforce(Decryptor first, InputTransform inputTransform, size_t size)
+BruteforceConfig BruteforceConfig::GetBruteforce(Decryptor first, InputsTransform inTransform, size_t size)
 {
-    return BruteforceConfig(first, BruteforceType::Simple, inputTransform, size);
+    return BruteforceConfig(first, BruteforceType::Simple, inTransform, size);
 }
 
-BruteforceConfig BruteforceConfig::GetBruteforce(Decryptor first, InputTransform inputTransform, size_t size, const BruteforceFilters& filters)
+BruteforceConfig BruteforceConfig::GetBruteforce(Decryptor first, InputsTransform inTransform, size_t size, const BruteforceFilters& filters)
 {
-    BruteforceConfig result(first, BruteforceType::Filtered, inputTransform, size);
+    BruteforceConfig result(first, BruteforceType::Filtered, inTransform, size);
     result.filters = filters;
     return result;
 }
 
-BruteforceConfig BruteforceConfig::GetSeedBruteforce(Decryptor first, InputTransform inputTransform, uint32_t size)
+BruteforceConfig BruteforceConfig::GetSeedBruteforce(Decryptor first, InputsTransform inTransform, uint32_t size)
 {
-    return BruteforceConfig(first, BruteforceType::Seed, inputTransform, size);
+    return BruteforceConfig(first, BruteforceType::Seed, inTransform, size);
 }
 
-BruteforceConfig BruteforceConfig::GetXorFixBruteforce(Decryptor first, InputTransform inputTransform, uint32_t size /*= static_cast<uint32_t>(-1)*/)
+BruteforceConfig BruteforceConfig::GetXorFixBruteforce(Decryptor first, InputsTransform inTransform, uint32_t size /*= static_cast<uint32_t>(-1)*/)
 {
-    return BruteforceConfig(first, BruteforceType::XorFix, inputTransform | InputTransform::XorFix, size);
+    return BruteforceConfig(first, BruteforceType::XorFix, inTransform | InputsTransform::XorFix, size);
 }
 
-BruteforceConfig BruteforceConfig::GetAlphabet(Decryptor first, InputTransform inputTransform, const MultibaseDigit& alphabet, size_t num, const std::string& name)
+BruteforceConfig BruteforceConfig::GetAlphabet(Decryptor first, InputsTransform inTransform, const MultibaseDigit& alphabet, size_t num, const std::string& name)
 {
-    auto result = GetPattern(first, inputTransform, BruteforcePattern(alphabet, name.empty() ? str::format<std::string>("Alphabet. Size: %d", alphabet.count()) : name), num);
+    auto result = GetPattern(first, inTransform, BruteforcePattern(alphabet, name.empty() ? str::format<std::string>("Alphabet. Size: %d", alphabet.count()) : name), num);
     result.type = BruteforceType::Alphabet;
     return result;
 }
 
-BruteforceConfig BruteforceConfig::GetPattern(Decryptor first, InputTransform inputTransform, const BruteforcePattern& pattern, size_t num)
+BruteforceConfig BruteforceConfig::GetPattern(Decryptor first, InputsTransform inTransform, const BruteforcePattern& pattern, size_t num)
 {
     num = std::min(pattern.size(), num);
 
     first = Decryptor::Make(pattern.init(first.man()).number(), first.seed(), first.has_seed());
 
-    BruteforceConfig result(first, BruteforceType::Pattern, inputTransform, num);
+    BruteforceConfig result(first, BruteforceType::Pattern, inTransform, num);
     result.pattern = pattern;
     return result;
 }
@@ -110,9 +110,9 @@ bool BruteforceConfig::hasSeed() const
 }
 
 
-void BruteforceConfig::setTransforms(std::vector<InputTransform> schedule)
+void BruteforceConfig::setTransforms(std::vector<InputsTransform> set)
 {
-    transforms = std::move(schedule);
+    transforms = std::move(set);
 }
 
 std::string BruteforceConfig::transformsToString() const
@@ -131,6 +131,12 @@ std::string BruteforceConfig::transformsToString() const
 
 KeeloqLearning::Matrix BruteforceConfig::reduceMatrix(const KeeloqLearning::Matrix& matrix) const
 {
+    if (type == BruteforceType::XorFix && !hasSeed())
+    {
+        // If seed is not specified for XorFix we can't brute any learning types, since all of them require seed in this case
+        return KeeloqLearning::Matrix::Invalid();
+    }
+
     auto result = matrix;
 
     for (auto ltype : KeeloqLearning::EveryLearningType{})
@@ -212,15 +218,15 @@ std::string BruteforceConfig::toString() const
     return str::format<std::string>("UNSUPPORTED Type (%d): %s", (int)type, bruteTypeName);
 }
 
-BruteforceConfig::BruteforceConfig(Decryptor start, BruteforceType::Type t, InputTransform mask, size_t num) :
+BruteforceConfig::BruteforceConfig(Decryptor start, BruteforceType::Type t, InputsTransform mask, size_t num) :
     type(t), start(start), size(num), dictDecryptors(), filters(), pattern(), last(start)
 {
     if (t == BruteforceType::XorFix)
     {
         for (uint8_t i = 0; i < InputTransformVariantsCount; ++i)
         {
-            const auto flag = static_cast<InputTransform>(i);
-            if (!!(flag & InputTransform::XorFix))
+            const auto flag = static_cast<InputsTransform>(i);
+            if (!!(flag & InputsTransform::XorFix))
             {
                 transforms.push_back(flag);
             }
@@ -230,7 +236,7 @@ BruteforceConfig::BruteforceConfig(Decryptor start, BruteforceType::Type t, Inpu
     {
         for (uint8_t i = 0; i < InputTransformVariantsCount; ++i)
         {
-            const auto flag = static_cast<InputTransform>(i);
+            const auto flag = static_cast<InputsTransform>(i);
             if ((flag & mask) == flag)
             {
                 transforms.push_back(flag);

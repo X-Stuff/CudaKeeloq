@@ -29,7 +29,7 @@ public:
         inputsCount = other.inputsCount;
         decryptors = other.decryptors;
         results = other.results;
-        inputTransform = other.inputTransform;
+        inputsTransform = other.inputsTransform;
         learning = other.learning;
         algorithModifier = other.algorithModifier;
     }
@@ -58,7 +58,7 @@ public:
     virtual __host__ BruteforceResult getResult(size_t index) const final override;
 
     /** Prepare inputs for the next batch, basically set up internal fields so they become valid in kernels */
-    virtual __host__ void prepareBatch(const KeeloqLearning::Matrix& learningMatrix, InputTransform inputMutations) final override;
+    virtual __host__ void prepareBatch(const KeeloqLearning::Matrix& learningMatrix, InputsTransform inputMutations) final override;
 
 public:
     template<uint8_t InputIndex, uint8_t NumInputs>
@@ -76,8 +76,8 @@ public:
     // Per-variation results, size is number of decryptors * inputsNum
     CudaArray<ThreadResult::Single>* results = nullptr;
 
-    // How inputs should be mutated in Kernel
-    InputTransform inputTransform = InputTransform::None;
+    // How inputs should be transformed in Kernel
+    InputsTransform inputsTransform = InputsTransform::None;
 
     // What type of leaning should Kernel use for decryption
     KeeloqLearning::LearningType learning = KeeloqLearning::LearningType::Simple;
