@@ -62,9 +62,11 @@ int benchmark::run(const std::vector<EncParcel>& inputs, const BruteforceConfig&
 
     if (kernelFailure || userCancelled)
     {
+        console::clearLinesUp(3);
+
         const auto resText = kernelFailure ? "FAILURE" : " CANCEL";
 
-        printf("| CUDA: %6" PRIu32 " x %-4" PRIu16 " | %s | MKeys:%5" PRIu64 " | Batches: %2" PRIu64 " | GPU: %4.1f GB | Time: %s | Avg: %s  | Batch avg : %s  |\n\n",
+        printf("| CUDA: %6" PRIu32 " x %-4" PRIu16 " | %s | MKeys:%5" PRIu64 " | Batches: %2" PRIu64 " | GPU: %4.1f GB | Time: %s | Avg: %s    | Batch avg : %s    |\n\n",
             numCudaBlocks, numCudaThreads, kernelModeStr, stats.realProcessedKeys / 1000000, stats.numBatches, stats.allocatedGB(), resText, resText, resText);
 
         return kernelFailure ? -1 : 0;
