@@ -687,18 +687,17 @@ public:
     /**
      *  If specific bit at index encode as [Learning][AldoMod] is enabled
      */
-    template<LearningType LType, Modifier::Algo AMod>
+    template<LearningType LType, Modifier::Algo AMod, bool Silent = false>
     __host__ __device__ __inline__ bool isEnabled() const
     {
         constexpr auto index = DecryptedResults::getIndex<LType, AMod>();
         if constexpr (index == InvalidResultIndex)
         {
+            static_assert(Silent, "Invalid combination of learning type and modifier!");
             return false;
         }
-        else
-        {
-            return isEnabled(index);
-        }
+
+        return isEnabled(index);
     }
 
     /**

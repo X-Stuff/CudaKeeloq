@@ -64,7 +64,6 @@ TEST_CASE("cli: full invocation populates alphabets, modes, and run flags")
         "--" ARG_INPUTS    "=0xC65D52A0A81FD504,0xCCA9B335A81FD504,0xE0DA7372A81FD504",
         "--" ARG_BLOCKS    "=32",
         "--" ARG_THREADS   "=32",
-        "--" ARG_LOOPS     "=4",
         "--" ARG_MODE      "=0,1,2,3,4,5",
         "--" ARG_LTYPE     "=0,1,2,3,4",
 
@@ -234,11 +233,15 @@ TEST_CASE("cli: --learning-type accepts learning names as well as numeric indice
     auto args = parseArgs(argv);
     CHECK_FALSE(args.has_errors);
 
-    REQUIRE(args.selected_learning.size() == 4);
-    CHECK(args.selected_learning[0] == KeeloqLearning::LearningType::Simple);
-    CHECK(args.selected_learning[1] == KeeloqLearning::LearningType::Normal);
-    CHECK(args.selected_learning[2] == KeeloqLearning::LearningType::Secure);
-    CHECK(args.selected_learning[3] == KeeloqLearning::LearningType::Xor);
+    auto matrix = args.getLearningMatrix();
+
+    REQUIRE(matrix.numEnabled() == 6);
+    CHECK(matrix.isEnabled(KeeloqLearning::LearningType::Simple, KeeloqLearning::Modifier::Algo::Normal));
+    CHECK(matrix.isEnabled(KeeloqLearning::LearningType::Normal, KeeloqLearning::Modifier::Algo::Normal));
+    CHECK(matrix.isEnabled(KeeloqLearning::LearningType::Normal, KeeloqLearning::Modifier::Algo::Inverted));
+    CHECK(matrix.isEnabled(KeeloqLearning::LearningType::Secure, KeeloqLearning::Modifier::Algo::Normal));
+    CHECK(matrix.isEnabled(KeeloqLearning::LearningType::Secure, KeeloqLearning::Modifier::Algo::Inverted));
+    CHECK(matrix.isEnabled(KeeloqLearning::LearningType::Xor, KeeloqLearning::Modifier::Algo::Normal));
 }
 
 TEST_CASE("cli: mode-5 variation selects only the single chosen input/algo modifier")
@@ -248,17 +251,22 @@ TEST_CASE("cli: mode-5 variation selects only the single chosen input/algo modif
         "--" ARG_INPUTS    "=0xC65D52A0A81FD504,0xCCA9B335A81FD504,0xE0DA7372A81FD504",
         "--" ARG_MODE      "=5",
         "--" ARG_START      "=0xAABBCCDD00112233",
-        "--" ARG_CHECKINV  "=true",
-        "--" ARG_CHECKREV  "=true",
-        "--" ARG_NO_NRMALGS"=true",
+        "--" ARG_CHECK_INV_ALGS  "=true",   // Includes only inverted algorithms (plus 3)
+        "--" ARG_CHECK_REVKEYS  "=true",    // Additional input transform
+        "--" ARG_NO_REG_ALGS    "=true",    // Removes all normal modifiers (minus 11)
     };
 
     auto args = parseArgs(argv);
     CHECK_FALSE(args.has_errors);
 
-    REQUIRE(args.selected_algo_mods.size() == 1);
-    CHECK(args.selected_algo_mods[0] == KeeloqLearning::Modifier::Algo::Inverted);
     CHECK(args.inputsTransform == InputsTransform::RevKey);
+
+    auto matrix = args.getLearningMatrix();
+    REQUIRE(matrix.numEnabled() == 3);
+    CHECK(matrix.isEnabled<KeeloqLearning::LearningType::Normal, KeeloqLearning::Modifier::Algo::Inverted>());
+    CHECK(matrix.isEnabled<KeeloqLearning::LearningType::Secure, KeeloqLearning::Modifier::Algo::Inverted>());
+    CHECK(matrix.isEnabled<KeeloqLearning::LearningType::Faac, KeeloqLearning::Modifier::Algo::Inverted>());
+
     REQUIRE(args.brute_configs.size() == 1);
     auto hasTransform = [](const BruteforceConfig& cfg, InputsTransform t) {
         const auto& ts = cfg.getTransforms();
@@ -275,8 +283,8 @@ TEST_CASE("cli: --check-xorfix enables every selected input transform permutatio
         "--" ARG_INPUTS      "=0xC65D52A0A81FD504,0xCCA9B335A81FD504,0xE0DA7372A81FD504",
         "--" ARG_MODE        "=simple",
         "--" ARG_START       "=0x1",
-        "--" ARG_CHECKREV    "=true",
-        "--" ARG_CHECKXORFIX "=true",
+        "--" ARG_CHECK_REVKEYS    "=true",
+        "--" ARG_CHECK_XORFIX "=true",
     };
 
     auto args = parseArgs(argv);

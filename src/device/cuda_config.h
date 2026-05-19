@@ -20,17 +20,14 @@ struct CudaConfig
     // Number of threads per block to use in CUDA kernel launches
     uint16_t threads = 0;
 
-    // Number of substeps per thread in CUDA kernel launches (not really used, always 1)
-    uint16_t substeps = 1;
-
 public:
-    /** Total per-launch work units (blocks × threads × substeps). */
+    /** Total per-launch work units (blocks x threads). */
     inline uint32_t total() const
     {
-        return blocks * threads * substeps;
+        return blocks * threads;
     }
 
-    /** Total thread count across the grid (blocks × threads). */
+    /** Total thread count across the grid (blocks x threads). */
     inline uint32_t threadsCount() const
     {
         return blocks * threads;
@@ -39,16 +36,20 @@ public:
 public:
 
     /** Best-effort default configuration based on the device's memory and grid limits. */
-    static CudaConfig Optimal()
+    static CudaConfig Optimal(uint16_t desiredThreads = 256)
     {
-        static CudaConfig optimal = { MaxCudaBlocks(), MaxCudaThreads(), 1 };
+        CudaConfig optimal =
+        {
+            MaxCudaBlocks(desiredThreads),
+            desiredThreads > 0 ? desiredThreads : MaxCudaThreads()
+        };
         return optimal;
     }
 
     /** Minimal configuration used by the unit tests (single block, max threads). */
     static CudaConfig Tests()
     {
-        static CudaConfig tests = { 1, MaxCudaThreads(), 1 };
+        static CudaConfig tests = { 1, MaxCudaThreads() };
         return tests;
     }
 

@@ -53,6 +53,7 @@ TEST_CASE("generators: pattern produces the expected first decryptor")
     auto inputs = tests::keeloq::genInputs(debugKey, NumInputs, inputsTransform, LearningType::Simple);
 
     BruteforceConfig config = GetSingleKeyConfig(debugKey);
+    config.setLearningMatrix(KeeloqLearning::Matrix::Everything());
     REQUIRE(config.type == BruteforceType::Pattern);
     REQUIRE(config.pattern.init(0).number() == debugKey);
 
@@ -71,7 +72,7 @@ TEST_CASE("generators: pattern produces the expected first decryptor")
 
             CHECK(copiedDecryptors[0].man() == debugKey);
         });
-    bruteforcer.run(config, cudaConfig, KeeloqLearning::Matrix::Everything());
+    bruteforcer.run(config, cudaConfig);
 }
 
 TEST_CASE("generators: seed produces a contiguous, monotonically increasing sequence")

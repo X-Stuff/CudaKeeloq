@@ -11,6 +11,8 @@
 #include "algorithm/keeloq/keeloq_learning_types.h"
 #include "kernels/input_transform.h"
 
+#include "device/cuda_config.h"
+
 #include "bruteforce/bruteforce_filters.h"
 #include "bruteforce/bruteforce_pattern.h"
 #include "bruteforce/bruteforce_type.h"
@@ -102,12 +104,21 @@ public:
      */
     bool hasSeed() const;
 
+    /** Create the CUDA configuration for this bruteforce config. */
+    CudaConfig cudaConfig(int desiredThreads, int desiredBlocks) const;
+
+    /** Get the learning matrix for this bruteforce config. */
+    const KeeloqLearning::Matrix& getLearningMatrix() const { return learningMatrix; }
+
     /** Human-readable one-line description of the configuration. */
     std::string toString() const;
 
 public:
     /** Replace the transform schedule with an explicit list. */
     void setTransforms(std::vector<InputsTransform> schedule);
+
+    /** Set the learning matrix for this bruteforce config, will be reduced according to config. */
+    void setLearningMatrix(const KeeloqLearning::Matrix& matrix);
 
     /** Get the ordered list of input transforms to apply per batch. */
     const std::vector<InputsTransform>& getTransforms() const { return transforms; }
@@ -128,6 +139,9 @@ private:
 private:
     // Ordered list of input transforms to try per batch (built from mask at construction).
     std::vector<InputsTransform> transforms;
+
+    // Allowed keeloq learning type for this bruteforce
+    KeeloqLearning::Matrix learningMatrix = KeeloqLearning::Matrix::Everything();
 };
 
 inline std::vector<uint8_t> operator "" _b(const char* ascii, size_t num)

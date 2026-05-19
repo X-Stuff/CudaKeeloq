@@ -32,10 +32,10 @@ Matrix::Matrix(const std::vector<LearningType>& types, const std::vector<Modifie
     }
 
     static constexpr auto EveryLearning = EveryLearningType{};
+    static constexpr auto EveryModifier = EveryModifierType{};
 
     const auto& typesToEnable = types.empty() ? std::vector<LearningType>(EveryLearning.begin(), EveryLearning.end()) : types;
-
-    assert( !aMods.empty() && "Input modifiers and Algo Modifiers must be provided");
+    const auto& aModsToEnable = aMods.empty() ? std::vector<Modifier::Algo>(EveryModifier.begin(), EveryModifier.end()) : aMods;
 
     for (auto type : typesToEnable)
     {

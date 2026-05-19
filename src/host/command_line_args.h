@@ -23,13 +23,12 @@
 #define ARG_INPUTS "inputs"
 #define ARG_BLOCKS "cuda-blocks"
 #define ARG_THREADS "cuda-threads"
-#define ARG_LOOPS "cuda-loops"
 #define ARG_MODE "mode"
 #define ARG_LTYPE "learning-type"
-#define ARG_NO_NRMALGS "no-reg-algs"
-#define ARG_CHECKREV "check-rev"
-#define ARG_CHECKXORFIX "check-xorfix"
-#define ARG_CHECKINV "check-inv"
+#define ARG_NO_REG_ALGS "no-reg-algs"
+#define ARG_CHECK_INV_ALGS "check-inv-algs"
+#define ARG_CHECK_REVKEYS "check-rev"
+#define ARG_CHECK_XORFIX "check-xorfix"
 #define ARG_WORDDICT "word-dict"
 #define ARG_BINDICT "bin-dict"
 #define ARG_BINDMODE "bin-dict-mode"
@@ -55,14 +54,8 @@ struct CommandLineArgs
     // How brute will be performed (may be several iterations)
     std::vector<BruteforceConfig> brute_configs;
 
-    // Do not do all 19 calculations, use predefined one
-    std::vector<KeeloqLearning::LearningType> selected_learning = {};
-
     // Additional input transform flags selected by the user via CLI.
     InputsTransform inputsTransform = InputsTransform::None;
-
-    // Select specific modifications for algorithm
-    std::vector<KeeloqLearning::Modifier::Algo> selected_algo_mods = {};
 
     //  Alphabets are just set of possible byte values
     // this sets may be shared between attacks
@@ -87,8 +80,9 @@ struct CommandLineArgs
     bool has_errors = false;
 
 public:
-    /** Current CUDA launch config — auto-derived unless user set blocks/threads explicitly. */
-    inline CudaConfig cudaConfig() const { return CudaConfig{ cuda_blocks, cuda_threads, cuda_loops }; }
+    inline uint32_t cudaBlocks() const { return cuda_blocks; }
+
+    inline uint16_t cudaThreads() const { return cuda_threads; }
 
 public:
 
@@ -105,14 +99,19 @@ public:
     /** Populate `inputs` from raw OTA values. */
     void initInputs(const std::vector<uint64_t>& inp);
 
-    /** Configure CUDA launch parameters; 0 means "auto-pick the optimal value". */
-    void initCuda(uint16_t blocks = 0, uint16_t threads = 0, uint8_t loops = 1);
+    /** Creates learning matrix from current command line arguments */
+    KeeloqLearning::Matrix getLearningMatrix() const { return KeeloqLearning::Matrix(selected_learning, selected_algo_mods); }
 
 private:
+    // Brute all 7 or 11 learnings, or use predefined one
+    std::vector<KeeloqLearning::LearningType> selected_learning = {};
+
+    // Select specific modifications for algorithm
+    std::vector<KeeloqLearning::Modifier::Algo> selected_algo_mods = {};
+
+
     // Cuda setup
     uint32_t cuda_blocks = 0;
 
     uint16_t cuda_threads = 0;
-
-    uint16_t cuda_loops = 1;
 };

@@ -21,11 +21,7 @@
 BruteforceRound::BruteforceRound(const std::vector<EncParcel>& inputs, const BruteforceConfig& config, const CudaConfig& cuda)
     : cudaConfig(cuda), inputsNum(static_cast<uint8_t>(inputs.size()))
 {
-#if NO_INNER_LOOPS
-    cudaConfig.substeps = 1;
-#endif
-
-    num_decryptors_per_batch = cudaConfig.blocks * cudaConfig.threads * cudaConfig.substeps;
+    num_decryptors_per_batch = cudaConfig.blocks * cudaConfig.threads;
 
     kernel_inputs = config.useSingleLearningKernels ?
         IKeeloqKernelInputBase::Create<KeeloqKernelSingleLearningInput>() :
@@ -107,7 +103,7 @@ void BruteforceRound::init()
     }
 }
 
-KernelResult BruteforceRound::update(const KeeloqLearning::Matrix& learningMatrix, InputsTransform inTransform)
+KernelResult BruteforceRound::launch(const KeeloqLearning::Matrix& learningMatrix, InputsTransform inTransform)
 {
     if (!kernel_inputs)
     {
@@ -128,7 +124,6 @@ std::string BruteforceRound::toString() const
         "CUDA:\n"
         "\t- Blocks:%u\n"
         "\t- Threads:%u\n"
-        "\t- Substeps:%u\n"
         "\t- Allocated GPU memory: %-2.1f GB\n"
         "----------------------------------------\n"
         "Inputs:\n"
@@ -141,7 +136,7 @@ std::string BruteforceRound::toString() const
         "----------------------------------------\n"
         "Config: %s\n"
         "----------------------------------------",
-        cudaConfig.blocks, cudaConfig.threads, cudaConfig.substeps, (getMemSize(false) / static_cast<float>(1024 * 1024 * 1024)),
+        cudaConfig.blocks, cudaConfig.threads, (getMemSize(false) / static_cast<float>(1024 * 1024 * 1024)),
         inputsNum, config().transformsToString().c_str(),
         resultsPerBatch(), decryptorsPerBatch(), kernel_inputs ? ::toString(kernel_inputs->type()).data() : "NULL",
         config().toString().c_str());

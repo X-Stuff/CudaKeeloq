@@ -1,8 +1,9 @@
 #pragma once
 
-#include <vector>
 #include <chrono>
 #include <functional>
+#include <optional>
+#include <vector>
 
 #include "common.h"
 
@@ -92,7 +93,7 @@ struct Bruteforcer
 
 public:
     /** Run one bruteforce round and return a matching result (or `BruteforceResult::Invalid()`). */
-    BruteforceResult run(const BruteforceConfig& config, const CudaConfig& cuda, const KeeloqLearning::Matrix& learningMatrix);
+    BruteforceResult run(const BruteforceConfig& config, const CudaConfig& cuda);
 
     /** Set callback for round completion event*/
     void setOnRoundComplete(RoundCompleteCallback&& callback) { onRoundComplete = std::move(callback); }
@@ -115,14 +116,35 @@ private:
         InputsTransform transform;
     };
 
+    struct ProgressInfo
+    {
+        struct BruteforceState
+        {
+            int64_t batchElapsedMs = 0;
+            size_t keysInSubCheck = 0;
+            size_t subIndex = 0;
+            size_t subCount = 0;
+            Decryptor lastDecryptor;
+            InputsTransform transform = InputsTransform::None;
+        };
+
+        ProgressInfo(size_t stepIndex, size_t stepCount, std::chrono::seconds elapsed)
+            : stepIndex(stepIndex), stepCount(stepCount), elapsed(elapsed) {}
+
+        ProgressInfo(size_t stepIndex, size_t stepCount, std::chrono::seconds elapsed, BruteforceState bruteforce)
+            : stepIndex(stepIndex), stepCount(stepCount), elapsed(elapsed), bruteforce(std::move(bruteforce)) {}
+
+        size_t stepIndex;
+        size_t stepCount;
+        std::chrono::seconds elapsed;
+        std::optional<BruteforceState> bruteforce;
+    };
+
     BruteforceResult runImpl(BruteforceRound& round, const std::vector<SubCheck>& subChecks);
 
     BruteforceResult getMatchResult(const BruteforceRound& round, bool first = true);
 
-    void printBruteforceProgress(const BruteforceRound& round, const std::chrono::seconds& roundTime, const size_t batchIndex, const int64_t batchTime,
-        const size_t subIndex, const size_t subNum, const uint8_t learningsNum, InputsTransform transform);
-
-    void printGpuMemorySearchProgress(const size_t index, const size_t count, const std::chrono::seconds& time);
+    void printProgress(const ProgressInfo& info);
 
 private:
     // Input data for bruteforce (captured encoded)

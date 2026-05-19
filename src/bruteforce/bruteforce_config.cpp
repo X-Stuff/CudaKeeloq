@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include "algorithm/keeloq/keeloq_decryptor.h"
+#include "algorithm/keeloq/keeloq_thread_result.h"
 
 #include "bruteforce/bruteforce_filters.h"
 #include "bruteforce/bruteforce_type.h"
@@ -110,9 +111,31 @@ bool BruteforceConfig::hasSeed() const
 }
 
 
+CudaConfig BruteforceConfig::cudaConfig(int desiredThreads, int desiredBlocks) const
+{
+    static constexpr uint16_t DefaultThreads = 256;
+
+    return CudaConfig
+    {
+        desiredBlocks > 0 ? static_cast<uint32_t>(desiredBlocks) :
+            CudaConfig::MaxCudaBlocks(desiredThreads, useSingleLearningKernels ? sizeof(ThreadResult::Single) : sizeof(ThreadResult::Multi)),
+        desiredThreads > 0 ? static_cast<uint16_t>(desiredThreads) :
+            DefaultThreads
+    };
+}
+
 void BruteforceConfig::setTransforms(std::vector<InputsTransform> set)
 {
     transforms = std::move(set);
+}
+
+
+void BruteforceConfig::setLearningMatrix(const KeeloqLearning::Matrix& matrix)
+{
+    learningMatrix = reduceMatrix(matrix);
+    assert(learningMatrix.numEnabled() > 0 && "Can't brute with no learning types enabled in config");
+
+    useSingleLearningKernels = learningMatrix.numEnabled() <= ThreadResult::Single::MaxLearningsNumInConfig;
 }
 
 std::string BruteforceConfig::transformsToString() const

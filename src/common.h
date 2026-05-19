@@ -71,11 +71,6 @@
 #endif
 
 
-#ifndef NO_INNER_LOOPS
-    #define NO_INNER_LOOPS 1
-#endif // !NO_INNER_LOOPS
-
-
 #define APP_VERSION_MAJOR 0
 #define APP_VERSION_MINOR 2
 #define APP_VERSION_PATCH 0

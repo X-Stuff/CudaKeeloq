@@ -91,8 +91,9 @@ void runEveryLearningWithMod(const BruteforceConfig& config, bool useSingleLearn
 
                     Bruteforcer bruteforcer(inputs, false, AppVerbosity::Error);
                     auto ccopy = config;
+                    ccopy.setTransforms({ transform });
+                    ccopy.setLearningMatrix(reducedMatrix);
                     ccopy.useSingleLearningKernels = useSingleLearning;
-                    ccopy.setTransforms({transform});
 
                     bruteforcer.setOnRoundComplete([&](const BruteforceRound& round, const KernelResult& kernelResult)
                     {
@@ -124,7 +125,7 @@ void runEveryLearningWithMod(const BruteforceConfig& config, bool useSingleLearn
                         encryptor.setCounter(encryptor.getCounter() - 1);
                         CHECK(matched_result.decrypted == encryptor.unencrypted());
                     });
-                    bruteforcer.run(ccopy, cudaConfig, reducedMatrix);
+                    bruteforcer.run(ccopy, cudaConfig);
                 }
             }
         }

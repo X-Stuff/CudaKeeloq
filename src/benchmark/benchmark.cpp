@@ -45,15 +45,14 @@ std::vector<EncParcel> makeBenchmarkInputs(uint64_t key, uint8_t num, KeeloqLear
 }
 }
 
-int benchmark::run(const std::vector<EncParcel>& inputs, const KeeloqLearning::Matrix& learningMatrix,
-    const BruteforceConfig& benchmarkConfig, uint32_t numCudaBlocks, uint16_t numCudaThreads)
+int benchmark::run(const std::vector<EncParcel>& inputs, const BruteforceConfig& benchmarkConfig, uint32_t numCudaBlocks, uint16_t numCudaThreads)
 {
     const auto kernelModeStr = benchmarkConfig.useSingleLearningKernels ? "Single" : " Multi";
 
     Bruteforcer bruteforcer(inputs, true, AppVerbosity::Progress);
-    CudaConfig cudaConfig{ numCudaBlocks, numCudaThreads, 1 };
+    CudaConfig cudaConfig{ numCudaBlocks, numCudaThreads };
 
-    bruteforcer.run(benchmarkConfig, cudaConfig, learningMatrix);
+    bruteforcer.run(benchmarkConfig, cudaConfig);
     const auto& stats = bruteforcer.getStats();
 
     console::clearLinesUp(1);
@@ -65,15 +64,15 @@ int benchmark::run(const std::vector<EncParcel>& inputs, const KeeloqLearning::M
     {
         const auto resText = kernelFailure ? "FAILURE" : " CANCEL";
 
-        printf("| CUDA: %6" PRIu32 " x %-4" PRIu16 " | %s | MKeys:%5" PRIu64 " | GPU: %4.1f GB | Round time: %s | Avg: %s  | Batch avg : %s  |\n\n",
-            numCudaBlocks, numCudaThreads, kernelModeStr, stats.realProcessedKeys / 1000000, stats.allocatedGB(), resText, resText, resText);
+        printf("| CUDA: %6" PRIu32 " x %-4" PRIu16 " | %s | MKeys:%5" PRIu64 " | Batches: %2" PRIu64 " | GPU: %4.1f GB | Time: %s | Avg: %s  | Batch avg : %s  |\n\n",
+            numCudaBlocks, numCudaThreads, kernelModeStr, stats.realProcessedKeys / 1000000, stats.numBatches, stats.allocatedGB(), resText, resText, resText);
 
         return kernelFailure ? -1 : 0;
     }
 
-    printf("| CUDA: %6" PRIu32 " x %-4" PRIu16 " | %s | MKeys:%5" PRIu64 " | GPU: %4.1f GB | Round time:%6" PRIu64 "ms | Avg:%6.1f Mk/s | Batch avg :%6.1f Mk/s |\n\n",
+    printf("| CUDA: %6" PRIu32 " x %-4" PRIu16 " | %s | MKeys:%5" PRIu64 " | Batches: %2" PRIu64 " | GPU: %4.1f GB | Time:%6" PRIu64 "ms | Avg:%6.1f Mk/s | Batch avg :%6.1f Mk/s |\n\n",
         numCudaBlocks, numCudaThreads, kernelModeStr,
-        stats.realProcessedKeys / 1000000,
+        stats.realProcessedKeys / 1000000, stats.numBatches,
         stats.allocatedGB(),
         stats.elapsedMs(),
         stats.avgRoundSpeed() / 1000,
@@ -118,6 +117,7 @@ void benchmark::run(const std::vector<EncParcel>& inputs, const KeeloqLearning::
         const size_t sizeofResult = singleLearning ? sizeof(ThreadResult::Single) : sizeof(ThreadResult::Multi);
 
         auto ccopy = benchmarkConfig;
+        ccopy.setLearningMatrix(reducedMatrix);
         ccopy.useSingleLearningKernels = singleLearning;
 
         for (uint32_t numThreads = 256; numThreads <= MaxCudaThreads; numThreads *= 2)
@@ -133,7 +133,7 @@ void benchmark::run(const std::vector<EncParcel>& inputs, const KeeloqLearning::
                     continue;
                 }
 
-                auto avgSpeed = run(inputs, reducedMatrix, ccopy, numBlocks, numThreads);
+                auto avgSpeed = run(inputs, ccopy, numBlocks, numThreads);
                 if (!avgSpeed)
                 {
                     // Cancel request
@@ -148,13 +148,28 @@ void benchmark::run(const std::vector<EncParcel>& inputs, const KeeloqLearning::
     if (results.size() > 0)
     {
         std::sort(results.begin(), results.end(), [](const Result& a, const Result& b) { return a.avgSpeed > b.avgSpeed; });
+        auto best = results.front();
 
-        printf("\nBENCHMARK FINISHED: Best result: %s mode in kernel, %u blocks, %u threads - %.3f million keys/s\n\n\n",
-            results.front().singleLearningMode ? "Single learning" : "Multiple learnings",
-            results.front().numBlocks, results.front().numThreads,
-            results.front().avgSpeed / 1000.0f);
+        auto alt = std::find_if(results.begin(), results.end(), [&best](const auto& element) { return element.singleLearningMode != best.singleLearningMode; });
+
+        printf("\nBENCHMARK FINISHED:\n");
+
+        printf("\tBest result: %s mode in kernel, %u blocks, %u threads - %.3f million keys/s\n",
+            best.singleLearningMode ? "Single learning" : "Multiple learnings",
+            best.numBlocks, best.numThreads,
+            best.avgSpeed / 1000.0f);
+
+        if (alt != results.end())
+        {
+            printf("\tAlternative: %s mode in kernel, %u blocks, %u threads - %.3f million keys/s\n",
+                alt->singleLearningMode ? "Single learning" : "Multiple learnings",
+                alt->numBlocks, alt->numThreads,
+                alt->avgSpeed / 1000.0f);
+        }
+
+        printf("\n\n");
     }
-    }
+}
 
 void benchmark::becnhmarkReal(bool useSingleLearningKernels)
 {
@@ -169,12 +184,13 @@ void benchmark::becnhmarkReal(bool useSingleLearningKernels)
 
         Bruteforcer bruteforcer(dhInputs, true);
         BruteforceConfig simple = BruteforceConfig::GetBruteforce(dhStartDecryptor, InputsTransform::None, 0xFFFFFFFF);
+        simple.setLearningMatrix(KeeloqLearning::Matrix::Everything()); // { learningItem });
         simple.useSingleLearningKernels = useSingleLearningKernels;
 
         CudaConfig cudaConfig = CudaConfig::Optimal();
 
-        const auto learningItem = KeeloqLearning::LearningItem(learningDH);
-        auto result = bruteforcer.run(simple, cudaConfig, KeeloqLearning::Matrix::Everything());// { learningItem });
+        [[maybe_unused]] const auto learningItem = KeeloqLearning::LearningItem(learningDH);
+        auto result = bruteforcer.run(simple, cudaConfig);
         const auto& stats = bruteforcer.getStats();
 
         if (stats.result != Bruteforcer::Stats::UserCancelled)
@@ -200,12 +216,13 @@ void benchmark::becnhmarkReal(bool useSingleLearningKernels)
 
         Bruteforcer bruteforcer(sommerInputs, true);
         BruteforceConfig simple = BruteforceConfig::GetBruteforce(smStartDecryptor, InputsTransform::RevKey, 0xFFFFFFFF);
+        simple.setLearningMatrix(KeeloqLearning::Matrix::Everything()); // { learningItem });
         simple.useSingleLearningKernels = useSingleLearningKernels;
 
         CudaConfig cudaConfig = CudaConfig::Optimal();
 
-        const auto learningItem = KeeloqLearning::LearningItem(learningSommer);
-        auto result = bruteforcer.run(simple, cudaConfig, KeeloqLearning::Matrix::Everything());// { learningItem });
+        [[maybe_unused]] const auto learningItem = KeeloqLearning::LearningItem(learningSommer);
+        auto result = bruteforcer.run(simple, cudaConfig);
         const auto& stats = bruteforcer.getStats();
 
         if (stats.result != Bruteforcer::Stats::UserCancelled)

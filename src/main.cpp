@@ -82,22 +82,14 @@ CommandLineArgs demoTestCommandlineArgs(int num_gen_input = 3)
             BruteforceFilters::Flags::BytesIncremental
         }));
 
-    cmd.selected_learning = { }; // ALL
-
     cmd.match_stop = false;
     cmd.run_bench  = false;
-    cmd.initCuda();
 
     return cmd;
 }
 
 void bruteforce(const CommandLineArgs& args)
 {
-    if (args.selected_learning.size() == 0)
-    {
-        printf("Bruteforcing without specific learning type (slower)!\n");
-    }
-
     const size_t numConfigs = args.brute_configs.size();
     printf("\nTotal bruteforce configs to run: %zd\n", numConfigs);
 
@@ -108,9 +100,9 @@ void bruteforce(const CommandLineArgs& args)
         printf("\n*********************************************[CONFIG %02zd/%02zd]********************************************\n", configIndex + 1, numConfigs);
 
         const auto& config = args.brute_configs[configIndex];
-        auto learningMatrix = KeeloqLearning::Matrix(args.selected_learning, args.selected_algo_mods);
+        const auto cudaConfig = config.cudaConfig(args.cudaBlocks(), args.cudaThreads());
 
-        auto match = bruteforcer.run(config, args.cudaConfig(), learningMatrix);
+        auto match = bruteforcer.run(config, cudaConfig);
         if (match.isValid())
         {
             match.print();

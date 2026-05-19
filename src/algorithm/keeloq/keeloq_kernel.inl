@@ -393,7 +393,7 @@ template<bool IsDecrypt, InputsTransform InputsMut, Modifier::Algo AMod, Learnin
 __device__ __host__ __forceinline__ void keeloq_encdec_multi_cond(uint32_t data, uint32_t fix, const Decryptor& decryptor,
     const Matrix& learnings_matrix, DecryptedResults& results, ValuesSet<LearningType, LTypes...>)
 {
-    ((learnings_matrix.template isEnabled<LTypes, AMod>() ? keeloq_encdec_single<IsDecrypt, InputsMut, LTypes, AMod>(data, fix, decryptor, results) : void()), ...);
+    ((learnings_matrix.template isEnabled<LTypes, AMod, true>() ? keeloq_encdec_single<IsDecrypt, InputsMut, LTypes, AMod>(data, fix, decryptor, results) : void()), ...);
 }
 
 /**
@@ -798,7 +798,6 @@ __global__ KERNEL_LAUNCH_BOUNDS void Kernel_keeloq_bruteforce(KeeloqKernelMultiL
 template<uint8_t NumInputs, InputsTransform InputMut, KeeloqLearning::LearningType LType, Modifier::Algo AMod>
 __global__ KERNEL_LAUNCH_BOUNDS void Kernel_keeloq_single_learning(KeeloqKernelSingleLearningInput::TCudaPtr KernelInputs, KernelResult::TCudaPtr ret)
 {
-
     CudaContext ctx = CudaContext::Get();
     assert(KernelInputs->decryptors->num % ctx.thread_max == 0 && "Number of decryptors must be equal or divisible by number of threads");
 
@@ -815,11 +814,19 @@ __global__ KERNEL_LAUNCH_BOUNDS void Kernel_keeloq_single_learning(KeeloqKernelS
         // if more than 1 input
         if constexpr (NumInputs > 1)
         {
+            static constexpr uint8_t MaxCounterDeviation = NumInputs + 1;
+
             // and first input has match - check next input
             if (num_matches == 1)
             {
                 num_matches += keeloq_decrypt_single_learning<Second, InputMut, LType, AMod>(
                     ctx, decryptor, KernelInputs->template Result<Second, NumInputs>(decryptor_index));
+
+                uint16_t counter0 = KernelInputs->template Result<First, NumInputs>(decryptor_index).cnt();
+                uint16_t counter1 = KernelInputs->template Result<Second, NumInputs>(decryptor_index).cnt();
+
+                // We reduce number of matches if counter deviation is bigger than MaxCounterDeviation
+                num_matches -= __usad(counter0, counter1, 0u) > MaxCounterDeviation;
 
                 // if more than 2 inputs
                 if constexpr (NumInputs > 2)
@@ -829,28 +836,13 @@ __global__ KERNEL_LAUNCH_BOUNDS void Kernel_keeloq_single_learning(KeeloqKernelS
                     {
                         num_matches += keeloq_decrypt_single_learning<Third, InputMut, LType, AMod>(
                             ctx, decryptor, KernelInputs->template Result<Third, NumInputs>(decryptor_index));
+
+                        uint16_t counter2 = KernelInputs->template Result<Third, NumInputs>(decryptor_index).cnt();
+
+                        // We reduce number of matches if counter deviation is bigger than MaxCounterDeviation
+                        num_matches -= __usad(counter0, counter2, 0u) > MaxCounterDeviation;
                     }
                 }
-            }
-        }
-
-        if constexpr (NumInputs > 1)
-        {
-            static constexpr uint8_t MaxCounterDeviation = NumInputs + 1;
-
-            const auto firstCnt = KernelInputs->template Result<First, NumInputs>(decryptor_index).cnt();
-
-            const auto secndCnt = KernelInputs->template Result<Second, NumInputs>(decryptor_index).cnt();
-
-            // We reduce number of matches if counter deviation is bigger than MaxCounterDeviation
-            num_matches -= __usad(firstCnt, secndCnt, 0u) > MaxCounterDeviation;
-
-            if constexpr (NumInputs > 2)
-            {
-                const auto thirdCnt = KernelInputs->template Result<Third, NumInputs>(decryptor_index).cnt();
-
-                // We reduce number of matches if counter deviation is bigger than MaxCounterDeviation
-                num_matches -= __usad(firstCnt, thirdCnt, 0u) > MaxCounterDeviation;
             }
         }
 
@@ -940,7 +932,7 @@ __host__ constexpr auto MakeLaunchSingleTable(std::index_sequence<Is...>)
 
 } // namespace
 
-namespace flat
+namespace SingleMode
 {
 
 using BruteforceKernelLauncherFunc = void(*)(const CudaConfig&, uint8_t numInputs, KeeloqKernelSingleLearningInput::TCudaPtr, KernelResult::TCudaPtr);
@@ -1063,7 +1055,13 @@ using KernelIndexer = KernelTableIndexer<
     KeeloqLearning::LearningTypesSequence,
     KeeloqLearning::Modifier::TypeSequence>;
 
-} // namespace flat
+/** Launch table for CUDA kernels */
+static constexpr auto LaunchTable = MakeKernelsLaunchTable(
+    std::make_index_sequence<static_cast<std::size_t>(InputTransformVariantsCount)>{},
+    KeeloqLearning::LearningTypesSequence{},
+    KeeloqLearning::Modifier::TypeSequence{});
+
+} // namespace SingleMode
 
 __host__ KernelResult keeloq::kernels::internal::cuda_brute(KeeloqKernelMultiLearningInput& mainInputs, const CudaConfig& cuda)
 {
@@ -1100,19 +1098,14 @@ __host__ KernelResult keeloq::kernels::internal::cuda_brute(KeeloqKernelMultiLea
 
 __host__ KernelResult keeloq::kernels::internal::cuda_brute(KeeloqKernelSingleLearningInput& flatInputs, const CudaConfig& cuda)
 {
-    static constexpr auto LaunchTable = flat::MakeKernelsLaunchTable(
-        std::make_index_sequence<static_cast<std::size_t>(InputTransformVariantsCount)>{},
-        KeeloqLearning::LearningTypesSequence{},
-        KeeloqLearning::Modifier::TypeSequence{});
-
     KernelResult kernel_results;
 
-    const auto launcherIndex = flat::KernelIndexer::GetFlatIndex(
+    const auto launcherIndex = SingleMode::KernelIndexer::GetFlatIndex(
         static_cast<std::size_t>(flatInputs.inputsTransform),
         static_cast<std::size_t>(flatInputs.learning),
         static_cast<std::size_t>(flatInputs.algorithModifier));
 
-    LaunchTable[launcherIndex](cuda, flatInputs.inputsCount, flatInputs.ptr(), kernel_results.ptr());
+    SingleMode::LaunchTable[launcherIndex](cuda, flatInputs.inputsCount, flatInputs.ptr(), kernel_results.ptr());
 
     kernel_results.read();
     flatInputs.read();
