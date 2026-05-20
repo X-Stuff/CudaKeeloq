@@ -9,7 +9,7 @@ jobs:
   build:
 
     env:
-      CUDA_VERSION_MAJOR: 12
+      CUDA_VERSION_MAJOR: 13
       CUDA_VERSION_MINOR: 2
       CUDA_VERSION_PACTH: 0
 
@@ -63,7 +63,7 @@ jobs:
       - name: Create Artifacts
         run: |
           mkdir artifacts
-          xcopy x64\Release\CudaKeeloq.exe artifacts\
+          xcopy .build\x64\release\win\CudaKeeloq.exe artifacts\
           xcopy .\examples artifacts\examples /E /H /I /C
           Compress-Archive -Path artifacts/* -DestinationPath artifacts/cudakeeloq.zip
 
