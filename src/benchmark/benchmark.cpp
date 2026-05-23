@@ -305,7 +305,7 @@ void benchmark::benchmarkEveryLearningAtOnce(uint32_t TargetCalculationsNumber)
 
     // Simple+1 brute benchmarks
     auto benchConfigSimpleBrute = BruteforceConfig::GetBruteforce(Decryptor::Make(0, 1234567, true), InputsTransform::None, TargetCalculationsNumber);
-    benchConfigSimpleBrute.setTransforms({InputsTransform::None, InputsTransform::RevKey, InputsTransform::XorFix, InputsTransform::RevKey | InputsTransform::XorFix});
+    benchConfigSimpleBrute.setTransforms({ EveryInputTransform::values.begin(), EveryInputTransform::values.end() });
     benchConfigSimpleBrute.size = TargetCalculationsNumber;
 
     // HARDEST: Full brute 11 x 4 permutations

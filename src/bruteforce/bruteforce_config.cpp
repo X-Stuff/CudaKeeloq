@@ -35,7 +35,7 @@ BruteforceConfig BruteforceConfig::GetSeedBruteforce(Decryptor first, InputsTran
 
 BruteforceConfig BruteforceConfig::GetXorFixBruteforce(Decryptor first, InputsTransform inTransform, uint32_t size /*= static_cast<uint32_t>(-1)*/)
 {
-    return BruteforceConfig(first, BruteforceType::XorFix, inTransform | InputsTransform::XorFix, size);
+    return BruteforceConfig(first, BruteforceType::Xor, inTransform | InputsTransform::Xored, size);
 }
 
 BruteforceConfig BruteforceConfig::GetAlphabet(Decryptor first, InputsTransform inTransform, const MultibaseDigit& alphabet, size_t num, const std::string& name)
@@ -154,7 +154,7 @@ std::string BruteforceConfig::transformsToString() const
 
 KeeloqLearning::Matrix BruteforceConfig::reduceMatrix(const KeeloqLearning::Matrix& matrix) const
 {
-    if (type == BruteforceType::XorFix && !hasSeed())
+    if (type == BruteforceType::Xor && !hasSeed())
     {
         // If seed is not specified for XorFix we can't brute any learning types, since all of them require seed in this case
         return KeeloqLearning::Matrix::Invalid();
@@ -232,9 +232,9 @@ std::string BruteforceConfig::toString() const
         return str::format<std::string>("Type: %s. Manufacturer key: 0x%llX Start Seed:%u",
             bruteTypeName, start.man(), start.seed());
     }
-    case BruteforceType::XorFix:
+    case BruteforceType::Xor:
     {
-        return str::format<std::string>("Type: %s. Manufacturer key: 0x%llX Start Xor:%u",
+        return str::format<std::string>("Type: %s. Manufacturer key: 0x%llX Start XOR:%u",
             bruteTypeName, start.man(), start.seed());
     }
     }
@@ -244,22 +244,18 @@ std::string BruteforceConfig::toString() const
 BruteforceConfig::BruteforceConfig(Decryptor start, BruteforceType::Type t, InputsTransform mask, size_t num) :
     type(t), start(start), size(num), dictDecryptors(), filters(), pattern(), last(start)
 {
-    if (t == BruteforceType::XorFix)
+
+    for (auto flag : EveryInputTransform{})
     {
-        for (uint8_t i = 0; i < InputTransformVariantsCount; ++i)
+        if (t == BruteforceType::Xor)
         {
-            const auto flag = static_cast<InputsTransform>(i);
-            if (!!(flag & InputsTransform::XorFix))
+            if (!!(flag & InputsTransform::Xored))
             {
                 transforms.push_back(flag);
             }
         }
-    }
-    else
-    {
-        for (uint8_t i = 0; i < InputTransformVariantsCount; ++i)
+        else
         {
-            const auto flag = static_cast<InputsTransform>(i);
             if ((flag & mask) == flag)
             {
                 transforms.push_back(flag);

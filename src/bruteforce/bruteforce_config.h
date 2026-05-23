@@ -73,7 +73,7 @@ public:
     /** +1 bruteforce over the 32-bit seed space for a fixed manufacturer key. */
     static BruteforceConfig GetSeedBruteforce(Decryptor first, InputsTransform inTransform, uint32_t size = static_cast<uint32_t>(-1));
 
-    /** +1 bruteforce over the 32-bit space for a xor key for fixed part in ota. InputTransform will be forced set to XorFix */
+    /** +1 bruteforce over the 32-bit space for a xor key for fixed part in ota. InputTransform will be forced set to XorFix | XorHop */
     static BruteforceConfig GetXorFixBruteforce(Decryptor first, InputsTransform inTransform, uint32_t size = static_cast<uint32_t>(-1));
 
     /** Alphabet (same byte set on every position) bruteforce. */

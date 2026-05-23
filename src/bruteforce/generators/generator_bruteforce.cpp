@@ -17,7 +17,7 @@ cudaError_t GeneratorBruteforce::PrepareDecryptors(IKeeloqKernelInputBase& input
         break;
     }
     case BruteforceType::Seed:
-    case BruteforceType::XorFix:
+    case BruteforceType::Xor:
     {
         GeneratorBruteforceSeed::LaunchKernel(cuda, inputs.gpu(), nullptr);
         break;

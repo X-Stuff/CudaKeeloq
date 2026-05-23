@@ -29,6 +29,7 @@
 #define ARG_CHECK_INV_ALGS "check-inv-algs"
 #define ARG_CHECK_REVKEYS "check-rev"
 #define ARG_CHECK_XORFIX "check-xorfix"
+#define ARG_CHECK_XORHOP "check-xorhop"
 #define ARG_WORDDICT "word-dict"
 #define ARG_BINDICT "bin-dict"
 #define ARG_BINDMODE "bin-dict-mode"

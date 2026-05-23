@@ -77,10 +77,16 @@ uint64_t Encryptor::man(InputsTransform inTransform, KeeloqLearning::LearningTyp
 
 uint32_t Encryptor::cpuEncrypt(InputsTransform inTransform, KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Algo amod) const
 {
-    const auto cpu_encrypted = keeloq::common::encrypt(unencrypted(), man(inTransform, ltype, amod));
+    // Pre-Xor unencrypted
+    const auto use_unecrypted = has_flag(inTransform, InputsTransform::XorDec_TODO) ? (unencrypted() ^ seed) : unencrypted();
+
+    const auto hop = keeloq::common::encrypt(use_unecrypted, man(inTransform, ltype, amod));
+
+    // Post-Xor hop
+    const auto use_hop = has_flag(inTransform, InputsTransform::XorHop) ? (hop ^ seed) : hop;
 
     // This is not bit-reversed result
-    return cpu_encrypted;
+    return use_hop;
 }
 
 uint32_t Encryptor::cpuDecrypt(uint64_t enc, InputsTransform inTransform, KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Algo amod) const
@@ -88,8 +94,15 @@ uint32_t Encryptor::cpuDecrypt(uint64_t enc, InputsTransform inTransform, Keeloq
     auto reversed_enc = misc::rev_bits(enc);
     auto hopping = (uint32_t)reversed_enc;
 
-    const auto cpu_decrypted = keeloq::common::decrypt(hopping, man(inTransform, ltype, amod));
-    return cpu_decrypted;
+    // Pre-Xor hop
+    const auto use_hop = has_flag(inTransform, InputsTransform::XorHop) ? (hopping ^ seed) : hopping;
+
+    const auto cpu_decrypted = keeloq::common::decrypt(use_hop, man(inTransform, ltype, amod));
+
+    // Post-Xor unencrypted
+    const auto use_decrypted = has_flag(inTransform, InputsTransform::XorDec_TODO) ? (cpu_decrypted ^ seed) : cpu_decrypted;
+
+    return use_decrypted;
 }
 
 uint32_t Encryptor::gpuEncrypt(InputsTransform inTransform, KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Algo amod) const

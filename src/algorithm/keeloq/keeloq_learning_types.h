@@ -55,6 +55,9 @@ enum class KernelLearningMode
     // Inputs Modifier: Mirrors InputMutations enum
     XorFix = 1 << 17,
 
+    // Inputs Modifier: Mirrors InputMutations enum
+    XorHop = 1 << 18,
+
     /************************************************************************/
 
     // Run only learning types without seed
@@ -123,19 +126,6 @@ enum LearningType : uint8_t
     Serial3,
 };
 
-/** Compile-time set of learning types, used to expand template packs. */
-template<typename T, T... Values>
-struct ValuesSet
-{
-    static constexpr CudaFixedArray<T, sizeof...(Values)> values = { Values... };
-
-    static constexpr uint8_t Size = sizeof...(Values);
-
-    __host__ __device__ __inline__ constexpr auto begin() const { return values.begin(); }
-
-    __host__ __device__ __inline__ constexpr auto end() const { return values.end(); }
-};
-
 /** Number of learning types */
 static constexpr const uint8_t LearningTypesCount = static_cast<uint8_t>(LearningType::Serial3) + 1;
 
@@ -144,29 +134,14 @@ static constexpr const uint8_t LearningTypesCount = static_cast<uint8_t>(Learnin
  */
 using LearningTypesSequence = std::make_index_sequence<LearningTypesCount>;
 
-namespace helpers
-{
-    template<typename T, std::size_t... I>
-    using TypedValuesSetImpl = ValuesSet<T, static_cast<T>(I)...>;
-
-    template<typename T, typename Seq>
-    struct MakeTypedValuesSet;
-
-    template<typename T, std::size_t... I>
-    struct MakeTypedValuesSet<T, std::index_sequence<I...>>
-    {
-        using type = TypedValuesSetImpl<T, I...>;
-    };
-}
-
 /** Defined all learning types as set of values */
 using EveryLearningType = helpers::MakeTypedValuesSet<LearningType, LearningTypesSequence>::type;
 
 /** Defined all seeded learning types as set of values */
-using SeededTypes = ValuesSet<LearningType, LearningType::Secure, LearningType::Faac>;
+using SeededTypes = helpers::ValuesSet<LearningType, LearningType::Secure, LearningType::Faac>;
 
 /** Defined all normal (no seed) learning types as set of values */
-using NormalTypes = ValuesSet<LearningType, LearningType::Simple, LearningType::Normal, LearningType::Xor, LearningType::Serial1, LearningType::Serial2, LearningType::Serial3>;
+using NormalTypes = helpers::ValuesSet<LearningType, LearningType::Simple, LearningType::Normal, LearningType::Xor, LearningType::Serial1, LearningType::Serial2, LearningType::Serial3>;
 
 /** True if the given learning type requires a seed. */
 constexpr bool hasSeed(LearningType type)

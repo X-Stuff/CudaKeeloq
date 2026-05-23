@@ -51,7 +51,7 @@ void runEveryLearningWithMod(const BruteforceConfig& config, bool useSingleLearn
 
         for (auto transform : inTransforms)
         {
-            const bool seedRequired = KeeloqLearning::hasSeed(learningType) || !!(transform & InputsTransform::XorFix);
+            const bool seedRequired = KeeloqLearning::hasSeed(learningType) || !!(transform & InputsTransform::Xored);
             if (seedRequired && !config.hasSeed())
             {
                 continue;

@@ -9,7 +9,7 @@ __global__ void DEFINE_GENERATOR_KERNEL(GeneratorBruteforceSeed, IKeeloqKernelIn
 {
     CudaContext ctx = CudaContext::Get();
 
-    assert(input->GetConfig().type == BruteforceType::Seed || input->GetConfig().type == BruteforceType::XorFix);
+    assert(input->GetConfig().type == BruteforceType::Seed || input->GetConfig().type == BruteforceType::Xor);
 
     const Decryptor& start = input->GetConfig().start;
     static constexpr bool seed_valid = true;

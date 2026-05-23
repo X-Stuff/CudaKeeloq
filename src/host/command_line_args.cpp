@@ -182,11 +182,11 @@ namespace
         args.brute_configs.push_back(BruteforceConfig::GetSeedBruteforce(first_decryptor, args.inputsTransform));
     }
 
-    inline void parse_xorfix_mode(CommandLineArgs& args, cxxopts::ParseResult& result, AppVerbosity verbosity)
+    inline void parse_xor_mode(CommandLineArgs& args, cxxopts::ParseResult& result, AppVerbosity verbosity)
     {
         if (result.count(ARG_START) == 0)
         {
-            LOG_ERROR("For XorFix mode, it's necessary to specify a manufacturer key with '--" ARG_START "' argument!");
+            LOG_ERROR("For Xor mode, it's necessary to specify a manufacturer key with '--" ARG_START "' argument!");
             return;
         }
 
@@ -418,12 +418,16 @@ namespace
                 cxxopts::value<std::vector<std::string>>()->default_value("ALL"), "<type>")
 
             (ARG_CHECK_REVKEYS,
-                "Check also byte-reversed man keys during bruteforce, some manufacturers mixes up or do this intentionally. "
+                "!MASK! Make additional checks with byte-reversed man keys during bruteforce, some manufacturers mixes up or do this intentionally. "
                 "You need this setting set to false only if you are doing, full 2^64 bruteforce.\n",
                 cxxopts::value<bool>()->default_value("true"), "true|false")
             (ARG_CHECK_XORFIX,
-                "Check also the fixed-code XOR input transform during bruteforce. Requires decryptors with a seed to be useful.\n",
+                "!MASK! Make additional checks with XORed fixed part of encrypted parcels. Xor value set with --" ARG_SEED " argument or automatically generate in Seed attack type.\n",
                 cxxopts::value<bool>()->default_value("false"), "true|false")
+            (ARG_CHECK_XORHOP,
+                "!MASK! Make additional checks with XORed hop part of encrypted parcels. Xor value set with --" ARG_SEED " argument or automatically generate in Seed attack type.\n",
+                cxxopts::value<bool>()->default_value("false"), "true|false")
+
             (ARG_CHECK_INV_ALGS,
                 "Check also inverted algorithms during bruteforce, some manufacturers mixes up or do this intentionally. "
                 "Affects only: Normal, Secure, FAAC learning types.\n",
@@ -572,6 +576,11 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv, AppVerbosity
             args.inputsTransform = args.inputsTransform | InputsTransform::XorFix;
         }
 
+        if (result[ARG_CHECK_XORHOP].as<bool>())
+        {
+            args.inputsTransform = args.inputsTransform | InputsTransform::XorHop;
+        }
+
         // By default we use normal algos
         if (!result.count(ARG_NO_REG_ALGS) || !result[ARG_NO_REG_ALGS].as<bool>())
         {
@@ -620,8 +629,8 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv, AppVerbosity
             case (uint8_t)BruteforceType::Seed:
                 parse_seed_mode(args, result, verbosity);
                 break;
-            case (uint8_t)BruteforceType::XorFix:
-                parse_xorfix_mode(args, result, verbosity);
+            case (uint8_t)BruteforceType::Xor:
+                parse_xor_mode(args, result, verbosity);
                 break;
             default:
                 break;

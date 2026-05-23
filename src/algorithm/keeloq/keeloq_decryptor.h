@@ -62,7 +62,7 @@ public:
     {
         if constexpr (IsXored)
         {
-            return value ^ seed();
+            return value ^ xor();
         }
         else
         {
@@ -78,6 +78,9 @@ public:
 
     /** Seed for seeded learning types (undefined if has_seed() is false). */
     __host__ __device__ __forceinline__ uint32_t seed() const { return key_seed; }
+
+    /** XOR value for xor bruteforce type (shares the same memory with seed). */
+    __host__ __device__ __forceinline__ uint32_t xor() const { return xor_key; }
 
     /** Manufacturer key with reversed byte order. */
     __host__ __device__ __forceinline__ uint64_t nam() const { return misc::rev_bytes(key); }
@@ -98,8 +101,14 @@ protected:
     // manufacturer key
     uint64_t key = 0;
 
-    // seed (for special learning types only)
-    uint32_t key_seed = 0;
+    union
+    {
+        // for seeded learning types
+        uint32_t key_seed;
+
+        // for xor inputs transform
+        uint32_t xor_key;
+    };
 
     // flag that shows that this decryptor's seed is valid
     // Since we cannot use 0 or -1, since they potentially can be valid seeds

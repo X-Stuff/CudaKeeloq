@@ -235,7 +235,8 @@ struct InputTransformToKernelMode
 {
     static constexpr KernelLearningMode value =
         (has_flag(Mask, InputsTransform::RevKey) ? KernelLearningMode::RevKey : KernelLearningMode::NoInputTransform) |
-        (has_flag(Mask, InputsTransform::XorFix) ? KernelLearningMode::XorFix : KernelLearningMode::NoInputTransform);
+        (has_flag(Mask, InputsTransform::XorFix) ? KernelLearningMode::XorFix : KernelLearningMode::NoInputTransform) |
+        (has_flag(Mask, InputsTransform::XorHop) ? KernelLearningMode::XorHop : KernelLearningMode::NoInputTransform);
 };
 
 /**
@@ -247,7 +248,8 @@ struct KernelModeToInputTransform
 {
     static constexpr InputsTransform value = static_cast<InputsTransform>(
         ((static_cast<int>(Mode) & static_cast<int>(KernelLearningMode::RevKey)) ? static_cast<uint8_t>(InputsTransform::RevKey) : 0) |
-        ((static_cast<int>(Mode) & static_cast<int>(KernelLearningMode::XorFix)) ? static_cast<uint8_t>(InputsTransform::XorFix) : 0));
+        ((static_cast<int>(Mode) & static_cast<int>(KernelLearningMode::XorFix)) ? static_cast<uint8_t>(InputsTransform::XorFix) : 0) |
+        ((static_cast<int>(Mode) & static_cast<int>(KernelLearningMode::XorHop)) ? static_cast<uint8_t>(InputsTransform::XorHop) : 0));
 };
 
 /**
@@ -265,9 +267,19 @@ struct KernelModeToInputTransform
 template<bool IsDecrypt, InputsTransform InputsMut, LearningType type, Modifier::Algo AMod>
 __device__ __host__ __forceinline__ uint32_t keeloq_encdec_single(uint32_t hop, uint32_t fixed, const Decryptor& decryptor)
 {
+    static constexpr bool IsEncrypt = !IsDecrypt;
+
+    // In decrypt mode with XorHop transform - input is hop, and has to be xored
+    // In encrypt mode with XorDec transform - `hop` is actual unencrypted value, and has to be xored before encryption
+    static constexpr bool NeedPreXor = (IsDecrypt && !!(InputsMut & InputsTransform::XorHop)) || (IsEncrypt && !!(InputsMut & InputsTransform::XorDec_TODO));
+
+    // In encrypt mode with XorHop transform - result is hop, and has to be xored
+    // In decrypt mode with XorDec transform - we need to XOR decrypted resul
+    static constexpr bool NeedPostXor = (IsEncrypt && !!(InputsMut & InputsTransform::XorHop)) || (IsDecrypt && !!(InputsMut & InputsTransform::XorDec_TODO));
+
     const uint64_t key = decryptor.template getKey<!!(InputsMut & InputsTransform::RevKey)>();
     const uint32_t fix = decryptor.template getXored<!!(InputsMut & InputsTransform::XorFix)>(fixed);
-    const uint32_t data = hop;
+    const uint32_t data = decryptor.template getXored<NeedPreXor>(hop);
     const uint32_t seed = decryptor.seed();
 
     static_assert(AMod == Modifier::Algo::Normal || AMod == Modifier::Algo::Inverted, "Unsupported/Unknown Keeloq Algorithm Modifier");
@@ -279,68 +291,72 @@ __device__ __host__ __forceinline__ uint32_t keeloq_encdec_single(uint32_t hop, 
 
     static_assert(DecryptedResults::getIndex<type, AMod>() != KeeloqLearning::InvalidResultIndex, "Unsupported KeeloqLearningType/Mod combination");
 
+    uint32_t result = 0;
+
     // Inverted logic for learning types that support it (Normal, Secure, Faac)
     if constexpr (AMod == Modifier::Algo::Inverted)
     {
         if constexpr (type == LearningType::Normal)
         {
-            uint64_t n_key = keeloq::learning::normal<false>(fix, key);
-            return keeloq::common::encdec<IsDecrypt>(data, n_key);
+            const uint64_t n_key = keeloq::learning::normal<false>(fix, key);
+            result = keeloq::common::encdec<IsDecrypt>(data, n_key);
         }
         else if constexpr (type == LearningType::Secure)
         {
-            uint64_t n_key = keeloq::learning::secure<false>(fix, seed, key);
-            return keeloq::common::encdec<IsDecrypt>(data, n_key);
+            const uint64_t n_key = keeloq::learning::secure<false>(fix, seed, key);
+            result = keeloq::common::encdec<IsDecrypt>(data, n_key);
         }
         else if constexpr (type == LearningType::Faac)
         {
             // Faac uses encrypt by default, Inverted logic here will be decrypt
-            uint64_t n_key = keeloq::learning::faac<true>(seed, key);
-            return keeloq::common::encdec<IsDecrypt>(data, n_key);
+            const uint64_t n_key = keeloq::learning::faac<true>(seed, key);
+            result = keeloq::common::encdec<IsDecrypt>(data, n_key);
         }
     }
     else if (AMod == Modifier::Algo::Normal)
     {
         if constexpr (type == LearningType::Simple)
         {
-            return keeloq::common::encdec<IsDecrypt>(data, key);
+            result = keeloq::common::encdec<IsDecrypt>(data, key);
         }
         else if constexpr (type == LearningType::Normal)
         {
-            uint64_t n_key = keeloq::learning::normal(fix, key);
-            return keeloq::common::encdec<IsDecrypt>(data, n_key);
+            const uint64_t n_key = keeloq::learning::normal(fix, key);
+            result = keeloq::common::encdec<IsDecrypt>(data, n_key);
         }
         else if constexpr (type == LearningType::Secure)
         {
-            uint64_t n_key = keeloq::learning::secure(fix, seed, key);
-            return keeloq::common::encdec<IsDecrypt>(data, n_key);
+            const uint64_t n_key = keeloq::learning::secure(fix, seed, key);
+            result = keeloq::common::encdec<IsDecrypt>(data, n_key);
         }
         else if constexpr (type == LearningType::Xor)
         {
-            uint64_t n_key = keeloq::learning::magic_xor_type1(fix, key);
-            return keeloq::common::encdec<IsDecrypt>(data, n_key);
+            const uint64_t n_key = keeloq::learning::magic_xor_type1(fix, key);
+            result = keeloq::common::encdec<IsDecrypt>(data, n_key);
         }
         else if constexpr (type == LearningType::Faac)
         {
-            uint64_t n_key = keeloq::learning::faac(seed, key);
-            return keeloq::common::encdec<IsDecrypt>(data, n_key);
+            const uint64_t n_key = keeloq::learning::faac(seed, key);
+            result = keeloq::common::encdec<IsDecrypt>(data, n_key);
         }
         else if constexpr (type == LearningType::Serial1)
         {
-            uint64_t n_key = keeloq::learning::serial_type1(fix, key);
-            return keeloq::common::encdec<IsDecrypt>(data, n_key);
+            const uint64_t n_key = keeloq::learning::serial_type1(fix, key);
+            result = keeloq::common::encdec<IsDecrypt>(data, n_key);
         }
         else if constexpr (type == LearningType::Serial2)
         {
-            uint64_t n_key = keeloq::learning::serial_type2(fix, key);
-            return keeloq::common::encdec<IsDecrypt>(data, n_key);
+            const uint64_t n_key = keeloq::learning::serial_type2(fix, key);
+            result = keeloq::common::encdec<IsDecrypt>(data, n_key);
         }
         else if constexpr (type == LearningType::Serial3)
         {
-            uint64_t n_key = keeloq::learning::serial_type3(fix, key);
-            return keeloq::common::encdec<IsDecrypt>(data, n_key);
+            const uint64_t n_key = keeloq::learning::serial_type3(fix, key);
+            result = keeloq::common::encdec<IsDecrypt>(data, n_key);
         }
     }
+
+    return decryptor.template getXored<NeedPostXor>(result);
 }
 
 /**
@@ -374,7 +390,7 @@ __device__ __host__ __forceinline__ void keeloq_encdec_single(uint32_t data, uin
  */
 template<bool IsDecrypt, InputsTransform InputsMut, Modifier::Algo AMod, LearningType... LTypes>
 __device__ __host__ __forceinline__ void keeloq_encdec_multi(uint32_t data, uint32_t fix, const Decryptor& decryptor,
-    DecryptedResults& results, ValuesSet<LearningType, LTypes...>)
+    DecryptedResults& results, helpers::ValuesSet<LearningType, LTypes...>)
 {
     ((keeloq_encdec_single<IsDecrypt, InputsMut, LTypes, AMod>(data, fix, decryptor, results)), ...);
 }
@@ -391,7 +407,7 @@ __device__ __host__ __forceinline__ void keeloq_encdec_multi(uint32_t data, uint
  */
 template<bool IsDecrypt, InputsTransform InputsMut, Modifier::Algo AMod, LearningType... LTypes>
 __device__ __host__ __forceinline__ void keeloq_encdec_multi_cond(uint32_t data, uint32_t fix, const Decryptor& decryptor,
-    const Matrix& learnings_matrix, DecryptedResults& results, ValuesSet<LearningType, LTypes...>)
+    const Matrix& learnings_matrix, DecryptedResults& results, helpers::ValuesSet<LearningType, LTypes...>)
 {
     ((learnings_matrix.template isEnabled<LTypes, AMod, true>() ? keeloq_encdec_single<IsDecrypt, InputsMut, LTypes, AMod>(data, fix, decryptor, results) : void()), ...);
 }

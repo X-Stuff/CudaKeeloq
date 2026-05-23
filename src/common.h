@@ -1,10 +1,12 @@
 #pragma once
 
+#include <array>
 #include <cassert>
 #include <cinttypes>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <utility>
 
 
 /**
@@ -167,4 +169,34 @@ constexpr inline uint64_t operator "" _u64(const char* ascii, size_t num)
     }
 
     return number;
+}
+
+
+namespace helpers
+{
+/** Compile-time set of learning types, used to expand template packs. */
+template<typename T, T... Values>
+struct ValuesSet
+{
+    static constexpr std::array<T, sizeof...(Values)> values = { Values... };
+
+    static constexpr uint8_t Size = sizeof...(Values);
+
+    constexpr auto begin() const { return values.begin(); }
+
+    constexpr auto end() const { return values.end(); }
+};
+
+template<typename T, std::size_t... I>
+using TypedValuesSetImpl = ValuesSet<T, static_cast<T>(I)...>;
+
+template<typename T, typename Seq>
+struct MakeTypedValuesSet;
+
+template<typename T, std::size_t... I>
+struct MakeTypedValuesSet<T, std::index_sequence<I...>>
+{
+    using type = TypedValuesSetImpl<T, I...>;
+};
+
 }
