@@ -28,6 +28,9 @@ struct BruteforceConfig;
  */
 struct IKeeloqKernelInputBase
 {
+    /** The only amount of allowed inputs  */
+    static constexpr uint8_t NumInputs = 3;
+
     /**
      *  Type of inputs.
      *      Multi - inputs when kernel calculates all learnings with modifications and single input transform at one call
@@ -72,9 +75,8 @@ public:
      *  Allocates GPU memory for the decryptors (num in batch), and results (ancestors do)
      *
      *  @param totalNumDecryptors       Total number of decryptors to allocate
-     *  @param numInputs                Number of inputs to calculate number of results
      */
-    virtual __host__ cudaError_t AllocateGPU(size_t totalNumDecryptors, uint8_t numInputs);
+    virtual __host__ cudaError_t AllocateGPU(size_t totalNumDecryptors);
 
     /** Frees GPU memory allocated for decryptors and results (ancestors do) */
     virtual __host__ void FreeGPU();
@@ -95,20 +97,17 @@ public:
     // Single-run set of decryptors
     __device__ __host__ __inline__ CudaArray<Decryptor>* Decryptors() { return decryptors; }
 
-    // Number of inputs in the current run
-    __device__ __host__ __inline__  uint8_t InputsCount() const { return inputsCount; }
-
     // Return bruteforce configuration for current run
     __device__ __host__ __inline__ const BruteforceConfig& GetConfig() const { return config; }
-
-    /** True if every input in the batch shares the same fixed code. */
-    __device__ __host__ __inline__ bool InputsFixMatch() const { return inputsFixMatch; }
 
     /** Copies a slice from a host-side decryptor dictionary into the device buffer. */
     __device__ __host__ void WriteDecryptors(const std::vector<Decryptor>& source, size_t from, size_t num);
 
     /** Advances the bruteforce start key by one generator step (non-dictionary modes). */
     __device__ __host__ void NextDecryptor();
+
+    /** True if every input in the batch shares the same fixed code. */
+    __host__ bool InputsFixMatch() const;
 
 public:
     static void InitInputsCache(const std::vector<EncParcel>& inputs);
@@ -121,8 +120,6 @@ protected:
     __host__ const EncParcel& GetInput(size_t index) const { return inputs[index]; }
 
 public:
-    uint8_t inputsCount = 0;
-
     // Single-run set of decryptors
     CudaArray<Decryptor>* decryptors = nullptr;
 

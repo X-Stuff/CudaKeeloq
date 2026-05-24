@@ -26,7 +26,6 @@ public:
 
     KeeloqKernelSingleLearningInput(KeeloqKernelSingleLearningInput&& other) noexcept : TKeeloqKernelInputBase<KeeloqKernelSingleLearningInput>(this)
     {
-        inputsCount = other.inputsCount;
         decryptors = other.decryptors;
         results = other.results;
         inputsTransform = other.inputsTransform;
@@ -43,7 +42,7 @@ public:
     virtual __host__ IKeeloqKernelInputBase::Type type() const final override { return IKeeloqKernelInputBase::Type::Single; }
 
     /*  Allocates GPU memory for results and call base method to allocate memory for decryptors */
-    virtual __host__ cudaError_t AllocateGPU(size_t totalNumDecryptors, uint8_t numInputs) final override;
+    virtual __host__ cudaError_t AllocateGPU(size_t totalNumDecryptors) final override;
 
     /** Release allocated GPU memory for results and decryptors */
     virtual __host__ void FreeGPU() final override;

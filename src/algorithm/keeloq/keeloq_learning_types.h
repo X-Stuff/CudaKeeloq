@@ -365,13 +365,13 @@ using ResultIndex = uint8_t;
 static constexpr const uint8_t IndicesCacheSize = LearningTypesCount * EveryModifierType::Size;
 
 /** Size of the decrypted array (reduced only to real) */
-static constexpr const uint8_t DecryptedArraySize = RegistryInfo::RealResultsNum;
+static constexpr const uint8_t DecryptedArraySize = RegistryInfo::RealResultsNum + 1;
 
 /** Value that points to the last element in the indices cache (Invalid) */
 static constexpr const ResultIndex InvalidResultIndex = RegistryInfo::RealResultsNum;
 
 /** Value if the result index that represents no match, Invalid Index points to the last (additional) element in array, however it is considered invalid */
-static constexpr ResultIndex NoMatch = 0xFF;
+static constexpr ResultIndex NoMatch = InvalidResultIndex;
 
 template<LearningType LType, Modifier::Algo AMod>
 struct IndexInResults
@@ -590,7 +590,7 @@ struct Matrix
     __host__ __device__ __inline__ constexpr explicit Matrix(uint64_t value = 0) : matrix(value)
     {
 #if !__CUDA_ARCH__
-        static_assert(DecryptedResults::NormalIndicesNum + DecryptedResults::SeededIndicesNum == DecryptedArraySize, "Normal indices cache or Seeded indices cache missing some entries");
+        static_assert(DecryptedResults::NormalIndicesNum + DecryptedResults::SeededIndicesNum + 1 == DecryptedArraySize, "Normal indices cache or Seeded indices cache missing some entries");
 
         static_assert(DecryptedResults::getIndex(LearningType::Simple, Modifier::Algo::Normal) == 0, "Invalid index for Simple/Normal");
         static_assert(DecryptedResults::getIndex(LearningType::Simple, Modifier::Algo::Inverted) == InvalidResultIndex, "Simple learning should not have valid index for Inverted decode");

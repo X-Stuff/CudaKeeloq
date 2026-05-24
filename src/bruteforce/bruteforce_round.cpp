@@ -174,7 +174,7 @@ bool BruteforceRound::generateDecryptors(uint64_t batchIdx)
 void BruteforceRound::alloc()
 {
     // ALLOCATE ON GPU
-    inputs().AllocateGPU(num_decryptors_per_batch, inputsNum);
+    inputs().AllocateGPU(num_decryptors_per_batch);
 }
 
 void BruteforceRound::free()

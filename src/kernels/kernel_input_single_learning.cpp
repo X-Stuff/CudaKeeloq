@@ -3,9 +3,9 @@
 #include "bruteforce/bruteforce_config.h"
 
 
-cudaError_t KeeloqKernelSingleLearningInput::AllocateGPU(size_t totalNumDecryptors, uint8_t numInputs)
+cudaError_t KeeloqKernelSingleLearningInput::AllocateGPU(size_t totalNumDecryptors)
 {
-    auto error = IKeeloqKernelInputBase::AllocateGPU(totalNumDecryptors, numInputs);
+    auto error = IKeeloqKernelInputBase::AllocateGPU(totalNumDecryptors);
     if (error != cudaSuccess)
     {
         return error;
@@ -14,7 +14,7 @@ cudaError_t KeeloqKernelSingleLearningInput::AllocateGPU(size_t totalNumDecrypto
     assert(results == nullptr && "Results data already allocated on GPU");
     if (results == nullptr)
     {
-        results = CudaArray<ThreadResult::Single>::allocate(totalNumDecryptors * numInputs);
+        results = CudaArray<ThreadResult::Single>::allocate(totalNumDecryptors * IKeeloqKernelInputBase::NumInputs);
     }
 
     return results != nullptr ? cudaSuccess : cudaGetLastError();

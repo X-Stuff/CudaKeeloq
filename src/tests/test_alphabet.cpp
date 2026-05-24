@@ -24,11 +24,11 @@ TEST_CASE("alphabet generator: produces expected decryptor sequence")
 
     auto testConfig = BruteforceConfig::GetAlphabet(Decryptor::Make(0, 0, true), inputsTransform, pattern, 0xFFFFFFFF);
 
-    auto inputs = tests::keeloq::genInputs(0x6161616161616161, 3, inputsTransform);
+    auto inputs = tests::keeloq::genInputs(0x6161616161616161, inputsTransform);
 
     KeeloqKernelMultiLearningInput generatorInputs;
     generatorInputs.Initialize(testConfig, inputs);
-    generatorInputs.AllocateGPU(Cuda.total(), static_cast<uint8_t>(inputs.size()));
+    generatorInputs.AllocateGPU(Cuda.total());
 
     const auto fullCyclesNum = fullTurn / Cuda.total();
 

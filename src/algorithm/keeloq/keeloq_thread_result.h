@@ -189,7 +189,28 @@ public:
     static Multi Invalid() { return Multi(); }
 
     /** True if this thread found a valid match */
-    bool hasMatch() const { return match != KeeloqLearning::NoMatch; }
+    __host__ __device__ __forceinline__ bool hasMatch() const { return match != KeeloqLearning::NoMatch; }
+
+    /** Get the matched serial number. UNSAFE! */
+    __host__ __device__ __forceinline__ uint32_t matchedSerial() const
+    {
+        assert(hasMatch() && "Can't get matched serial from a thread result without a match");
+        return decrypted.srl(match);
+    }
+
+    /** Get the matched button. UNSAFE! */
+    __host__ __device__ __forceinline__ uint16_t matchedButton() const
+    {
+        assert(hasMatch() && "Can't get matched button from a thread result without a match");
+        return decrypted.btn(match);
+    }
+
+    /** Get the matched counter. UNSAFE! */
+    __host__ __device__ __forceinline__ uint16_t matchedCounter() const
+    {
+        assert(hasMatch() && "Can't get matched counter from a thread result without a match");
+        return decrypted.cnt(match);
+    }
 };
 
 

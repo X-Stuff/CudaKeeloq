@@ -5,9 +5,9 @@
 #include "device/cuda_array.h"
 
 
-cudaError_t KeeloqKernelMultiLearningInput::AllocateGPU(size_t totalNumDecryptors, uint8_t numInputs)
+cudaError_t KeeloqKernelMultiLearningInput::AllocateGPU(size_t totalNumDecryptors)
 {
-    auto error = IKeeloqKernelInputBase::AllocateGPU(totalNumDecryptors, numInputs);
+    auto error = IKeeloqKernelInputBase::AllocateGPU(totalNumDecryptors);
     if (error != cudaSuccess)
     {
         return error;
@@ -16,7 +16,7 @@ cudaError_t KeeloqKernelMultiLearningInput::AllocateGPU(size_t totalNumDecryptor
     assert(results == nullptr && "Results data already allocated on GPU");
     if (results == nullptr)
     {
-        results = CudaArray<ThreadResult::Multi>::allocate(totalNumDecryptors * numInputs);
+        results = CudaArray<ThreadResult::Multi>::allocate(totalNumDecryptors * IKeeloqKernelInputBase::NumInputs);
     }
 
     return results != nullptr ? cudaSuccess : cudaGetLastError();
@@ -24,7 +24,6 @@ cudaError_t KeeloqKernelMultiLearningInput::AllocateGPU(size_t totalNumDecryptor
 
 void KeeloqKernelMultiLearningInput::FreeGPU()
 {
-
     IKeeloqKernelInputBase::FreeGPU();
 
     if (results != nullptr)

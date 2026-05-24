@@ -44,13 +44,11 @@ TEST_CASE("generators: pattern produces the expected first decryptor")
 {
     using namespace KeeloqLearning;
 
-    constexpr auto NumInputs = 3;
-
     const CudaConfig cudaConfig = CudaConfig::Tests();
     const uint64_t   debugKey   = "hello_world"_u64;
 
     auto inputsTransform = InputsTransform::None;
-    auto inputs = tests::keeloq::genInputs(debugKey, NumInputs, inputsTransform, LearningType::Simple);
+    auto inputs = tests::keeloq::genInputs(debugKey, inputsTransform, LearningType::Simple);
 
     BruteforceConfig config = GetSingleKeyConfig(debugKey);
     config.setLearningMatrix(KeeloqLearning::Matrix::Everything());
@@ -80,20 +78,19 @@ TEST_CASE("generators: seed produces a contiguous, monotonically increasing sequ
     using namespace KeeloqLearning;
 
     constexpr auto NumTestRounds = 8;
-    constexpr auto NumInputs     = 3;
 
     const CudaConfig cudaConfig = CudaConfig::Tests();
     const uint64_t   debugKey   = "hello_world"_u64;
 
     auto inputsTransform = InputsTransform::None;
-    const auto inputs = tests::keeloq::genInputs(debugKey, NumInputs, inputsTransform, LearningType::Secure);
+    const auto inputs = tests::keeloq::genInputs(debugKey, inputsTransform, LearningType::Secure);
 
     BruteforceConfig config = BruteforceConfig::GetSeedBruteforce(Decryptor::Make(debugKey, 0, true), inputsTransform);
     REQUIRE(config.type == BruteforceType::Seed);
 
     KeeloqKernelMultiLearningInput generatorInputs;
     generatorInputs.Initialize(config, inputs);
-    generatorInputs.AllocateGPU(cudaConfig.total(), NumInputs);
+    generatorInputs.AllocateGPU(cudaConfig.total());
 
     uint64_t gen_seed_global = 0;
     for (int round = 0; round < NumTestRounds; ++round)

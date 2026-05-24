@@ -46,7 +46,7 @@ public:
     virtual __host__ IKeeloqKernelInputBase::Type type() const final override { return IKeeloqKernelInputBase::Type::Multi; }
 
     /*  Allocates GPU memory for results and call base method to allocate memory for decryptors */
-    virtual __host__ cudaError_t AllocateGPU(size_t totalNumDecryptors, uint8_t numInputs) final override;
+    virtual __host__ cudaError_t AllocateGPU(size_t totalNumDecryptors) final override;
 
     /** Release allocated GPU memory for results and decryptors */
     virtual __host__ void FreeGPU() final override;
@@ -72,6 +72,12 @@ public:
 
     /** Active input transform for the next kernel launch. */
     __device__ __host__ __inline__ InputsTransform GetInputsTransform() const { return activeTransform; }
+
+    template<uint8_t InputIndex, uint8_t NumInputs>
+    __device__ __forceinline__ ThreadResult::Multi& Result(size_t decryptorIndex)
+    {
+        return (*results)[decryptorIndex * NumInputs + InputIndex];
+    }
 
 public:
     // Single-run results accessible from GPU

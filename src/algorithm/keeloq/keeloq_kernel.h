@@ -18,12 +18,7 @@
 
 #define NLF_LOOKUP_CONSTANT 0x3a5c742e
 
-#ifdef NO_INNER_LOOPS
-    #define KEELOQ_INNER_LOOP(ctx, index, num) uint32_t index = ctx.thread_id;
-#else
-    #define KEELOQ_INNER_LOOP(ctx, index, num) CUDA_FOR_THREAD_ID(ctx, index, num)
-#endif // !NO_INNER_LOOPS
-
+#define KEELOQ_INNER_LOOP(ctx, index, num) uint32_t index = ctx.thread_id;
 
 
 #define bit(x, n) (((x) >> (n)) & 1)
@@ -235,7 +230,7 @@ __host__ __forceinline__ KernelResult cuda_brute(BruteforceRound& round, const C
         return KernelResult::NotStarted();
     }
 
-    if (inputs.InputsCount() > 1 && !inputs.InputsFixMatch())
+    if (!inputs.InputsFixMatch())
     {
         assert(false && "Fixed parts of inputs do not match! Kernel launch skipped.");
         printf("Fixed parts of inputs do not match! CUDA launch skipped!\n");

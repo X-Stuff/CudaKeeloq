@@ -15,6 +15,7 @@
 #include "host/timer.h"
 
 #define LOG_INFO(fmt, ...) APP_LOG_INFO(verbosity, fmt, ##__VA_ARGS__)
+#define LOG_WARNING(fmt, ...) APP_LOG_WARNING(verbosity, fmt, ##__VA_ARGS__)
 #define LOG_ERROR(fmt, ...) APP_LOG_ERROR(verbosity, fmt, ##__VA_ARGS__)
 #define LOG_PROGRESS(fmt, ...) APP_LOG_PROGRESS(verbosity, fmt, ##__VA_ARGS__)
 
@@ -47,9 +48,19 @@ public:
     std::future<void> future;
 };
 
-Bruteforcer::Bruteforcer(const std::vector<EncParcel>& inputs, bool breakOnEsc, AppVerbosity verbosity) : inputs(inputs), breakOnEsc(breakOnEsc), verbosity(verbosity)
+Bruteforcer::Bruteforcer(const std::vector<EncParcel>& inInputs, bool breakOnEsc, AppVerbosity verbosity) : inputs(inInputs), breakOnEsc(breakOnEsc), verbosity(verbosity)
 {
+    assert(inputs.size() > 0);
+    if (inputs.size() < 3)
+    {
+        LOG_WARNING("Bruteforcer initialized with %zd inputs, but only 3 are supported. Duplicating first input to fill the rest.", inputs.size());
 
+        // We do not support any other amount of inputs rather than3
+        while (inputs.size() < 3)
+        {
+            inputs.push_back(inputs[0]);
+        }
+    }
 }
 
 BruteforceResult Bruteforcer::run(const BruteforceConfig& config, const CudaConfig& cuda)

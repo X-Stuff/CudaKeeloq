@@ -78,55 +78,53 @@ void runEveryLearningWithMod(const BruteforceConfig& config, bool useSingleLearn
                     continue;
                 }
 
-                for (auto numInputs = 1; numInputs <= 3; ++numInputs)
+
+                CAPTURE(std::string(KeeloqLearning::name(learningType)));
+                CAPTURE(std::string(KeeloqLearning::name(algoModifier)));
+                CAPTURE(InputTransformName(transform).value);
+
+                Encryptor encryptor(kDebugKey, kDebugSeed);
+                const auto inputs = tests::keeloq::genInputs(encryptor, transform, learningType, algoModifier);
+
+                Bruteforcer bruteforcer(inputs, false, AppVerbosity::Error);
+                auto ccopy = config;
+                ccopy.setTransforms({ transform });
+                ccopy.setLearningMatrix(reducedMatrix);
+                ccopy.useSingleLearningKernels = useSingleLearning;
+
+                bruteforcer.setOnRoundComplete([&](const BruteforceRound& round, const KernelResult& kernelResult)
                 {
-                    CAPTURE(std::string(KeeloqLearning::name(learningType)));
-                    CAPTURE(std::string(KeeloqLearning::name(algoModifier)));
-                    CAPTURE(InputTransformName(transform).value);
+                    auto& kernelInputs = round.inputs();
 
-                    CAPTURE(numInputs);
+                    auto decryptors = kernelInputs.decryptors;
+                    REQUIRE(decryptors != nullptr);
+                    auto copiedDecryptors = decryptors->read();
 
-                    Encryptor encryptor(kDebugKey, kDebugSeed);
-                    const auto inputs = tests::keeloq::genInputs(encryptor, numInputs, transform, learningType, algoModifier);
+                    REQUIRE(kernelResult.cudaError == cudaSuccess);
+                    REQUIRE(kernelResult.threadsFinished() == cudaConfig.threadsCount());
 
-                    Bruteforcer bruteforcer(inputs, false, AppVerbosity::Error);
-                    auto ccopy = config;
-                    ccopy.setTransforms({ transform });
-                    ccopy.setLearningMatrix(reducedMatrix);
-                    ccopy.useSingleLearningKernels = useSingleLearning;
+                    REQUIRE(kernelResult.hasMatch());
+                    totalMatches++;
 
-                    bruteforcer.setOnRoundComplete([&](const BruteforceRound& round, const KernelResult& kernelResult)
-                    {
-                        auto& kernelInputs = round.inputs();
+                    // First decryptor must carry the MAN key we seeded the test with
+                    CHECK(copiedDecryptors[0].man() == kDebugKey);
 
-                        auto decryptors = kernelInputs.decryptors;
-                        REQUIRE(decryptors != nullptr);
-                        auto copiedDecryptors = decryptors->read();
+                    // Last input's result index must match the learning combination
+                    // Now support only 3 inputs
+                    static constexpr size_t numInputs = 3;
+                    const auto matched_result = kernelInputs.getResult(numInputs - 1);
+                    CHECK(matched_result.isValid());
+                    CHECK(matched_result.isMatch());
 
-                        REQUIRE(kernelResult.cudaError == cudaSuccess);
-                        REQUIRE(kernelResult.threadsFinished() == cudaConfig.threadsCount());
+                    CHECK(matched_result.transform == transform);
+                    CHECK(matched_result.learningType == learningType);
+                    CHECK(matched_result.algoModifier == algoModifier);
 
-                        REQUIRE(kernelResult.hasMatch());
-                        totalMatches++;
-
-                        // First decryptor must carry the MAN key we seeded the test with
-                        CHECK(copiedDecryptors[0].man() == kDebugKey);
-
-                        // Last input's result index must match the learning combination
-                        const auto matched_result = kernelInputs.getResult(numInputs - 1);
-                        CHECK(matched_result.isValid());
-                        CHECK(matched_result.isMatch());
-
-                        CHECK(matched_result.transform == transform);
-                        CHECK(matched_result.learningType == learningType);
-                        CHECK(matched_result.algoModifier == algoModifier);
-
-                        // click() advances the counter, roll it back before comparing
-                        encryptor.setCounter(encryptor.getCounter() - 1);
-                        CHECK(matched_result.decrypted == encryptor.unencrypted());
-                    });
-                    bruteforcer.run(ccopy, cudaConfig);
-                }
+                    // click() advances the counter, roll it back before comparing
+                    encryptor.setCounter(encryptor.getCounter() - 1);
+                    CHECK(matched_result.decrypted == encryptor.unencrypted());
+                });
+                bruteforcer.run(ccopy, cudaConfig);
             }
         }
     }
