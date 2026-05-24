@@ -82,7 +82,7 @@ void runEveryLearningWithMod(const BruteforceConfig& config, bool useSingleLearn
                 {
                     CAPTURE(std::string(KeeloqLearning::name(learningType)));
                     CAPTURE(std::string(KeeloqLearning::name(algoModifier)));
-                    CAPTURE(std::string(name(transform)));
+                    CAPTURE(InputTransformName(transform).value);
 
                     CAPTURE(numInputs);
 

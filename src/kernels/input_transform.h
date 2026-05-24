@@ -1,11 +1,13 @@
 #pragma once
 
-#include <cstdint>
+#include "common.h"
+
+#include <string>
 
 #include <cuda_runtime_api.h>
 
 /**
- * Flags describing how captured OTA inputs are pre-processed before decryption.
+ * Flags describing how captured OTA inputs are pre-processed before or after decryption.
  * Each flag represents a different interpretation of how the manufacturer might
  * have encoded the key or fixed data. Used as compile-time template parameters
  * in kernel launches for zero-overhead branching.
@@ -25,20 +27,19 @@ enum class InputsTransform : uint8_t
 
     // Inputs transformation: XOR the unencrypted part of the input with the seed value (if present) before using it in encryption.
     //      NOTE: In decryption does reverse, decrypted part is XORed to restore the original unencrypted value.
-    XorDec_TODO = 1 << 3,
+    XorDec = 1 << 3,
 
     // Combination of two XOR modes
-    Xored = XorFix | XorHop,
+    Xored = XorFix | XorHop | XorDec,
 
     All = static_cast<uint8_t>(-1),
 };
 
-static constexpr uint8_t InputTransformMask = 0b111;
+static constexpr uint8_t InputTransformMask = 0b1111;
 static constexpr uint8_t InputTransformVariantsCount = InputTransformMask + 1;
 
 /** Every input transform as mask variation */
 using EveryInputTransform = helpers::MakeTypedValuesSet<InputsTransform, std::make_index_sequence<InputTransformVariantsCount>>::type;
-
 
 __host__ __device__ __forceinline__ constexpr InputsTransform operator|(InputsTransform a, InputsTransform b)
 {
@@ -65,27 +66,49 @@ __host__ __device__ __forceinline__ constexpr bool is_valid(InputsTransform valu
     return (static_cast<uint8_t>(value) & ~InputTransformMask) == 0;
 }
 
-constexpr auto name(InputsTransform transform) -> const char*
+struct InputTransformName
 {
-    switch (static_cast<uint8_t>(transform))
+    InputTransformName(InputsTransform transform)
     {
-    case static_cast<uint8_t>(InputsTransform::None):
-        return "Normal";
-    case static_cast<uint8_t>(InputsTransform::RevKey):
-        return "RevKey";
-    case static_cast<uint8_t>(InputsTransform::XorFix):
-        return "XorFix";
-    case static_cast<uint8_t>(InputsTransform::XorHop):
-        return "XorHop";
-    case static_cast<uint8_t>(InputsTransform::RevKey | InputsTransform::XorFix):
-        return "RevKey | XorFix";
-    case static_cast<uint8_t>(InputsTransform::RevKey | InputsTransform::XorHop):
-        return "RevKey | XorHop";
-    case static_cast<uint8_t>(InputsTransform::XorFix | InputsTransform::XorHop):
-        return "XorFix | XorHop";
-    case static_cast<uint8_t>(InputsTransform::RevKey | InputsTransform::XorFix | InputsTransform::XorHop):
-        return "RevKey | XorFix | XorHop";
-    default:
-        return "Unknown";
+        if (transform == InputsTransform::None)
+        {
+            value = "Normal";
+            return;
+        }
+
+        for (auto flag = 1; flag < InputTransformVariantsCount; flag = flag << 1)
+        {
+            if (has_flag(transform, static_cast<InputsTransform>(flag)))
+            {
+                if (!value.empty())
+                {
+                    value += " | ";
+                }
+
+                switch (static_cast<InputsTransform>(flag))
+                {
+                case InputsTransform::RevKey:
+                    value += "RevKey";
+                    break;
+                case InputsTransform::XorFix:
+                    value += "XorFix";
+                    break;
+                case InputsTransform::XorHop:
+                    value += "XorHop";
+                    break;
+                case InputsTransform::XorDec:
+                    value += "XorDec";
+                    break;
+                default:
+                    value += "Unknown";
+                    break;
+                }
+            }
+        }
     }
-}
+
+    // For logging and error messages
+    const char* c_str() const { return value.c_str(); }
+
+    std::string value;
+};

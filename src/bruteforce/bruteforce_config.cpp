@@ -145,7 +145,7 @@ std::string BruteforceConfig::transformsToString() const
 
     for (const auto& t : transforms)
     {
-        at += snprintf(result + at, sizeof(result) - at, "%s%s", at == 0 ? "" : ", ", name(t));
+        at += snprintf(result + at, sizeof(result) - at, "%s%s", at == 0 ? "" : ", ", InputTransformName(t).c_str());
     }
 
     return std::string(result);

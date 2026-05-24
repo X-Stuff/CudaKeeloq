@@ -223,7 +223,7 @@ void Bruteforcer::printProgress(const ProgressInfo& info)
 
         printf("[%c][%zd/%zd]  %" PRId64 "(ms)/batch, %4.1f Mk/s,  Last key:0x%" PRIX64 " (%u)  Last transform: %-30s\n",
             WAIT_CHAR(info.stepIndex), info.stepIndex, info.stepCount,
-            avgPerBatchSpeed, mResultPerSecond, bf.lastDecryptor.man(), bf.lastDecryptor.seed(), name(bf.transform));
+            avgPerBatchSpeed, mResultPerSecond, bf.lastDecryptor.man(), bf.lastDecryptor.seed(), InputTransformName(bf.transform).c_str());
     }
     else
     {

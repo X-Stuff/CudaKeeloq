@@ -236,7 +236,8 @@ struct InputTransformToKernelMode
     static constexpr KernelLearningMode value =
         (has_flag(Mask, InputsTransform::RevKey) ? KernelLearningMode::RevKey : KernelLearningMode::NoInputTransform) |
         (has_flag(Mask, InputsTransform::XorFix) ? KernelLearningMode::XorFix : KernelLearningMode::NoInputTransform) |
-        (has_flag(Mask, InputsTransform::XorHop) ? KernelLearningMode::XorHop : KernelLearningMode::NoInputTransform);
+        (has_flag(Mask, InputsTransform::XorHop) ? KernelLearningMode::XorHop : KernelLearningMode::NoInputTransform) |
+        (has_flag(Mask, InputsTransform::XorDec) ? KernelLearningMode::XorDec : KernelLearningMode::NoInputTransform);
 };
 
 /**
@@ -249,7 +250,8 @@ struct KernelModeToInputTransform
     static constexpr InputsTransform value = static_cast<InputsTransform>(
         ((static_cast<int>(Mode) & static_cast<int>(KernelLearningMode::RevKey)) ? static_cast<uint8_t>(InputsTransform::RevKey) : 0) |
         ((static_cast<int>(Mode) & static_cast<int>(KernelLearningMode::XorFix)) ? static_cast<uint8_t>(InputsTransform::XorFix) : 0) |
-        ((static_cast<int>(Mode) & static_cast<int>(KernelLearningMode::XorHop)) ? static_cast<uint8_t>(InputsTransform::XorHop) : 0));
+        ((static_cast<int>(Mode) & static_cast<int>(KernelLearningMode::XorHop)) ? static_cast<uint8_t>(InputsTransform::XorHop) : 0) |
+        ((static_cast<int>(Mode) & static_cast<int>(KernelLearningMode::XorDec)) ? static_cast<uint8_t>(InputsTransform::XorDec) : 0));
 };
 
 /**
@@ -271,11 +273,11 @@ __device__ __host__ __forceinline__ uint32_t keeloq_encdec_single(uint32_t hop, 
 
     // In decrypt mode with XorHop transform - input is hop, and has to be xored
     // In encrypt mode with XorDec transform - `hop` is actual unencrypted value, and has to be xored before encryption
-    static constexpr bool NeedPreXor = (IsDecrypt && !!(InputsMut & InputsTransform::XorHop)) || (IsEncrypt && !!(InputsMut & InputsTransform::XorDec_TODO));
+    static constexpr bool NeedPreXor = (IsDecrypt && !!(InputsMut & InputsTransform::XorHop)) || (IsEncrypt && !!(InputsMut & InputsTransform::XorDec));
 
     // In encrypt mode with XorHop transform - result is hop, and has to be xored
     // In decrypt mode with XorDec transform - we need to XOR decrypted resul
-    static constexpr bool NeedPostXor = (IsEncrypt && !!(InputsMut & InputsTransform::XorHop)) || (IsDecrypt && !!(InputsMut & InputsTransform::XorDec_TODO));
+    static constexpr bool NeedPostXor = (IsEncrypt && !!(InputsMut & InputsTransform::XorHop)) || (IsDecrypt && !!(InputsMut & InputsTransform::XorDec));
 
     const uint64_t key = decryptor.template getKey<!!(InputsMut & InputsTransform::RevKey)>();
     const uint32_t fix = decryptor.template getXored<!!(InputsMut & InputsTransform::XorFix)>(fixed);
@@ -596,10 +598,6 @@ template<uint8_t InputIndex, InputsTransform InputMut, LearningType LType, Modif
 __device__ __forceinline__ bool keeloq_decrypt_single_learning(const CudaContext& ctx, const Decryptor& decryptor, ThreadResult::Single& result)
 {
     const EncParcel& enc = InputsCache[InputIndex];
-
-    result.decryptor = decryptor;
-    result.setInputIndex(InputIndex);
-    result.setInputTransform(InputMut);
 
     result.decryptor = decryptor;
     result.setInputIndex(InputIndex);

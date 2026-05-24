@@ -78,7 +78,7 @@ uint64_t Encryptor::man(InputsTransform inTransform, KeeloqLearning::LearningTyp
 uint32_t Encryptor::cpuEncrypt(InputsTransform inTransform, KeeloqLearning::LearningType ltype, KeeloqLearning::Modifier::Algo amod) const
 {
     // Pre-Xor unencrypted
-    const auto use_unecrypted = has_flag(inTransform, InputsTransform::XorDec_TODO) ? (unencrypted() ^ seed) : unencrypted();
+    const auto use_unecrypted = has_flag(inTransform, InputsTransform::XorDec) ? (unencrypted() ^ seed) : unencrypted();
 
     const auto hop = keeloq::common::encrypt(use_unecrypted, man(inTransform, ltype, amod));
 
@@ -100,7 +100,7 @@ uint32_t Encryptor::cpuDecrypt(uint64_t enc, InputsTransform inTransform, Keeloq
     const auto cpu_decrypted = keeloq::common::decrypt(use_hop, man(inTransform, ltype, amod));
 
     // Post-Xor unencrypted
-    const auto use_decrypted = has_flag(inTransform, InputsTransform::XorDec_TODO) ? (cpu_decrypted ^ seed) : cpu_decrypted;
+    const auto use_decrypted = has_flag(inTransform, InputsTransform::XorDec) ? (cpu_decrypted ^ seed) : cpu_decrypted;
 
     return use_decrypted;
 }

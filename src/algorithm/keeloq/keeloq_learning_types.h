@@ -58,6 +58,9 @@ enum class KernelLearningMode
     // Inputs Modifier: Mirrors InputMutations enum
     XorHop = 1 << 18,
 
+    // Inputs Modifier: Mirrors InputMutations enum
+    XorDec = 1 << 19,
+
     /************************************************************************/
 
     // Run only learning types without seed

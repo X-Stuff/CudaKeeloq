@@ -422,10 +422,13 @@ namespace
                 "You need this setting set to false only if you are doing, full 2^64 bruteforce.\n",
                 cxxopts::value<bool>()->default_value("true"), "true|false")
             (ARG_CHECK_XORFIX,
-                "!MASK! Make additional checks with XORed fixed part of encrypted parcels. Xor value set with --" ARG_SEED " argument or automatically generate in Seed attack type.\n",
+                "!MASK! Make additional checks with XORed fixed part of encrypted parcels. Xor value set with --" ARG_SEED " argument or automatically generate in Seed/Xor attack type.\n",
                 cxxopts::value<bool>()->default_value("false"), "true|false")
             (ARG_CHECK_XORHOP,
-                "!MASK! Make additional checks with XORed hop part of encrypted parcels. Xor value set with --" ARG_SEED " argument or automatically generate in Seed attack type.\n",
+                "!MASK! Make additional checks with XORed hop part of encrypted parcels. Xor value set with --" ARG_SEED " argument or automatically generate in Seed/Xor attack type.\n",
+                cxxopts::value<bool>()->default_value("false"), "true|false")
+            (ARG_CHECK_XORDEC,
+                "!MASK! Make additional checks with XORed decrypted hop part. Xor value set with --" ARG_SEED " argument or automatically generate in Seed/Xor attack type.\n",
                 cxxopts::value<bool>()->default_value("false"), "true|false")
 
             (ARG_CHECK_INV_ALGS,
@@ -533,8 +536,8 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv, AppVerbosity
         args.initInputs(result[ARG_INPUTS].as<std::vector<uint64_t>>());
         if (args.inputs.size() < 3)
         {
-            LOG_WARNING("It's recommended to have at least 3 inputs for better results! You have only %zd! Consider adding more if you have them. Check your --%s argument!",
-                args.inputs.size(), ARG_INPUTS);
+            LOG_WARNING("Your inputs num is too small (%zd), It's almost useless to have less than 3 inputs, you will get to much phantom matches with that!",
+                args.inputs.size());
         }
 
         if (args.inputs.size() > 0)
@@ -579,6 +582,11 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv, AppVerbosity
         if (result[ARG_CHECK_XORHOP].as<bool>())
         {
             args.inputsTransform = args.inputsTransform | InputsTransform::XorHop;
+        }
+
+        if (result[ARG_CHECK_XORDEC].as<bool>())
+        {
+            args.inputsTransform = args.inputsTransform | InputsTransform::XorDec;
         }
 
         // By default we use normal algos

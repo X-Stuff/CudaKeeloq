@@ -101,14 +101,14 @@ void KeeloqKernelSingleLearningInput::prepareBatch(const KeeloqLearning::Matrix&
     if (GetConfig().type == BruteforceType::Xor && !(inTransform & InputsTransform::Xored))
     {
         assert(false && "In Xor bruteforce you should have at least one Xor transform enabled");
-        APP_LOG_ERROR(verbosity, "In Xor bruteforce a xor flag for input transform is mandatory, but got %s", name(inTransform));
+        APP_LOG_ERROR(verbosity, "In Xor bruteforce a xor flag for input transform is mandatory, but got %s", InputTransformName(inTransform).c_str());
         return;
     }
 
     if (!GetConfig().hasSeed() && !!(inTransform & InputsTransform::Xored))
     {
         assert(false && "Xored inputs transform requires a xor value in decryptor (set as seed)");
-        APP_LOG_ERROR(verbosity, "%s transform requires a xor value in decryptor (set as seed)", name(inTransform));
+        APP_LOG_ERROR(verbosity, "%s transform requires a xor value in decryptor (set as seed)", InputTransformName(inTransform).c_str());
         return;
     }
 
