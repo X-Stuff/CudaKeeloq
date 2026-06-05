@@ -94,6 +94,8 @@ Use this only on systems and captures you are allowed to analyze.
 Open `CudaKeeloq.vcxproj` in Visual Studio and build the desired configuration.
 `CudaKeeloqTests.vcxproj` builds the test runner.
 
+> NOTE: Release build takes significant amount of time, around 5 minutes, due to enormous amount of kernels permutations and device link time optimizations.
+
 ### Linux build
 
 Requirements:
