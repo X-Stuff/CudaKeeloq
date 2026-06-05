@@ -27,11 +27,13 @@ Use this only on systems and captures you are allowed to analyze.
 * Added named CLI values for bruteforce modes and learning types. Numeric values
   still work.
 * Added input transforms for reversed manufacturer keys (`--check-rev`, enabled
-  by default) and fixed-code XOR (`--check-xorfix`).
+  by default) and XOR variants over the fixed part, hopping part, and decrypted
+  hopping part (`--check-xorfix`, `--check-xorhop`, `--check-xordec`).
 * Added inverted algorithm checks for Normal, Secure, and FAAC learning types
   (`--check-inv-algs`, enabled by default).
 * Added Serial1, Serial2, and Serial3 learning calculations.
-* Added XorFix bruteforce mode.
+* Added Xor bruteforce mode for fixed manufacturer keys and unknown XOR values.
+* Simplified the matching path around the normal three-capture workflow.
 * Improved Docker support. The image now builds the app and test runner, ships a
   runnable entrypoint, and defaults to `--help`.
 
@@ -61,14 +63,17 @@ Use this only on systems and captures you are allowed to analyze.
 * **Pattern** - generates keys from per-byte constants, ranges, alternatives,
   wildcards, or alphabets.
 * **Seed** - bruteforces a 32-bit seed for a known manufacturer key.
-* **XorFix** - bruteforces fixed-code XOR values for a known manufacturer key.
+* **Xor** - bruteforces 32-bit XOR values for a known manufacturer key.
 
 ## Limitations
 
 * Full 64-bit manufacturer-key bruteforce is usually not practical.
-* The app does not brute a 64-bit manufacturer key and a 32-bit seed as one
-  combined search space. Use a fixed seed while bruteforcing keys, or use a
-  fixed manufacturer key while bruteforcing seeds.
+* The normal workflow expects three captures from the same transmitter button.
+  Fewer captures are likely to produce too many phantom matches.
+* The app does not brute a 64-bit manufacturer key and a 32-bit seed or XOR
+  value as one combined search space. Use a fixed seed/XOR value while
+  bruteforcing keys, or use a fixed manufacturer key while bruteforcing seeds
+  or XOR values.
 * Binary dictionary window attacks are not implemented. If you need shifted
   dictionary windows, prepare shifted dictionary files yourself.
 
@@ -225,19 +230,19 @@ Shared configuration:
 | `Normal` |  |  |  |
 | `Secure` |  |  |  |
 | `FAAC` |  |  |  |
+| `Xor` |  |  |  |
 
 ## Captures and inputs
 
-`--inputs` expects one or more captured KeeLoq OTA packets as 64-bit hex values:
+`--inputs` expects three captured KeeLoq OTA packets as 64-bit hex values:
 
 ```text
 0x<HOPPING_32><FIXED_32>
 ```
 
-For reliable results, capture the same transmitter button at least three times.
-The fixed part should match, and the decoded counters should increase. One or
-two inputs can run faster, but they are much more likely to produce false
-matches.
+Capture the same transmitter button three times. The fixed part should match,
+and the decoded counters should increase. Fewer captures are not useful for
+normal operation because they are much more likely to produce false matches.
 
 ## Examples
 
@@ -308,17 +313,18 @@ dictionary, use `key:seed`, for example:
 This keeps the manufacturer key fixed and checks the seed space for seeded
 learning types such as Secure and FAAC.
 
-### XorFix bruteforce
+### Xor bruteforce
 
 ```sh
 ./CudaKeeloq \
   --inputs=0xC65D52A0A81FD504,0xCCA9B335A81FD504,0xE0DA7372A81FD504 \
-  --mode=xorfix \
+  --mode=xor \
   --start=0xAABBCCDDEEFF0011 \
   --seed=0
 ```
 
-This keeps the manufacturer key fixed and searches fixed-code XOR values.
+This keeps the manufacturer key fixed and searches XOR values for supported
+input transform locations.
 
 ## Command line reference
 
@@ -327,7 +333,7 @@ This keeps the manufacturer key fixed and searches fixed-code XOR values.
 * `--help`, `-h` - print help.
 * `--version`, `-v` - print the version.
 * `--benchmark=true` - run the benchmark suite instead of a bruteforce run.
-* `--inputs=<i1,i2,i3>` - captured OTA packets. Three inputs are recommended.
+* `--inputs=<i1,i2,i3>` - three captured OTA packets.
 * `--first-match=true|false` - stop when the first match is found. Default:
   `true`.
 
@@ -349,7 +355,7 @@ Higher values can improve throughput, but they also use more GPU memory. Use
 * `3`, `alphabet` - generate keys from one or more alphabets.
 * `4`, `pattern` - generate keys from one or more byte patterns.
 * `5`, `seed` - brute seeds for a fixed manufacturer key.
-* `6`, `xorfix` - brute fixed-code XOR values for a fixed manufacturer key.
+* `6`, `xor` - brute XOR values for a fixed manufacturer key.
 
 Several modes can be selected at once, for example:
 
@@ -362,11 +368,13 @@ Provide all arguments required by every selected mode.
 ### Key range
 
 * `--start=<value>` - first manufacturer key, or the fixed manufacturer key for
-  `seed` and `xorfix` modes. Default: `0`.
+  `seed` and `xor` modes. Default: `0`.
 * `--count=<value>` - number of generated values to check. Default:
   `0xFFFFFFFFFFFFFFFF`.
-* `--seed=<value>` - fixed seed for learning types that need one. For text
-  dictionaries, a per-entry seed can also be written as `key:seed`.
+* `--seed=<value>` - fixed seed for learning types that need one. For XOR
+  transforms it is also used as the XOR value; in `xor` mode it is the first XOR
+  value to test. For text dictionaries, a per-entry seed can also be written as
+  `key:seed`.
 
 ### Dictionaries
 
@@ -417,12 +425,22 @@ Related options:
 
 * `--check-rev=true|false` - also check byte-reversed manufacturer keys.
   Default: `true`.
-* `--check-xorfix=true|false` - also check the fixed-code XOR input transform.
+* `--check-xorfix=true|false` - also check XOR applied to the fixed part of the
+  captured packet.
+  Default: `false`.
+* `--check-xorhop=true|false` - also check XOR applied to the hopping part of
+  the captured packet.
+  Default: `false`.
+* `--check-xordec=true|false` - also check XOR applied after decrypting the
+  hopping part.
   Default: `false`.
 * `--check-inv-algs=true|false` - also check inverted algorithm variants where
   they exist. Default: `true`.
 * `--no-reg-algs=true|false` - disable regular algorithm variants. This is only
   useful when intentionally checking only alternate variants. Default: `false`.
+
+XOR transforms expand the number of input-transform variants the kernels must
+check. Enable only the specific XOR locations you need when performance matters.
 
 Selecting a specific learning type usually reduces work, but on some GPUs the
 `ALL` path may still be competitive because it avoids some branching patterns.

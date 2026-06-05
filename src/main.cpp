@@ -100,7 +100,7 @@ void bruteforce(const CommandLineArgs& args)
         printf("\n*********************************************[CONFIG %02zd/%02zd]********************************************\n", configIndex + 1, numConfigs);
 
         const auto& config = args.brute_configs[configIndex];
-        const auto cudaConfig = config.cudaConfig(args.cudaBlocks(), args.cudaThreads());
+        const auto cudaConfig = config.cudaConfig(args.cudaThreads(), args.cudaBlocks());
 
         auto match = bruteforcer.run(config, cudaConfig);
         if (match.isValid())
@@ -149,9 +149,8 @@ int main(int argc, const char** argv)
         return 1;
     }
 
-    // Be default if no arguments specified - launch demo mode
-    bool demo_mode = argc <= 1;
-    auto args = demo_mode ? demoTestCommandlineArgs() : CommandLineArgs::parse(argc, argv);
+    auto args = CommandLineArgs::parse(argc, argv);
+    const bool demo_mode = args.run_demo;
 
     if (args.print_help)
     {
@@ -163,6 +162,11 @@ int main(int argc, const char** argv)
     {
         printf("Version: " APP_VERSION_STRING "\n");
         return 0;
+    }
+
+    if (demo_mode)
+    {
+        args = demoTestCommandlineArgs();
     }
 
     if (args.run_bench)

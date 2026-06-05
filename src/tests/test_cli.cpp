@@ -31,6 +31,28 @@ TEST_CASE("cli: --help flags help but parses silently")
     CHECK_FALSE(args.run_bench);
 }
 
+TEST_CASE("cli: no arguments requests help without demo mode")
+{
+    const char* argv[] = { APP_NAME };
+    auto args = parseArgs(argv);
+
+    CHECK(args.print_help);
+    CHECK(args.has_errors);
+    CHECK_FALSE(args.run_demo);
+    CHECK(args.brute_configs.empty());
+}
+
+TEST_CASE("cli: --demo explicitly requests demo mode")
+{
+    const char* argv[] = { APP_NAME, "--" ARG_DEMO };
+    auto args = parseArgs(argv);
+
+    CHECK(args.run_demo);
+    CHECK_FALSE(args.print_help);
+    CHECK_FALSE(args.has_errors);
+    CHECK(args.brute_configs.empty());
+}
+
 TEST_CASE("cli: seed mode without a start key is a hard error")
 {
     const char* argv[] = {

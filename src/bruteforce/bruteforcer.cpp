@@ -232,9 +232,11 @@ void Bruteforcer::printProgress(const ProgressInfo& info)
         const auto avgPerBatchSpeed = (bf.batchElapsedMs / static_cast<int64_t>(bf.subIndex + 1)) * static_cast<int64_t>(bf.subCount);
         const double mResultPerSecond = bf.batchElapsedMs == 0 ? 0.0 : calculatedNum / (bf.batchElapsedMs * 1000.0);
 
-        printf("[%c][%zd/%zd]  %" PRId64 "(ms)/batch, %4.1f Mk/s,  Last key:0x%" PRIX64 " (%u)  Last transform: %-30s\n",
+        disable_word_wrap();
+        printf("[%c][%zd/%zd]  %" PRId64 "(ms)/batch, %4.1f Mk/s, Last key:0x%" PRIX64 " (%u), TRS: %-33s\n",
             WAIT_CHAR(info.stepIndex), info.stepIndex, info.stepCount,
             avgPerBatchSpeed, mResultPerSecond, bf.lastDecryptor.man(), bf.lastDecryptor.seed(), InputTransformName(bf.transform).c_str());
+        enable_word_wrap();
     }
     else
     {

@@ -74,7 +74,7 @@ public:
     static BruteforceConfig GetSeedBruteforce(Decryptor first, InputsTransform inTransform, uint32_t size = static_cast<uint32_t>(-1));
 
     /** +1 bruteforce over the 32-bit space for a xor key for fixed part in ota. InputTransform will be forced set to XorFix | XorHop | XorDec */
-    static BruteforceConfig GetXorFixBruteforce(Decryptor first, InputsTransform inTransform, uint32_t size = static_cast<uint32_t>(-1));
+    static BruteforceConfig GetXorBruteforce(Decryptor first, InputsTransform inTransform, uint32_t size = static_cast<uint32_t>(-1));
 
     /** Alphabet (same byte set on every position) bruteforce. */
     static BruteforceConfig GetAlphabet(Decryptor first, InputsTransform inTransform, const MultibaseDigit& alphabet, size_t num = MaxDecryptorsNum, const std::string& name = "");

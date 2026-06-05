@@ -31,7 +31,7 @@ struct BruteforceType
         // Simple +1 seed bruteforce. Since seed is 32bit value, seed bruteforce may be done in a acceptable amount of time
         Seed,
 
-        // Simple +1 bruteforce for XOR value fix and hop parts. Used for every learning types, Seed types uses the same value
+        // Simple +1 bruteforce for XOR value of fix, hop and dec parts. Used for every learning types, Seed types uses the same value
         Xor,
 
         // Not for usage

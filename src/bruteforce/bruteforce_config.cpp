@@ -33,7 +33,7 @@ BruteforceConfig BruteforceConfig::GetSeedBruteforce(Decryptor first, InputsTran
     return BruteforceConfig(first, BruteforceType::Seed, inTransform, size);
 }
 
-BruteforceConfig BruteforceConfig::GetXorFixBruteforce(Decryptor first, InputsTransform inTransform, uint32_t size /*= static_cast<uint32_t>(-1)*/)
+BruteforceConfig BruteforceConfig::GetXorBruteforce(Decryptor first, InputsTransform inTransform, uint32_t size /*= static_cast<uint32_t>(-1)*/)
 {
     return BruteforceConfig(first, BruteforceType::Xor, inTransform | InputsTransform::Xored, size);
 }

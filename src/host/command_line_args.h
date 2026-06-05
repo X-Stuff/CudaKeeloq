@@ -20,6 +20,7 @@
 #define ARG_HELP "help"
 #define ARG_VERSION "version"
 #define ARG_BENCHMARK "benchmark"
+#define ARG_DEMO "demo"
 #define ARG_INPUTS "inputs"
 #define ARG_BLOCKS "cuda-blocks"
 #define ARG_THREADS "cuda-threads"
@@ -69,7 +70,10 @@ struct CommandLineArgs
     // Run only benchmarks (with selected values)
     bool run_bench = false;
 
-    // Run only benchmarks (with selected values)
+    // Run the built-in demo scenario.
+    bool run_demo = false;
+
+    // Print version information.
     bool print_version = false;
 
     // Set when the user requested help (-h, --help) or the invocation was

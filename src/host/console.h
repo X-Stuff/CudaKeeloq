@@ -24,6 +24,9 @@ constexpr char WAIT_SPIN[] = "|/-\\";
 #define save_cursor_pos() printf("\033[s")
 #define load_cursor_pos() printf("\033[u")
 
+#define disable_word_wrap() printf("\033[?7l")
+#define enable_word_wrap() printf("\033[?7h")
+
 /**
  * Thin terminal helpers used by the interactive progress UI.
  * Backed by cpp-terminal; printf-based escape sequences are exposed as macros above.

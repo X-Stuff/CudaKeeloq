@@ -196,7 +196,7 @@ namespace
 
         Decryptor first_decryptor = Decryptor::Make(start_key, start_xor, seed_valid);
 
-        args.brute_configs.push_back(BruteforceConfig::GetXorFixBruteforce(first_decryptor, args.inputsTransform));
+        args.brute_configs.push_back(BruteforceConfig::GetXorBruteforce(first_decryptor, args.inputsTransform));
     }
 
     inline void parse_bruteforce_filtered_mode(CommandLineArgs& args, cxxopts::ParseResult& result, AppVerbosity verbosity)
@@ -383,6 +383,8 @@ namespace
             .add_options()
             ("h," ARG_HELP, "Prints this help")
             ("v," ARG_VERSION, "Prints version information")
+            (ARG_DEMO, "Run built-in demo bruteforce scenario",
+                cxxopts::value<bool>()->default_value("false")->implicit_value("true"))
 
             // What to bruteforce
             (ARG_INPUTS, "Comma separated uint64 values (it's better to have 3), hopping first: 0x<HOPPING_32><FIXED_32>",
@@ -516,6 +518,12 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv, AppVerbosity
         args.has_errors = result.arguments().size() == 0;
         args.print_help = true;
 
+        return args;
+    }
+
+    args.run_demo = result[ARG_DEMO].as<bool>();
+    if (args.run_demo)
+    {
         return args;
     }
 

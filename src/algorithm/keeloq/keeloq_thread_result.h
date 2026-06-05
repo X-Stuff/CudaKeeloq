@@ -222,7 +222,7 @@ public:
 struct Single
 {
     // Maximum number of enabled learnings that outperforms Multi mode.
-    static constexpr uint8_t MaxLearningsNumInConfig = 4;
+    static constexpr uint8_t MaxLearningsNumInConfig = 3;
 
     /** Packed metadata: [7:4] transform, [3:1] input index, [0] match flag */
     uint8_t results = 0;

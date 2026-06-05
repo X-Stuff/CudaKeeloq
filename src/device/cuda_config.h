@@ -85,7 +85,7 @@ public:
         threadsPerBlock = threadsPerBlock > 0 ? threadsPerBlock : prop.maxThreadsPerBlock;
         sizeofResult = sizeofResult > 0 ? sizeofResult : sizeof(ThreadResult::Multi);
 
-        // Usually each thread has 1 decryptor and 3 results (usually need 3 inputs)
+        // Usually each thread has 1 decryptor and 3 results (need 3 inputs)
         const auto thread_memory = threadsPerBlock * (sizeof(Decryptor) + sizeofResult * 3);
     #if _DEBUG
         // Limit to 5GB in debug

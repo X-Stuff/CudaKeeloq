@@ -271,7 +271,7 @@ void benchmark::benchmarkXoredAttack(uint32_t TargetCalculationsNumber)
     auto inputs = makeBenchmarkInputs(0xFF123FF3434FFFFF, NumInputs, LearningType::Serial3);
 
     // XORed only
-    auto configXorFixed = BruteforceConfig::GetXorFixBruteforce(Decryptor::Make(0xAABBCCDDEEFFFFFF, 0, true), InputsTransform::RevKey, TargetCalculationsNumber);
+    auto configXorFixed = BruteforceConfig::GetXorBruteforce(Decryptor::Make(0xAABBCCDDEEFFFFFF, 0, true), InputsTransform::RevKey, TargetCalculationsNumber);
     run(inputs, KeeloqLearning::Matrix::Everything(), configXorFixed);
 }
 
@@ -281,7 +281,6 @@ void benchmark::benchmarkEveryLearningAlone(uint32_t TargetCalculationsNumber)
 
     constexpr auto NumInputs = 3;
     auto inputs = makeBenchmarkInputs(0xFF123FF3434FFFFF, NumInputs, LearningType::Serial3);
-
 
     // Alphabet brute benchmarks
     auto alphabetSeeded = BruteforceConfig::GetAlphabet(Decryptor::Make(0, 1234567, true), InputsTransform::None, "0123456789abcdefgh"_b, TargetCalculationsNumber);
@@ -306,7 +305,7 @@ void benchmark::benchmarkEveryLearningAtOnce(uint32_t TargetCalculationsNumber)
     // Simple+1 brute benchmarks
     auto benchConfigSimpleBrute = BruteforceConfig::GetBruteforce(Decryptor::Make(0, 1234567, true), InputsTransform::None, TargetCalculationsNumber);
     benchConfigSimpleBrute.setTransforms({ EveryInputTransform::values.begin(), EveryInputTransform::values.end() });
-    benchConfigSimpleBrute.size = TargetCalculationsNumber;
+    benchConfigSimpleBrute.size = TargetCalculationsNumber / EveryInputTransform::values.size();
 
     // HARDEST: Full brute 11 x 4 permutations
     run(inputs, KeeloqLearning::Matrix::Everything(), benchConfigSimpleBrute);

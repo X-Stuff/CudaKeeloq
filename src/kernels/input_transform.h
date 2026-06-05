@@ -82,7 +82,7 @@ struct InputTransformName
             {
                 if (!value.empty())
                 {
-                    value += " | ";
+                    value += "|";
                 }
 
                 switch (static_cast<InputsTransform>(flag))
