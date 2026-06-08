@@ -55,9 +55,30 @@ BruteforceResult KeeloqKernelSingleLearningInput::getMatch(GetMatchProgressCallb
         // Read decryptors in batches, just to save RAM on host, using static method since we already copied object to host
         auto copied_results = CudaArray<ThreadResult::Single>::read(resultsRam, index, MaxElements);
 
+        // Results are laid out as NumInputs consecutive entries per decryptor, all
+        // sharing the same manufacturer key. A decryptor is a full match when those
+        // NumInputs entries all matched, so scan for a run of consecutive matching
+        // entries that agree on man().
+        uint64_t expectedMan = 0;
+        int numMatches = 0;
+
         for (const auto& result : copied_results)
         {
-            if (result.hasMatch())
+            // A run breaks on a non-matching entry or a change of manufacturer key.
+            const bool breaksRun = !result.hasMatch()
+                || (expectedMan != 0 && result.decryptor.man() != expectedMan);
+
+            if (breaksRun)
+            {
+                numMatches = 0;
+                expectedMan = 0;
+                continue;
+            }
+
+            expectedMan = result.decryptor.man();
+            ++numMatches;
+
+            if (numMatches == NumInputs)
             {
                 return BruteforceResult(
                     true,

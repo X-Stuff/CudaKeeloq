@@ -56,9 +56,15 @@ CC_FLAGS  := -std=c++17 -Wall
 CC_INC    := -I./src/ -I./ThirdParty/ -I./ThirdParty/cpp-terminal
 
 NVCC       := nvcc
-# Default target arch: sm_86. Release/Profile override this with an LTO arch so
-# the -dlto link step has something to work with (CUDA 13.2 requires
-# `code=lto_<arch>` as a first-class code kind, not the old `-dlto` compile flag).
+# RDC stays ON: the __constant__ caches (IndicesCache, InputsCache) are written
+# host-side via cudaMemcpyToSymbol in one TU and read by device code in another,
+# which only resolves through the device linker (-rdc=true). Without it the
+# symbols get TU-local linkage and the host writes hit a different copy than the
+# kernel reads.
+#   What we DO drop is device LTO (code=lto_86 + nvlink -dlto): that re-runs whole
+# -program codegen over every function at link time and dominated build time.
+# With code=sm_86 each .cu emits final SASS during its own (parallel) compile and
+# the device-link is just a cheap symbol-resolution -dlink pass.
 NVCC_ARCH  := -arch=sm_86
 NVCC_FLAGS := $(NVCC_ARCH) --std=c++17 -rdc=true
 NVCC_INC   := -I./src/ -I./ThirdParty/
@@ -68,18 +74,17 @@ CUDA_INC_DIR := -I$(CUDA_ROOT_DIR)/include
 CUDA_LINK    := -lcudart -lcudadevrt
 
 ifeq ($(CONFIG),release)
-  # Replace plain sm_86 with LTO code kind; nvlink's -dlto will produce real SASS.
-  # Device-link still needs a physical target (-arch=sm_86) to emit runnable code.
+  # code=sm_86 (not lto_86): emit real SASS per-TU; device-link is plain -dlink.
   NVCC_FLAGS := $(filter-out -arch=sm_86,$(NVCC_FLAGS)) \
-                -gencode=arch=compute_86,code=lto_86 \
+                -gencode=arch=compute_86,code=sm_86 \
                 -use_fast_math -O3 -Xptxas -O3 --m64
-  NVLINK_FLAGS := -dlto -arch=sm_86
+  NVLINK_FLAGS := -arch=sm_86
   CC_FLAGS     += -O3 -DNDEBUG
 else ifeq ($(CONFIG),profile)
   NVCC_FLAGS := $(filter-out -arch=sm_86,$(NVCC_FLAGS)) \
-                -gencode=arch=compute_86,code=lto_86 \
+                -gencode=arch=compute_86,code=sm_86 \
                 -lineinfo -use_fast_math
-  NVLINK_FLAGS := -dlto -arch=sm_86
+  NVLINK_FLAGS := -arch=sm_86
   CC_FLAGS     += -DNDEBUG
 else ifeq ($(CONFIG),debug)
   NVCC_FLAGS += -G
@@ -133,7 +138,8 @@ app:   $(EXE_DIR)/$(TARGET_APP)
 tests: $(EXE_DIR)/$(TARGET_TESTS)
 
 # Device-link is per-binary because it must see every .cu object that will be
-# linked into the final executable (-rdc=true).
+# linked into the final executable (-rdc=true). It is a plain -dlink (no -dlto),
+# so it only resolves cross-TU device symbols — no whole-program recodegen.
 
 $(EXE_DIR)/$(TARGET_APP): $(SHARED_CPP_OBJS) $(SHARED_CU_OBJS) $(APP_CPP_OBJS)
 	@mkdir -p $(EXE_DIR)

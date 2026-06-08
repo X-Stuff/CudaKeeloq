@@ -498,13 +498,15 @@ __device__ __forceinline__ bool keeloq_decryption_run(const CudaContext& ctx, Ke
             {
                 // at this moment all 3 inputs have the same serial and button
                 // now we check the counter deviation
-
-                return is_cnt_match<NumInputs>(results);
+                if (is_cnt_match<NumInputs>(results))
+                {
+                    return true;
+                }
             }
         }
     }
 
-    // Always 3 inputs
+    // Always 3 inputs, almost always has to be reset, so better do it without if branch
     results[First].match = KeeloqLearning::NoMatch;
     results[Second].match = KeeloqLearning::NoMatch;
     results[Third].match = KeeloqLearning::NoMatch;

@@ -56,20 +56,22 @@ BruteforceResult KeeloqKernelMultiLearningInput::getMatch(GetMatchProgressCallba
         // Read decryptors in batches, just to save RAM on host, using static method since we already copied object to host
         auto copied_results = CudaArray<ThreadResult::Multi>::read(resultsRam, index, MaxElements);
 
+        // The kernel clears all per-input matches unless the decryptor is a genuine
+        // full match, so any entry with hasMatch() is a real result.
         for (const auto& result : copied_results)
         {
             if (result.hasMatch())
             {
-                auto [Learning, Mod] = KeeloqLearning::DecryptedResults::getByIndex(result.match);
+                auto [learning, mod] = KeeloqLearning::DecryptedResults::getByIndex(result.match);
 
                 return BruteforceResult(
-                    result.hasMatch(),
+                    true,
                     result.decryptor,
                     result.decrypted.data[result.match],
                     GetInput(result.inputIndex()),
                     result.inputTransform(),
-                    Learning,
-                    Mod
+                    learning,
+                    mod
                 );
             }
         }

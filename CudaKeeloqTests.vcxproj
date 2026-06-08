@@ -97,7 +97,7 @@
       <CompileOut>$(IntDir)$(TargetName)\%(Filename)%(Extension).obj</CompileOut>
     </CudaCompile>
     <CudaLink>
-      <PerformDeviceLinkTimeOptimization>true</PerformDeviceLinkTimeOptimization>
+      <PerformDeviceLinkTimeOptimization>false</PerformDeviceLinkTimeOptimization>
     </CudaLink>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -122,7 +122,7 @@
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>
       <FastMath>true</FastMath>
-      <CodeGeneration>compute_86,lto_86</CodeGeneration>
+      <CodeGeneration>compute_86,sm_86</CodeGeneration>
       <GenerateLineInfo>false</GenerateLineInfo>
       <GPUDebugInfo>false</GPUDebugInfo>
       <AdditionalOptions>--std=c++17 %(AdditionalOptions)</AdditionalOptions>
@@ -130,7 +130,7 @@
       <CompileOut>$(IntDir)$(TargetName)\%(Filename)%(Extension).obj</CompileOut>
     </CudaCompile>
     <CudaLink>
-      <PerformDeviceLinkTimeOptimization>true</PerformDeviceLinkTimeOptimization>
+      <PerformDeviceLinkTimeOptimization>false</PerformDeviceLinkTimeOptimization>
     </CudaLink>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">
@@ -155,7 +155,7 @@
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>
       <FastMath>true</FastMath>
-      <CodeGeneration>compute_86,lto_86</CodeGeneration>
+      <CodeGeneration>compute_86,sm_86</CodeGeneration>
       <GenerateLineInfo>true</GenerateLineInfo>
       <GPUDebugInfo>false</GPUDebugInfo>
       <AdditionalOptions>--std=c++17 %(AdditionalOptions)</AdditionalOptions>
@@ -163,7 +163,7 @@
       <CompileOut>$(IntDir)$(TargetName)\%(Filename)%(Extension).obj</CompileOut>
     </CudaCompile>
     <CudaLink>
-      <PerformDeviceLinkTimeOptimization>true</PerformDeviceLinkTimeOptimization>
+      <PerformDeviceLinkTimeOptimization>false</PerformDeviceLinkTimeOptimization>
     </CudaLink>
   </ItemDefinitionGroup>
   <ItemGroup>

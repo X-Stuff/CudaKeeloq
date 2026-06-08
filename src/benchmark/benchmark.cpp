@@ -175,6 +175,12 @@ void benchmark::run(const std::vector<EncParcel>& inputs, const KeeloqLearning::
 
 void benchmark::becnhmarkReal(bool useSingleLearningKernels)
 {
+#if _DEBUG
+    static constexpr auto ClearMask = 0xFFFFFFFFF8000000;
+#else
+    static constexpr auto ClearMask = 0xFFFFFFFF00000000;
+#endif
+
     {
         constexpr uint64_t manDH = 0x8455F43584941223;
         constexpr auto learningDH = KeeloqLearning::LearningType::Simple;
@@ -182,7 +188,7 @@ void benchmark::becnhmarkReal(bool useSingleLearningKernels)
         const std::vector<EncParcel> dhInputs = { 0xFBE31D94BB33DD55, 0xD7577925BB33DD55, 0xAA17DD6CBB33DD55 };
 
         auto timer = Timer<std::chrono::steady_clock>::start();
-        const auto dhStartDecryptor = Decryptor::MakeNoSeed(manDH & 0xFFFFFFFF00000000);
+        const auto dhStartDecryptor = Decryptor::MakeNoSeed(manDH & ClearMask);
 
         Bruteforcer bruteforcer(dhInputs, true);
         BruteforceConfig simple = BruteforceConfig::GetBruteforce(dhStartDecryptor, InputsTransform::None, 0xFFFFFFFF);
@@ -204,6 +210,8 @@ void benchmark::becnhmarkReal(bool useSingleLearningKernels)
 
             result.print();
             printf("Real benchmark for DH: Time (s): %" PRIu64 "\n\n", timer.elapsedSeconds().count());
+
+            assert(result.decryptor.man() == manDH && "Benchmark decryption get the invalid decryptor for DH");
         }
     }
 
@@ -214,7 +222,7 @@ void benchmark::becnhmarkReal(bool useSingleLearningKernels)
         const std::vector<EncParcel> sommerInputs = { 0x54E9888FBB33DD55, 0x10439539BB33DD55, 0x3210C297BB33DD55 };
 
         auto timer = Timer<std::chrono::steady_clock>::start();
-        const auto smStartDecryptor = Decryptor::MakeNoSeed(manSommer & 0xFFFFFFFF00000000);
+        const auto smStartDecryptor = Decryptor::MakeNoSeed(manSommer & ClearMask);
 
         Bruteforcer bruteforcer(sommerInputs, true);
         BruteforceConfig simple = BruteforceConfig::GetBruteforce(smStartDecryptor, InputsTransform::RevKey, 0xFFFFFFFF);
@@ -236,6 +244,8 @@ void benchmark::becnhmarkReal(bool useSingleLearningKernels)
 
             result.print();
             printf("Real benchmark for Sommer: Time (s): %" PRIu64 "\n\n", timer.elapsedSeconds().count());
+
+            assert(result.decryptor.man() == manSommer && "Benchmark decryption get the invalid decryptor for Sommer");
         }
     }
 }
@@ -331,4 +341,5 @@ void benchmark::all(const CommandLineArgs& /*args*/)
 
     becnhmarkReal(true);
     becnhmarkReal(false);
+
 }
