@@ -62,7 +62,7 @@ public:
     {
         if constexpr (IsXored)
         {
-            return value ^ xor();
+            return value ^ xork();
         }
         else
         {
@@ -80,7 +80,7 @@ public:
     __host__ __device__ __forceinline__ uint32_t seed() const { return key_seed; }
 
     /** XOR value for xor bruteforce type (shares the same memory with seed). */
-    __host__ __device__ __forceinline__ uint32_t xor() const { return xor_key; }
+    __host__ __device__ __forceinline__ uint32_t xork() const { return xor_key; }
 
     /** Manufacturer key with reversed byte order. */
     __host__ __device__ __forceinline__ uint64_t nam() const { return misc::rev_bytes(key); }

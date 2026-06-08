@@ -32,6 +32,7 @@
 #define ARG_CHECK_XORFIX "check-xorfix"
 #define ARG_CHECK_XORHOP "check-xorhop"
 #define ARG_CHECK_XORDEC "check-xordec"
+#define ARG_CHECK_ALLXOR "check-xors"
 #define ARG_WORDDICT "word-dict"
 #define ARG_BINDICT "bin-dict"
 #define ARG_BINDMODE "bin-dict-mode"

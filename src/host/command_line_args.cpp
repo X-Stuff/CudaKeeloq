@@ -432,6 +432,9 @@ namespace
             (ARG_CHECK_XORDEC,
                 "!MASK! Make additional checks with XORed decrypted hop part. Xor value set with --" ARG_SEED " argument or automatically generate in Seed/Xor attack type.\n",
                 cxxopts::value<bool>()->default_value("false"), "true|false")
+            (ARG_CHECK_ALLXOR,
+                "Make additional checks with XOR against fix, hop and dec parts. Xor value set with --" ARG_SEED " argument or automatically generate in Seed/Xor attack type.\n",
+                cxxopts::value<bool>()->default_value("false"), "true|false")
 
             (ARG_CHECK_INV_ALGS,
                 "Check also inverted algorithms during bruteforce, some manufacturers mixes up or do this intentionally. "
@@ -582,17 +585,22 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv, AppVerbosity
             args.inputsTransform = args.inputsTransform | InputsTransform::RevKey;
         }
 
-        if (result[ARG_CHECK_XORFIX].as<bool>())
+        const bool allxor = result[ARG_CHECK_ALLXOR].as<bool>();
+        const bool xordec = result[ARG_CHECK_XORDEC].as<bool>();
+        const bool xorfix = result[ARG_CHECK_XORFIX].as<bool>();
+        const bool xorhop = result[ARG_CHECK_XORHOP].as<bool>();
+
+        if (xorfix || allxor)
         {
             args.inputsTransform = args.inputsTransform | InputsTransform::XorFix;
         }
 
-        if (result[ARG_CHECK_XORHOP].as<bool>())
+        if (xorhop || allxor)
         {
             args.inputsTransform = args.inputsTransform | InputsTransform::XorHop;
         }
 
-        if (result[ARG_CHECK_XORDEC].as<bool>())
+        if (xordec || allxor)
         {
             args.inputsTransform = args.inputsTransform | InputsTransform::XorDec;
         }

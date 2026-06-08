@@ -27,7 +27,7 @@ void console::progressBar(double percent, const std::chrono::seconds& elapsed)
         std::memset(progress_none, '-', sizeof(progress_none));
     }
 
-    const auto eta = (elapsed.count() > 0 && percent > 0.01) ?
+    const auto eta = (elapsed.count() > 0 && percent >= 0.001) ?
         std::chrono::seconds((uint64_t)(elapsed.count() / percent)) - elapsed : std::chrono::seconds(0);
 
     printf("[%.*s>", (int)(progress_width * percent), progress_fill);

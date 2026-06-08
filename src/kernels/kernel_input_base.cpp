@@ -77,7 +77,7 @@ void IKeeloqKernelInputBase::AfterGeneratedDecryptors()
 
 bool IKeeloqKernelInputBase::InputsFixMatch() const
 {
-    for (int i = 1; i < inputs.size(); ++i)
+    for (size_t i = 1; i < inputs.size(); ++i)
     {
         if (inputs[0].fix() != inputs[i].fix())
         {
