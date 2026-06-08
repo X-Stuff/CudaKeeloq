@@ -57,7 +57,7 @@ struct Bruteforcer
         uint64_t keysInBatch = 0;
 
         /**
-         *  Real number of total processed keys (all learnings, transforms, modifiers), updated after every CUDA kernel launch.
+         *  Real number of total processed keys (all learnings, transforms, algorithm types), updated after every CUDA kernel launch.
          */
         uint64_t realProcessedKeys = 0;
 

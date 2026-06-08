@@ -113,12 +113,12 @@ struct InputInfo
 
 
 /**
- * Per-learning decrypted values array, indexed by `DecryptedResults::getIndex(learning, modifier)`.
+ * Per-learning decrypted values array, indexed by `DecryptedResults::getIndex(learning, algoType)`.
  * Provides CUDA-optimized cached reads and field extraction helpers.
  */
 struct LearningsArray
 {
-    /** Fixed-size array for every valid learning/modifier combination. */
+    /** Fixed-size array for every valid learning/algorithm-type combination. */
     KeeloqLearning::DecryptedResults data;
 
     /** Cached read of decrypted value at given result index. Uses `__ldca` on device for L1 cache hint. */
@@ -155,7 +155,7 @@ public:
 
 /**
  * Result of a single CUDA thread in multi-learning mode.
- * Stores decrypted values for ALL learning/modifier combinations at once.
+ * Stores decrypted values for ALL learning/algorithm-type combinations at once.
  * The GPU kernel fills every slot, then analyzes which (if any) produced a valid match.
  */
 struct Multi
@@ -166,7 +166,7 @@ struct Multi
     /** The manufacturer key and seed used by this thread */
     Decryptor decryptor = {};
 
-    /** Decrypted values for every learning/modifier combination */
+    /** Decrypted values for every learning/algorithm-type combination */
     LearningsArray decrypted = {};
 
     /** Index in DecryptedResults that matched, or NoMatch if none */
@@ -222,7 +222,7 @@ public:
 struct Single
 {
     // Maximum number of enabled learnings that outperforms Multi mode.
-    static constexpr uint8_t MaxLearningsNumInConfig = 3;
+    static constexpr uint8_t MaxLearningsNumInConfig = 4;
 
     /** Packed metadata: [7:4] transform, [3:1] input index, [0] match flag */
     uint8_t results = 0;
@@ -230,7 +230,7 @@ struct Single
     /** The manufacturer key and seed used by this thread */
     Decryptor decryptor = {};
 
-    /** Single decrypted value for the chosen learning/modifier */
+    /** Single decrypted value for the chosen learning/algorithm type */
     uint32_t decrypted = 0;
 
 public:

@@ -15,7 +15,7 @@
 
 /**
  *  Experimental: flattened version of KeeloqKernelInput for testing whether it can improve GPU performance by better memory access patterns.
- * In this mode CUDA kernel computes only one variation of learning/transform/algomod, but shares produced decryptors
+ * In this mode CUDA kernel computes only one variation of learning/transform/algo-type, but shares produced decryptors
  */
 struct KeeloqKernelSingleLearningInput : public TKeeloqKernelInputBase<KeeloqKernelSingleLearningInput>
 {
@@ -30,7 +30,7 @@ public:
         results = other.results;
         inputsTransform = other.inputsTransform;
         learning = other.learning;
-        algorithModifier = other.algorithModifier;
+        algoType = other.algoType;
     }
 
     virtual ~KeeloqKernelSingleLearningInput() override = default;
@@ -57,7 +57,7 @@ public:
     virtual __host__ BruteforceResult getResult(size_t index) const final override;
 
     /** Prepare inputs for the next batch, basically set up internal fields so they become valid in kernels */
-    virtual __host__ void prepareBatch(const KeeloqLearning::Matrix& learningMatrix, InputsTransform inputMutations) final override;
+    virtual __host__ void prepareBatch(const KeeloqLearning::Matrix& learningMatrix, InputsTransform inputTransform) final override;
 
 public:
     template<uint8_t InputIndex, uint8_t NumInputs>
@@ -81,6 +81,6 @@ public:
     // What type of leaning should Kernel use for decryption
     KeeloqLearning::LearningType learning = KeeloqLearning::LearningType::Simple;
 
-    // Is there any algorithm modifier (like inversed Dec/Enc) that should be applied to inputs in Kernel
-    KeeloqLearning::Modifier::Algo algorithModifier = KeeloqLearning::Modifier::Algo::Normal;
+    // Algorithm logic type applied by the kernel
+    KeeloqLearning::AlgoType algoType = KeeloqLearning::AlgoType::Normal;
 };

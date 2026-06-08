@@ -106,14 +106,14 @@ public:
     void initInputs(const std::vector<uint64_t>& inp);
 
     /** Creates learning matrix from current command line arguments */
-    KeeloqLearning::Matrix getLearningMatrix() const { return KeeloqLearning::Matrix(selected_learning, selected_algo_mods); }
+    KeeloqLearning::Matrix getLearningMatrix() const { return KeeloqLearning::Matrix(selected_learning, selected_algo_types); }
 
 private:
     // Brute all 7 or 11 learnings, or use predefined one
     std::vector<KeeloqLearning::LearningType> selected_learning = {};
 
-    // Select specific modifications for algorithm
-    std::vector<KeeloqLearning::Modifier::Algo> selected_algo_mods = {};
+    // Select specific algorithm logic types
+    std::vector<KeeloqLearning::AlgoType> selected_algo_types = {};
 
 
     // Cuda setup

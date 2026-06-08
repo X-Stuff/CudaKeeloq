@@ -14,7 +14,7 @@ Matrix::Matrix(const std::initializer_list<LearningItem>& params)
     {
         for (const auto& param : params)
         {
-            enable(param.learning, param.amod);
+            enable(param.learning, param.algoType);
         }
     }
     else
@@ -23,25 +23,25 @@ Matrix::Matrix(const std::initializer_list<LearningItem>& params)
     }
 }
 
-Matrix::Matrix(const std::vector<LearningType>& types, const std::vector<Modifier::Algo>& aMods)
+Matrix::Matrix(const std::vector<LearningType>& types, const std::vector<AlgoType>& algoTypes)
 {
-    if (types.empty() && aMods.empty())
+    if (types.empty() && algoTypes.empty())
     {
         matrix = kEverything;
         return;
     }
 
-    static constexpr auto EveryLearning = EveryLearningType{};
-    static constexpr auto EveryModifier = EveryModifierType{};
+    static constexpr auto allLearningTypes = EveryLearningType{};
+    static constexpr auto allAlgoTypes = EveryAlgoType{};
 
-    const auto& typesToEnable = types.empty() ? std::vector<LearningType>(EveryLearning.begin(), EveryLearning.end()) : types;
-    const auto& aModsToEnable = aMods.empty() ? std::vector<Modifier::Algo>(EveryModifier.begin(), EveryModifier.end()) : aMods;
+    const auto& typesToEnable = types.empty() ? std::vector<LearningType>(allLearningTypes.begin(), allLearningTypes.end()) : types;
+    const auto& algoTypesToEnable = algoTypes.empty() ? std::vector<AlgoType>(allAlgoTypes.begin(), allAlgoTypes.end()) : algoTypes;
 
     for (auto type : typesToEnable)
     {
-        for (auto amod : aMods)
+        for (auto algoType : algoTypesToEnable)
         {
-            enable(type, amod);
+            enable(type, algoType);
         }
     }
 }
@@ -57,13 +57,13 @@ std::string Matrix::toString() const
     at += snprintf(&buffer[at], sizeof(buffer) - at,
         "__________|_________|_________|_________|_________|_________|_________|_________|_________|\n");
 
-    for (auto amod : EveryModifierType{})
+    for (auto algoType : EveryAlgoType{})
     {
-        at += snprintf(&buffer[at], sizeof(buffer) - at, "%8s: |", KeeloqLearning::name(amod));
+        at += snprintf(&buffer[at], sizeof(buffer) - at, "%8s: |", KeeloqLearning::name(algoType));
 
         for (auto learning : EveryLearningType{})
         {
-            const bool isLearningEnabled = isEnabled(learning, amod);
+            const bool isLearningEnabled = isEnabled(learning, algoType);
             at += snprintf(&buffer[at], sizeof(buffer) - at, "    %s    |", isLearningEnabled ? "+" : " ");
         }
         at += snprintf(&buffer[at], sizeof(buffer) - at, "\n");
@@ -79,13 +79,13 @@ std::vector<KeeloqLearning::LearningItem> Matrix::asItems() const
 {
     std::vector<KeeloqLearning::LearningItem> items;
 
-    for (auto amod : EveryModifierType{})
+    for (auto algoType : EveryAlgoType{})
     {
         for (auto learning : EveryLearningType{})
         {
-            if (isEnabled(learning, amod))
+            if (isEnabled(learning, algoType))
             {
-                items.emplace_back(learning, amod);
+                items.emplace_back(learning, algoType);
             }
         }
     }
@@ -109,12 +109,12 @@ const char* name(LearningType type)
     }
 }
 
-const char* name(Modifier::Algo amod)
+const char* name(AlgoType algoType)
 {
-    switch (amod)
+    switch (algoType)
     {
-    case Modifier::Algo::Normal:    return "Regular";
-    case Modifier::Algo::Inverted:  return "Inverted";
+    case AlgoType::Normal:    return "Regular";
+    case AlgoType::Inverted:  return "Inverted";
     default: return "Unknown";
     }
 }

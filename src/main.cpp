@@ -34,9 +34,9 @@ CommandLineArgs demoTestCommandlineArgs(int num_gen_input = 3)
     Decryptor first_decryptor_ptrn = Decryptor::Make(0, encryptor.getSeed(), true);
 
     CommandLineArgs cmd;
-    cmd.inputs.emplace_back(encryptor.click(InputsTransform::None, KeeloqLearning::LearningType::Faac, KeeloqLearning::Modifier::Algo::Normal));
-    cmd.inputs.emplace_back(encryptor.click(InputsTransform::None, KeeloqLearning::LearningType::Faac, KeeloqLearning::Modifier::Algo::Normal));
-    cmd.inputs.emplace_back(encryptor.click(InputsTransform::None, KeeloqLearning::LearningType::Faac, KeeloqLearning::Modifier::Algo::Normal));
+    cmd.inputs.emplace_back(encryptor.click(InputsTransform::None, KeeloqLearning::LearningType::Faac, KeeloqLearning::AlgoType::Normal));
+    cmd.inputs.emplace_back(encryptor.click(InputsTransform::None, KeeloqLearning::LearningType::Faac, KeeloqLearning::AlgoType::Normal));
+    cmd.inputs.emplace_back(encryptor.click(InputsTransform::None, KeeloqLearning::LearningType::Faac, KeeloqLearning::AlgoType::Normal));
 
     // Dictionary
     cmd.brute_configs.emplace_back(BruteforceConfig::GetDictionary({

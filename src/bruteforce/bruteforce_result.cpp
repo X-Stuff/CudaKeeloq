@@ -17,7 +17,7 @@ std::string BruteforceResult::toString() const
 {
     return str::format<std::string>(
         "[%-8s: %-8s: %-8s] | Man Key: 0x%" PRIX64 " (Seed: %u) | Btn:0x%02X | Serial:0x%08X (0x%03" PRIX32 ") | Counter:0x%04X | %7s |",
-        KeeloqLearning::name(algoModifier), KeeloqLearning::name(learningType), InputTransformName(transform).c_str(),
+        KeeloqLearning::name(algoType), KeeloqLearning::name(learningType), InputTransformName(transform).c_str(),
         decryptor.man(), decryptor.seed(),
 
         (decrypted >> 28),          // Button

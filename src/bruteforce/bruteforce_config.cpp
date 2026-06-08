@@ -164,14 +164,14 @@ KeeloqLearning::Matrix BruteforceConfig::reduceMatrix(const KeeloqLearning::Matr
 
     for (auto ltype : KeeloqLearning::EveryLearningType{})
     {
-        for (auto mtype : KeeloqLearning::EveryModifierType{})
+        for (auto algoType : KeeloqLearning::EveryAlgoType{})
         {
             if (type == BruteforceType::Seed)
             {
                 // Seed only brute only for seeded learning types
                 if (!KeeloqLearning::hasSeed(ltype))
                 {
-                    result.disable(ltype, mtype);
+                    result.disable(ltype, algoType);
                 }
             }
             else
@@ -179,7 +179,7 @@ KeeloqLearning::Matrix BruteforceConfig::reduceMatrix(const KeeloqLearning::Matr
                 // If current config doesn't have seed, we can't brute learning types that require seed
                 if (KeeloqLearning::hasSeed(ltype) && !hasSeed())
                 {
-                    result.disable(ltype, mtype);
+                    result.disable(ltype, algoType);
                 }
             }
         }

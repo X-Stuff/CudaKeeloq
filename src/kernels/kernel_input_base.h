@@ -33,8 +33,8 @@ struct IKeeloqKernelInputBase
 
     /**
      *  Type of inputs.
-     *      Multi - inputs when kernel calculates all learnings with modifications and single input transform at one call
-     *      Single - inputs when kernel calculates only one learning and one transform and one modification at call
+     *      Multi - inputs when kernel calculates all learnings with algorithm types and single input transform at one call
+     *      Single - inputs when kernel calculates only one learning, one transform, and one algorithm type at call
      */
     enum Type { Single, Multi };
 
@@ -58,7 +58,7 @@ public:
     virtual __host__ BruteforceResult getResult(size_t index) const = 0;
 
     /** Prepare inputs for the next batch, basically set up internal fields so they become valid in kernels */
-    virtual __host__ void prepareBatch(const KeeloqLearning::Matrix& learningMatrix, InputsTransform inputMutations) = 0;
+    virtual __host__ void prepareBatch(const KeeloqLearning::Matrix& learningMatrix, InputsTransform inputTransform) = 0;
 
 public:
     /** Copies self object (shallow copy) to GPU */

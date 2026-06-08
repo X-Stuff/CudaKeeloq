@@ -66,7 +66,7 @@ BruteforceResult KeeloqKernelSingleLearningInput::getMatch(GetMatchProgressCallb
                     GetInput(result.inputIndex()),
                     result.inputsTransform(),
                     learning,
-                    algorithModifier
+                    algoType
                 );
             }
         }
@@ -92,7 +92,7 @@ BruteforceResult KeeloqKernelSingleLearningInput::getResult(size_t index) const
         GetInput(result.inputIndex()),
         result.inputsTransform(),
         learning,
-        algorithModifier
+        algoType
     );
 }
 
@@ -129,7 +129,7 @@ void KeeloqKernelSingleLearningInput::prepareBatch(const KeeloqLearning::Matrix&
 
     inputsTransform = inTransform;
     learning = items.front().learning;
-    algorithModifier = items.front().amod;
+    algoType = items.front().algoType;
 
     SetReady(true);
 }

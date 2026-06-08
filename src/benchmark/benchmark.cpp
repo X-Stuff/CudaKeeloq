@@ -39,7 +39,7 @@ std::vector<EncParcel> makeBenchmarkInputs(uint64_t key, uint8_t num, KeeloqLear
     result.reserve(num);
     for (uint8_t i = 0; i < num; ++i)
     {
-        result.emplace_back(encryptor.click(InputsTransform::None, lType, KeeloqLearning::Modifier::Algo::Normal));
+        result.emplace_back(encryptor.click(InputsTransform::None, lType, KeeloqLearning::AlgoType::Normal));
     }
     return result;
 }
@@ -200,7 +200,7 @@ void benchmark::becnhmarkReal(bool useSingleLearningKernels)
             assert(stats.result == Bruteforcer::Stats::Success && "Benchmark real test failed, no successful result");
             assert(result.isValid() && "Benchmark real test failed, no match found for DH inputs");
             assert(result.learningType == learningItem.learning && "Invalid LType match for real benchmark test (DH)");
-            assert(result.algoModifier == learningItem.amod && "Invalid AMod match for real benchmark test (DH)");
+            assert(result.algoType == learningItem.algoType && "Invalid AlgoType match for real benchmark test (DH)");
 
             result.print();
             printf("Real benchmark for DH: Time (s): %" PRIu64 "\n\n", timer.elapsedSeconds().count());
@@ -232,7 +232,7 @@ void benchmark::becnhmarkReal(bool useSingleLearningKernels)
             assert(stats.result == Bruteforcer::Stats::Success && "Benchmark real test failed, no successful result");
             assert(result.isValid() && "Benchmark real test failed, no match found for Sommer inputs");
             assert(result.learningType == learningItem.learning && "Invalid LType match for real benchmark test (Sommer)");
-            assert(result.algoModifier == learningItem.amod && "Invalid AMod match for real benchmark test (Sommer)");
+            assert(result.algoType == learningItem.algoType && "Invalid AlgoType match for real benchmark test (Sommer)");
 
             result.print();
             printf("Real benchmark for Sommer: Time (s): %" PRIu64 "\n\n", timer.elapsedSeconds().count());
@@ -271,7 +271,7 @@ void benchmark::benchmarkXoredAttack(uint32_t TargetCalculationsNumber)
     auto inputs = makeBenchmarkInputs(0xFF123FF3434FFFFF, NumInputs, LearningType::Serial3);
 
     // XORed only
-    auto configXorFixed = BruteforceConfig::GetXorBruteforce(Decryptor::Make(0xAABBCCDDEEFFFFFF, 0, true), InputsTransform::RevKey, TargetCalculationsNumber);
+    auto configXorFixed = BruteforceConfig::GetXorBruteforce(Decryptor::Make(0xAABBCCDDEEFFFFFF, 0, true), InputsTransform::RevKey, TargetCalculationsNumber / InputTransformVariantsCount);
     run(inputs, KeeloqLearning::Matrix::Everything(), configXorFixed);
 }
 

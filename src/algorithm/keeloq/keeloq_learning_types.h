@@ -16,7 +16,7 @@ struct BruteforceConfig;
 
 /**
  * Bitmask describing which decryption path the kernel takes and which optional
- * learning-type groups / modifiers are included in a single kernel launch.
+ * learning-type groups / algorithm types are included in a single kernel launch.
  */
 enum class KernelLearningMode
 {
@@ -39,26 +39,26 @@ enum class KernelLearningMode
 
     /************************************************************************/
 
-    // Algo Modifier: Disable Inverse calculation decryption
+    // Algo type: Disable inverse calculation decryption
     NoInv = 1 << 10,
 
-    ModMask = NoInv,
+    AlgoMask = NoInv,
 
     /************************************************************************/
 
     // Explicit 0 flag that won't affect other bits during bitwise OR
     NoInputTransform = 0,
 
-    // Inputs Modifier: Mirrors InputMutations enum
+    // Input transform: Mirrors InputsTransform enum
     RevKey = 1 << 16,
 
-    // Inputs Modifier: Mirrors InputMutations enum
+    // Input transform: Mirrors InputsTransform enum
     XorFix = 1 << 17,
 
-    // Inputs Modifier: Mirrors InputMutations enum
+    // Input transform: Mirrors InputsTransform enum
     XorHop = 1 << 18,
 
-    // Inputs Modifier: Mirrors InputMutations enum
+    // Input transform: Mirrors InputsTransform enum
     XorDec = 1 << 19,
 
     /************************************************************************/
@@ -160,108 +160,105 @@ constexpr bool hasSeed(LearningType type)
 }
 
 /**
- * Additional tweaks that can be applied on top of a learning algorithm.
- * Some learning types only support a subset of these modifiers.
+ * Algorithm logic type used for a learning algorithm.
+ * Some learning types only support a subset of these types.
  */
-struct Modifier
+enum class AlgoType : uint8_t
 {
-    enum class Algo : uint8_t
-    {
-        // Regular enc/dec logic, all learning types
-        Normal = 0,
+    // Regular enc/dec logic, all learning types
+    Normal = 0,
 
-        // Inverted enc/dec logic for learning (for Normal, Secure, FAAC learning types)
-        Inverted = 1
-    };
-
-    /** Total number of algorithm modifications */
-    static constexpr uint8_t AlgoModCount = static_cast<uint8_t>(Algo::Inverted) + 1;
-
-    using TypeSequence = std::make_index_sequence<AlgoModCount>;
+    // Inverted enc/dec logic for learning (for Normal, Secure, FAAC learning types)
+    Inverted = 1
 };
 
+/** Total number of algorithm logic types. */
+static constexpr uint8_t AlgoTypeCount = static_cast<uint8_t>(AlgoType::Inverted) + 1;
 
-/** Defined all learning types as set of values */
-using EveryModifierType = helpers::MakeTypedValuesSet<Modifier::Algo, Modifier::TypeSequence>::type;
+using AlgoTypeSequence = std::make_index_sequence<AlgoTypeCount>;
 
-/** Single cell (learning type + algo modifiers) in the learning matrix. */
+
+/** Defined all algorithm types as set of values */
+using EveryAlgoType = helpers::MakeTypedValuesSet<AlgoType, AlgoTypeSequence>::type;
+
+/** Single cell (learning type + algorithm type) in the learning matrix. */
 struct LearningItem
 {
     constexpr LearningItem() = default;
 
-    constexpr __device__ __host__ LearningItem(LearningType l) : LearningItem(l, Modifier::Algo::Normal)
+    constexpr __device__ __host__ LearningItem(LearningType l) : LearningItem(l, AlgoType::Normal)
     {
     }
 
-    constexpr __device__ __host__ LearningItem(LearningType l, Modifier::Algo a) : learning(l), amod(a)
+    constexpr __device__ __host__ LearningItem(LearningType l, AlgoType a) : learning(l), algoType(a)
     {
     }
 
     __device__ __host__ __inline__ constexpr uint8_t asIndex() const
     {
-        return (learning + static_cast<uint8_t>(amod) * LearningTypesCount);
+        return (learning + static_cast<uint8_t>(algoType) * LearningTypesCount);
     }
 
     LearningType learning = LearningType::Simple;
 
-    Modifier::Algo amod = Modifier::Algo::Normal;
+    AlgoType algoType = AlgoType::Normal;
 };
 
 /**
- * Meta-programming registry for enumerating legal learning-type/modifier combinations.
+ * Meta-programming registry for enumerating legal learning-type/algorithm-type combinations.
  * Add a new learning type by extending `Available`.
  */
 struct Registry
 {
-    /** Per-learning descriptor: seeded flag and supported algorithm modifiers. */
-    template<LearningType LType, bool bIsSeeded, Modifier::Algo... AMods>
+    /** Per-learning descriptor: seeded flag and supported algorithm types. */
+    template<LearningType LType, bool bIsSeeded, AlgoType... ATypes>
     struct Entry
     {
         static constexpr LearningType Type = LType;
 
         /** Cannot detect repeated */
-        static constexpr uint8_t AlgoMask = (static_cast<uint8_t>(0) | ... | static_cast<uint8_t>(1 << static_cast<uint8_t>(AMods)));
+        static constexpr uint8_t AlgoMask = (static_cast<uint8_t>(0) | ... | static_cast<uint8_t>(1 << static_cast<uint8_t>(ATypes)));
 
         /** Cannot detect repeated */
-        static constexpr uint8_t NumMods = sizeof...(AMods);
-        static_assert(NumMods <= Modifier::AlgoModCount, "Too many algorithm, modifications, cannot be more than known types!");
+        static constexpr uint8_t NumTypes = sizeof...(ATypes);
+        static_assert(NumTypes <= AlgoTypeCount, "Too many algorithm types, cannot be more than known types!");
 
         static constexpr bool IsSeeded = bIsSeeded;
 
-        __host__ __device__ __inline__ static constexpr bool HasMod(Modifier::Algo amod) { return (AlgoMask & (1 << static_cast<uint8_t>(amod))) != 0; }
+        __host__ __device__ __inline__ static constexpr bool HasType(AlgoType type) { return (AlgoMask & (1 << static_cast<uint8_t>(type))) != 0; }
 
-        template<Modifier::Algo AMod>
-        __host__ __device__ __inline__ static constexpr bool HasMod() { return HasMod(AMod); }
+        template<AlgoType AType>
+        __host__ __device__ __inline__ static constexpr bool HasType() { return HasType(AType); }
 
-        /** Index in Mods collection */
-        template<Modifier::Algo AMod>
-        __host__ __device__ __inline__ static constexpr std::enable_if_t<HasMod<AMod>(), uint8_t> ModIndex()
+        /** Index in algorithm types collection */
+        template<AlgoType AType>
+        __host__ __device__ __inline__ static constexpr std::enable_if_t<HasType<AType>(), uint8_t> TypeIndex()
         {
             uint8_t index = 0;
             bool found = false;
 
             // Fold expression: increment 'index' for every element
-            // until 'found' becomes true (when AMods == AMod)
-            ((found || (AMods == AMod ? (found = true, false) : (index++, false))), ...);
+            // until 'found' becomes true (when ATypes == AType)
+            ((found || (ATypes == AType ? (found = true, false) : (index++, false))), ...);
 
             return index;
         }
 
-        static constexpr uint8_t Indices[Modifier::AlgoModCount] = { 0 };
+        static constexpr uint8_t Indices[AlgoTypeCount] = { 0 };
     };
 
     /**
-     *  All available learning types with their modifications. If you want to add new learning type - just add it here with allowed modifications.
+     *  All available learning types with their algorithm types. If you want to add new learning type - just add it here with allowed algorithm types.
      */
     using Available = std::tuple<
-        Entry<LearningType::Simple, false,  Modifier::Algo::Normal>,
-        Entry<LearningType::Normal, false,  Modifier::Algo::Normal, Modifier::Algo::Inverted>,
-        Entry<LearningType::Secure, true,   Modifier::Algo::Normal, Modifier::Algo::Inverted>,
-        Entry<LearningType::Xor,    false,  Modifier::Algo::Normal>,
-        Entry<LearningType::Faac,   true,   Modifier::Algo::Normal, Modifier::Algo::Inverted>,
-        Entry<LearningType::Serial1, false, Modifier::Algo::Normal>,
-        Entry<LearningType::Serial2, false, Modifier::Algo::Normal>,
-        Entry<LearningType::Serial3, false, Modifier::Algo::Normal>
+        Entry<LearningType::Simple, false,  AlgoType::Normal>,
+        Entry<LearningType::Normal, false,  AlgoType::Normal, AlgoType::Inverted>,
+        Entry<LearningType::Secure, true,   AlgoType::Normal, AlgoType::Inverted>,
+        Entry<LearningType::Xor,    false,  AlgoType::Normal>,
+        Entry<LearningType::Faac,   true,   AlgoType::Normal, AlgoType::Inverted>,
+        Entry<LearningType::Serial1, false, AlgoType::Normal>,
+        Entry<LearningType::Serial2, false, AlgoType::Normal>,
+        Entry<LearningType::Serial3, false, AlgoType::Normal>
     >;
 
     /** Element accessor */
@@ -271,7 +268,7 @@ struct Registry
     template<std::size_t... I>
     static constexpr uint8_t CountRealAlgos(std::index_sequence<I...>)
     {
-        return (Element<I>::NumMods + ... + 0);
+        return (Element<I>::NumTypes + ... + 0);
     }
 
 private:
@@ -279,7 +276,7 @@ private:
     static constexpr bool ValidateOrder(std::index_sequence<I...>)
     {
         static_assert(sizeof...(I) == LearningTypesCount, "Size of the sequence doesn't match learning types number");
-        static_assert(((Element<I>::Type == static_cast<LearningType>(I)) && ...), "Incompatible learning type/modifier combination");
+        static_assert(((Element<I>::Type == static_cast<LearningType>(I)) && ...), "Incompatible learning type/algorithm type combination");
 
         return ((Element<I>::Type == static_cast<LearningType>(I)) && ...);
     }
@@ -307,10 +304,10 @@ public:
  */
 struct RegistryInfo
 {
-    /** Real size of results array, only possible variation of algorithm modification counts */
+    /** Real size of results array, only possible variation of algorithm type counts */
     static constexpr uint8_t RealAlgosNum = Registry::CountRealAlgos(LearningTypesSequence{});
 
-    /** Real size of results array, only possible variation of algorithm modification counts */
+    /** Real size of results array, only possible variation of algorithm type counts */
     static constexpr uint8_t RealResultsNum = RealAlgosNum;
 
 public:
@@ -321,7 +318,7 @@ public:
     static constexpr LearningType LearningFromIndex() { return static_cast<LearningType>(I % LCount); }
 
     template<std::size_t I, std::size_t LCount, uint8_t ACount>
-    static constexpr Modifier::Algo AModFromIndex() { return static_cast<Modifier::Algo>((I / LCount) % ACount); }
+    static constexpr AlgoType AlgoTypeFromIndex() { return static_cast<AlgoType>((I / LCount) % ACount); }
 
 private:
     template<LearningType LType, bool IsSeeded>
@@ -330,7 +327,7 @@ private:
         using Element = typename Registry::template Element<LType>;
         if constexpr (Element::IsSeeded == IsSeeded)
         {
-            return Element::NumMods;
+            return Element::NumTypes;
         }
         else
         {
@@ -358,11 +355,11 @@ public:
     }
 };
 
-/** Alias for indexer type in DecryptedResults, from index you can easily restore the Learning-Mod pair */
+/** Alias for indexer type in DecryptedResults, from index you can easily restore the learning/algo-type pair */
 using ResultIndex = uint8_t;
 
 /** Size of the indices cache, all possible variations including impossible */
-static constexpr const uint8_t IndicesCacheSize = LearningTypesCount * EveryModifierType::Size;
+static constexpr const uint8_t IndicesCacheSize = LearningTypesCount * EveryAlgoType::Size;
 
 /** Size of the decrypted array (reduced only to real) */
 static constexpr const uint8_t DecryptedArraySize = RegistryInfo::RealResultsNum + 1;
@@ -373,7 +370,7 @@ static constexpr const ResultIndex InvalidResultIndex = RegistryInfo::RealResult
 /** Value if the result index that represents no match, Invalid Index points to the last (additional) element in array, however it is considered invalid */
 static constexpr ResultIndex NoMatch = InvalidResultIndex;
 
-template<LearningType LType, Modifier::Algo AMod>
+template<LearningType LType, AlgoType AType>
 struct IndexInResults
 {
     template<std::size_t... I>
@@ -381,11 +378,11 @@ struct IndexInResults
     {
         using RegElement = typename Registry::Element<LType>;
 
-        if constexpr (RegElement::template HasMod<AMod>())
+        if constexpr (RegElement::template HasType<AType>())
         {
             constexpr auto BaseIndex = Registry::CountRealAlgos(Sequence);
 
-            return (BaseIndex + RegElement::template ModIndex<AMod>());
+            return (BaseIndex + RegElement::template TypeIndex<AType>());
         }
 
         return InvalidResultIndex;
@@ -402,7 +399,7 @@ extern __constant__ CudaFixedArray<ResultIndex, IndicesCacheSize> IndicesCache;
 
 /**
  * Fixed-size buffer of decrypted/encrypted values, one slot per valid
- * (LearningType x Algo-mod) combination plus one terminal "invalid" slot.
+ * (LearningType x AlgoType) combination plus one terminal "invalid" slot.
  */
 struct DecryptedResults : public CudaFixedArray<uint32_t, DecryptedArraySize>
 {
@@ -420,36 +417,36 @@ struct DecryptedResults : public CudaFixedArray<uint32_t, DecryptedArraySize>
 private:
 
     /**
-     *  Magic template alias that generates array of indices for all learning types and modifications, based on Registry::Available definition.
+     *  Magic template alias that generates array of indices for all learning types and algorithm types, based on Registry::Available definition.
      */
-    template<std::size_t LCount, uint8_t AModCount, std::size_t... I>
+    template<std::size_t LCount, uint8_t ATypeCount, std::size_t... I>
     using TIndicesType = ResultIndices<
-        (Registry::Element<RegistryInfo::ElementIndex<I, LCount>()>::HasMod(RegistryInfo::AModFromIndex<I, LCount, AModCount>())
+        (Registry::Element<RegistryInfo::ElementIndex<I, LCount>()>::HasType(RegistryInfo::AlgoTypeFromIndex<I, LCount, ATypeCount>())
             ? IndexInResults<
                 RegistryInfo::LearningFromIndex<I, LCount>(),
-                RegistryInfo::AModFromIndex<I, LCount, AModCount>()
+                RegistryInfo::AlgoTypeFromIndex<I, LCount, ATypeCount>()
               >::value
             : InvalidResultIndex)...>;
 
     /**
      *  Another magic template struct that helps generate sequence with ALL indices with simple definition through `make_index_sequence`
      */
-    template<std::size_t LCount,uint8_t AModCount, typename Seq>
+    template<std::size_t LCount, uint8_t ATypeCount, typename Seq>
     struct MakeTIndicesType;
 
     /**
      *  Partial specialization of MakeTIndicesType for index sequence,
-     * generates TIndicesType with all indices for M learning types and N modifications.
+     * generates TIndicesType with all indices for M learning types and N algorithm types.
      */
-    template<std::size_t LCount, uint8_t AModCount, std::size_t... I>
-    struct MakeTIndicesType<LCount, AModCount, std::index_sequence<I...>>
+    template<std::size_t LCount, uint8_t ATypeCount, std::size_t... I>
+    struct MakeTIndicesType<LCount, ATypeCount, std::index_sequence<I...>>
     {
-        using type = TIndicesType<LCount, AModCount, I...>;
+        using type = TIndicesType<LCount, ATypeCount, I...>;
     };
 
 public:
     /**
-     *  Magically defined type with indices in results collection for all learning types and modifications, based on Registry::Available definition.
+     *  Magically defined type with indices in results collection for all learning types and algorithm types, based on Registry::Available definition.
      *
      * Looks like this:
      *             _____________________________________________________________________
@@ -459,10 +456,10 @@ public:
      * | Inverted |   XX   |    2   |    4   |  XX |   7  |    XX   |   XX    |    XX   |
      * ¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
      *
-     * Where X == 11 (last index in DecryptedResults) - means invalid combination of learning type and modification
+     * Where X == 11 (last index in DecryptedResults) - means invalid combination of learning type and algorithm type
      *
      */
-    using ResultIndicesCache = typename MakeTIndicesType<LearningTypesCount, Modifier::AlgoModCount, std::make_index_sequence<IndicesCacheSize>>::type;
+    using ResultIndicesCache = typename MakeTIndicesType<LearningTypesCount, AlgoTypeCount, std::make_index_sequence<IndicesCacheSize>>::type;
 
     /**
      *  Number of seeded learning types indices in results collection.
@@ -481,10 +478,10 @@ public:
     {
         return
         {
-            IndexInResults<LearningType::Secure, Modifier::Algo::Normal>::value,
-            IndexInResults<LearningType::Secure, Modifier::Algo::Inverted>::value,
-            IndexInResults<LearningType::Faac, Modifier::Algo::Normal>::value,
-            IndexInResults<LearningType::Faac, Modifier::Algo::Inverted>::value
+            IndexInResults<LearningType::Secure, AlgoType::Normal>::value,
+            IndexInResults<LearningType::Secure, AlgoType::Inverted>::value,
+            IndexInResults<LearningType::Faac, AlgoType::Normal>::value,
+            IndexInResults<LearningType::Faac, AlgoType::Inverted>::value
         };
     }
 
@@ -495,18 +492,18 @@ public:
     {
         return
         {
-            IndexInResults<LearningType::Simple, Modifier::Algo::Normal>::value,
-            IndexInResults<LearningType::Normal, Modifier::Algo::Normal>::value,
-            IndexInResults<LearningType::Normal, Modifier::Algo::Inverted>::value,
-            IndexInResults<LearningType::Xor, Modifier::Algo::Normal>::value,
-            IndexInResults<LearningType::Serial1, Modifier::Algo::Normal>::value,
-            IndexInResults<LearningType::Serial2, Modifier::Algo::Normal>::value,
-            IndexInResults<LearningType::Serial3, Modifier::Algo::Normal>::value
+            IndexInResults<LearningType::Simple, AlgoType::Normal>::value,
+            IndexInResults<LearningType::Normal, AlgoType::Normal>::value,
+            IndexInResults<LearningType::Normal, AlgoType::Inverted>::value,
+            IndexInResults<LearningType::Xor, AlgoType::Normal>::value,
+            IndexInResults<LearningType::Serial1, AlgoType::Normal>::value,
+            IndexInResults<LearningType::Serial2, AlgoType::Normal>::value,
+            IndexInResults<LearningType::Serial3, AlgoType::Normal>::value
         };
     }
 
     /**
-     *  Returns bitmask of valid learning type/modifier combinations based on Registry::Available definition, used for quick checks in kernels.
+     *  Returns bitmask of valid learning type/algorithm type combinations based on Registry::Available definition, used for quick checks in kernels.
      */
     __host__ __device__ __inline__ static constexpr uint64_t getValidMask()
     {
@@ -522,14 +519,14 @@ public:
     }
 
 public:
-    /** Get index in DecryptedResults for specific learning type with modification */
-    template<LearningType LType, Modifier::Algo AMod>
+    /** Get index in DecryptedResults for specific learning type with algorithm type */
+    template<LearningType LType, AlgoType AType>
     __host__ __device__ __inline__ static constexpr uint8_t getIndex()
     {
-        return IndexInResults<LType, AMod>::value;
+        return IndexInResults<LType, AType>::value;
     }
 
-    /** Get index in DecryptedResults for specific learning type with modification */
+    /** Get index in DecryptedResults for specific learning type with algorithm type */
     __host__ __device__ __forceinline__ static constexpr ResultIndex getIndex(LearningItem lItem)
     {
 #if __CUDA_ARCH__
@@ -539,10 +536,10 @@ public:
 #endif
     }
 
-    /** Get index in DecryptedResults for specific learning type with modification */
-    __host__ __device__ __forceinline__ static constexpr ResultIndex getIndex(LearningType type, Modifier::Algo amod)
+    /** Get index in DecryptedResults for specific learning type with algorithm type */
+    __host__ __device__ __forceinline__ static constexpr ResultIndex getIndex(LearningType type, AlgoType algoType)
     {
-        return getIndex(LearningItem(type, amod));
+        return getIndex(LearningItem(type, algoType));
     }
 
     /** Does reverse lookup by index, not allowed on device! */
@@ -550,9 +547,9 @@ public:
     {
         for (auto learning : EveryLearningType{})
         {
-            for (auto algoModifier : EveryModifierType{})
+            for (auto algoType : EveryAlgoType{})
             {
-                const auto item = LearningItem(learning, algoModifier);
+                const auto item = LearningItem(learning, algoType);
 
                 if (ResultIndicesCache::get(item.asIndex()) == index)
                 {
@@ -578,7 +575,7 @@ public:
 };
 
 /**
- * Bitmask of enabled learning-type/modifier combinations for a single kernel run.
+ * Bitmask of enabled learning-type/algorithm-type combinations for a single kernel run.
  * Bit-indexed using DecryptedResults::getIndex().
  */
 struct Matrix
@@ -592,38 +589,38 @@ struct Matrix
 #if !__CUDA_ARCH__
         static_assert(DecryptedResults::NormalIndicesNum + DecryptedResults::SeededIndicesNum + 1 == DecryptedArraySize, "Normal indices cache or Seeded indices cache missing some entries");
 
-        static_assert(DecryptedResults::getIndex(LearningType::Simple, Modifier::Algo::Normal) == 0, "Invalid index for Simple/Normal");
-        static_assert(DecryptedResults::getIndex(LearningType::Simple, Modifier::Algo::Inverted) == InvalidResultIndex, "Simple learning should not have valid index for Inverted decode");
+        static_assert(DecryptedResults::getIndex(LearningType::Simple, AlgoType::Normal) == 0, "Invalid index for Simple/Normal");
+        static_assert(DecryptedResults::getIndex(LearningType::Simple, AlgoType::Inverted) == InvalidResultIndex, "Simple learning should not have valid index for Inverted decode");
 
 
-        static_assert(DecryptedResults::getIndex(LearningType::Normal, Modifier::Algo::Normal) == 1, "Invalid index for Normal/Normal");
-        static_assert(DecryptedResults::getIndex(LearningType::Normal, Modifier::Algo::Inverted) == 2, "Invalid index for Normal/Inverted");
+        static_assert(DecryptedResults::getIndex(LearningType::Normal, AlgoType::Normal) == 1, "Invalid index for Normal/Normal");
+        static_assert(DecryptedResults::getIndex(LearningType::Normal, AlgoType::Inverted) == 2, "Invalid index for Normal/Inverted");
 
-        static_assert(DecryptedResults::getIndex(LearningType::Secure, Modifier::Algo::Normal) == 3, "Invalid index for Secure/Normal");
-        static_assert(DecryptedResults::getIndex(LearningType::Secure, Modifier::Algo::Inverted) == 4, "Invalid index for Secure/Inverted");
+        static_assert(DecryptedResults::getIndex(LearningType::Secure, AlgoType::Normal) == 3, "Invalid index for Secure/Normal");
+        static_assert(DecryptedResults::getIndex(LearningType::Secure, AlgoType::Inverted) == 4, "Invalid index for Secure/Inverted");
 
-        static_assert(DecryptedResults::getIndex(LearningType::Xor, Modifier::Algo::Normal) == 5, "Invalid index for Xor/Normal");
-        static_assert(DecryptedResults::getIndex(LearningType::Xor, Modifier::Algo::Inverted) == InvalidResultIndex, "Xor learning should not have valid index for Inverted decode");
+        static_assert(DecryptedResults::getIndex(LearningType::Xor, AlgoType::Normal) == 5, "Invalid index for Xor/Normal");
+        static_assert(DecryptedResults::getIndex(LearningType::Xor, AlgoType::Inverted) == InvalidResultIndex, "Xor learning should not have valid index for Inverted decode");
 
-        static_assert(DecryptedResults::getIndex(LearningType::Faac, Modifier::Algo::Normal) == 6, "Invalid index for Faac/Normal");
-        static_assert(DecryptedResults::getIndex(LearningType::Faac, Modifier::Algo::Inverted) == 7, "Invalid index for Faac/Inverted");
+        static_assert(DecryptedResults::getIndex(LearningType::Faac, AlgoType::Normal) == 6, "Invalid index for Faac/Normal");
+        static_assert(DecryptedResults::getIndex(LearningType::Faac, AlgoType::Inverted) == 7, "Invalid index for Faac/Inverted");
 
-        static_assert(DecryptedResults::getIndex(LearningType::Serial1, Modifier::Algo::Normal) == 8, "Invalid index for Serial1/Normal");
-        static_assert(DecryptedResults::getIndex(LearningType::Serial2, Modifier::Algo::Normal) == 9, "Invalid index for Serial2/Normal");
-        static_assert(DecryptedResults::getIndex(LearningType::Serial3, Modifier::Algo::Normal) == 10, "Invalid index for Serial3/Normal");
+        static_assert(DecryptedResults::getIndex(LearningType::Serial1, AlgoType::Normal) == 8, "Invalid index for Serial1/Normal");
+        static_assert(DecryptedResults::getIndex(LearningType::Serial2, AlgoType::Normal) == 9, "Invalid index for Serial2/Normal");
+        static_assert(DecryptedResults::getIndex(LearningType::Serial3, AlgoType::Normal) == 10, "Invalid index for Serial3/Normal");
 
-        static_assert(DecryptedResults::getIndex(LearningType::Serial1, Modifier::Algo::Inverted) == InvalidResultIndex, "Serial1 learning should not have valid index for Inverted decode");
-        static_assert(DecryptedResults::getIndex(LearningType::Serial2, Modifier::Algo::Inverted) == InvalidResultIndex, "Serial2 learning should not have valid index for Inverted decode");
-        static_assert(DecryptedResults::getIndex(LearningType::Serial3, Modifier::Algo::Inverted) == InvalidResultIndex, "Serial3 learning should not have valid index for Inverted decode");
+        static_assert(DecryptedResults::getIndex(LearningType::Serial1, AlgoType::Inverted) == InvalidResultIndex, "Serial1 learning should not have valid index for Inverted decode");
+        static_assert(DecryptedResults::getIndex(LearningType::Serial2, AlgoType::Inverted) == InvalidResultIndex, "Serial2 learning should not have valid index for Inverted decode");
+        static_assert(DecryptedResults::getIndex(LearningType::Serial3, AlgoType::Inverted) == InvalidResultIndex, "Serial3 learning should not have valid index for Inverted decode");
 
         static_assert(
-            DecryptedResults::getIndex(LearningType::Normal, Modifier::Algo::Normal) ==
-            DecryptedResults::getIndex<LearningType::Normal, Modifier::Algo::Normal>(),
+            DecryptedResults::getIndex(LearningType::Normal, AlgoType::Normal) ==
+            DecryptedResults::getIndex<LearningType::Normal, AlgoType::Normal>(),
             "getIndex() methods returned non-equal values");
 
         static_assert(
-            DecryptedResults::getIndex(LearningType::Simple, Modifier::Algo::Inverted) ==
-            DecryptedResults::getIndex<LearningType::Simple, Modifier::Algo::Inverted>(),
+            DecryptedResults::getIndex(LearningType::Simple, AlgoType::Inverted) ==
+            DecryptedResults::getIndex<LearningType::Simple, AlgoType::Inverted>(),
             "getIndex() methods returned non-equal values");
 
         static_assert(RegistryInfo::RealResultsNum == InvalidResultIndex, "TotalNum should match InvalidResultIndex it's basically the same");
@@ -634,14 +631,14 @@ struct Matrix
     /** Creates a learning matrix with specific enabled pairs */
     Matrix(const std::initializer_list<LearningItem>& pairs);
 
-    /** Creates a learning matrix with specific learning types enabled and all modifications */
+    /** Creates a learning matrix with specific learning types enabled and all algorithm types */
     Matrix(const std::initializer_list<LearningType>& types) :
-        Matrix(types, { Modifier::Algo::Normal, Modifier::Algo::Inverted })
+        Matrix(types, { AlgoType::Normal, AlgoType::Inverted })
     {
     }
 
-    /** Creates a learning matrix with specific learning and modifications */
-    __host__ Matrix(const std::vector<LearningType>& types, const std::vector<Modifier::Algo>& aMods);
+    /** Creates a learning matrix with specific learning and algorithm types */
+    __host__ Matrix(const std::vector<LearningType>& types, const std::vector<AlgoType>& algoTypes);
 
     /** Creates a learning matrix with everything enabled */
     __host__ __device__ __inline__ static constexpr auto Everything() { return Matrix(kEverything); }
@@ -650,7 +647,7 @@ struct Matrix
     __host__ __device__ __inline__ static constexpr auto Invalid() { return Matrix(0); }
 
     /** Creates a learning matrix with all learnings but only with inverted algorithm enabled */
-    __host__ static auto Inverted() { return Matrix({}, { Modifier::Algo::Inverted }); }
+    __host__ static auto Inverted() { return Matrix({}, { AlgoType::Inverted }); }
 
 public:
     /**
@@ -663,15 +660,15 @@ public:
     }
 
     /**
-     *  If specific bit at index encode as [Learning][AldoMod] is enabled
+     *  If specific bit at index encoded as [Learning][AlgoType] is enabled
      */
-    template<LearningType LType, Modifier::Algo AMod, bool Silent = false>
+    template<LearningType LType, AlgoType AType, bool Silent = false>
     __host__ __device__ __inline__ bool isEnabled() const
     {
-        constexpr auto index = DecryptedResults::getIndex<LType, AMod>();
+        constexpr auto index = DecryptedResults::getIndex<LType, AType>();
         if constexpr (index == InvalidResultIndex)
         {
-            static_assert(Silent, "Invalid combination of learning type and modifier!");
+            static_assert(Silent, "Invalid combination of learning type and algorithm type!");
             return false;
         }
 
@@ -679,12 +676,12 @@ public:
     }
 
     /**
-     *  If specific bit at index encode as [Learning][AlgoMod] is enabled
-     * Host only version since uses quite expensive getIndex() method, it is better to use template version if you know learning/modification types at compile time
+     *  If specific bit at index encoded as [Learning][AlgoType] is enabled
+     * Host only version since uses quite expensive getIndex() method, it is better to use template version if you know learning/algorithm types at compile time
      */
-    __host__ __inline__ bool isEnabled(LearningType type, Modifier::Algo amod) const
+    __host__ __inline__ bool isEnabled(LearningType type, AlgoType algoType) const
     {
-        const auto index = DecryptedResults::getIndex(type, amod);
+        const auto index = DecryptedResults::getIndex(type, algoType);
         const bool valid = index != InvalidResultIndex;
         return valid && isEnabled(index);
     }
@@ -722,24 +719,24 @@ public:
     }
 
     /**
-     *  Set specific bit to 1 according to learning type and modification
+     *  Set specific bit to 1 according to learning type and algorithm type
      */
-    __host__ __inline__ void enable(LearningType type, Modifier::Algo aMod = Modifier::Algo::Normal)
+    __host__ __inline__ void enable(LearningType type, AlgoType algoType = AlgoType::Normal)
     {
-        const auto bitIndex = DecryptedResults::getIndex(type, aMod);
+        const auto bitIndex = DecryptedResults::getIndex(type, algoType);
         matrix |= (1ULL << bitIndex);
     }
 
     /**
-     *  Set specific bit to 0 according to learning type and modification
+     *  Set specific bit to 0 according to learning type and algorithm type
      */
-    __host__ __inline__ void disable(LearningType type, Modifier::Algo aMod = Modifier::Algo::Normal)
+    __host__ __inline__ void disable(LearningType type, AlgoType algoType = AlgoType::Normal)
     {
-        const auto bitIndex = DecryptedResults::getIndex(type, aMod);
+        const auto bitIndex = DecryptedResults::getIndex(type, algoType);
         matrix &= ~(1ULL << bitIndex);
     }
 
-    /** Human-readable table of enabled learning/modifier entries. */
+    /** Human-readable table of enabled learning/algorithm-type entries. */
     __host__ std::string toString() const;
 
     /** Get all enabled learning items as vector */
@@ -762,8 +759,8 @@ private:
 /** Human-readable name of a learning type. */
 const char* name(LearningType type);
 
-/** Human-readable name of an algorithm modifier. */
-const char* name(Modifier::Algo amod);
+/** Human-readable name of an algorithm type. */
+const char* name(AlgoType algoType);
 
 /** Parses a learning-type name (case-insensitive) or its numeric index. */
 bool parse(const char* name, LearningType& out);

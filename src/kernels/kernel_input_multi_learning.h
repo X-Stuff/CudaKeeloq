@@ -61,7 +61,7 @@ public:
     virtual __host__ BruteforceResult getResult(size_t index) const final override;
 
     /** Prepare inputs for the next batch, basically set up internal fields so they become valid in kernels */
-    virtual __host__ void prepareBatch(const KeeloqLearning::Matrix& learningMatrix, InputsTransform inputMutations) final override;
+    virtual __host__ void prepareBatch(const KeeloqLearning::Matrix& learningMatrix, InputsTransform inputTransform) final override;
 
 public:
     /** Learning-type selection matrix for the current run. */

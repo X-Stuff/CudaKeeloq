@@ -31,12 +31,12 @@ struct BruteforceResult
     /** Learning type used in decryption */
     KeeloqLearning::LearningType learningType = KeeloqLearning::LearningType::Simple;
 
-    /** And additional algorithm modifier used in decryption */
-    KeeloqLearning::Modifier::Algo algoModifier = KeeloqLearning::Modifier::Algo::Normal;
+    /** Additional algorithm logic type used in decryption */
+    KeeloqLearning::AlgoType algoType = KeeloqLearning::AlgoType::Normal;
 
 public:
-    BruteforceResult(bool isMatched, const Decryptor& inDecryptor, uint32_t inDecrypted, const EncParcel& inInput, InputsTransform inTransform, KeeloqLearning::LearningType inLearningType, KeeloqLearning::Modifier::Algo inAlgoModifier)
-        : decryptor(inDecryptor), decrypted(inDecrypted), input(inInput), transform(inTransform), learningType(inLearningType), algoModifier(inAlgoModifier), match(isMatched)
+    BruteforceResult(bool isMatched, const Decryptor& inDecryptor, uint32_t inDecrypted, const EncParcel& inInput, InputsTransform inTransform, KeeloqLearning::LearningType inLearningType, KeeloqLearning::AlgoType inAlgoType)
+        : decryptor(inDecryptor), decrypted(inDecrypted), input(inInput), transform(inTransform), learningType(inLearningType), algoType(inAlgoType), match(isMatched)
     {
     }
 

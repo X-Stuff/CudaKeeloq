@@ -57,13 +57,13 @@ void runEveryLearningWithMod(const BruteforceConfig& config, bool useSingleLearn
                 continue;
             }
 
-            for (auto algoModifier : EveryModifierType{})
+            for (auto algoType : EveryAlgoType{})
             {
                 static int spinner = 0;
                 std::printf("\r%c", WAIT_CHAR(++spinner));
                 std::fflush(stdout);
 
-                const auto learningItem = LearningItem(learningType, algoModifier);
+                const auto learningItem = LearningItem(learningType, algoType);
 
                 const auto resIndex = DecryptedResults::getIndex(learningItem);
                 if (resIndex == KeeloqLearning::InvalidResultIndex)
@@ -74,17 +74,17 @@ void runEveryLearningWithMod(const BruteforceConfig& config, bool useSingleLearn
                 auto reducedMatrix = config.reduceMatrix(KeeloqLearning::Matrix{ learningItem });
                 if (!reducedMatrix.isValid())
                 {
-                    // No valid results for this combination of learning type and modifier, skip it.
+                    // No valid results for this combination of learning type and algorithm type, skip it.
                     continue;
                 }
 
 
                 CAPTURE(std::string(KeeloqLearning::name(learningType)));
-                CAPTURE(std::string(KeeloqLearning::name(algoModifier)));
+                CAPTURE(std::string(KeeloqLearning::name(algoType)));
                 CAPTURE(InputTransformName(transform).value);
 
                 Encryptor encryptor(kDebugKey, kDebugSeed);
-                const auto inputs = tests::keeloq::genInputs(encryptor, transform, learningType, algoModifier);
+                const auto inputs = tests::keeloq::genInputs(encryptor, transform, learningType, algoType);
 
                 Bruteforcer bruteforcer(inputs, false, AppVerbosity::Error);
                 auto ccopy = config;
@@ -118,7 +118,7 @@ void runEveryLearningWithMod(const BruteforceConfig& config, bool useSingleLearn
 
                     CHECK(matched_result.transform == transform);
                     CHECK(matched_result.learningType == learningType);
-                    CHECK(matched_result.algoModifier == algoModifier);
+                    CHECK(matched_result.algoType == algoType);
 
                     // click() advances the counter, roll it back before comparing
                     encryptor.setCounter(encryptor.getCounter() - 1);

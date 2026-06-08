@@ -76,17 +76,17 @@ BruteforceResult Bruteforcer::run(const BruteforceConfig& config, const CudaConf
     LOG_INFO("\rRunning...");
     LOG_INFO("\n%s\n%s\n\n", attackRound.toString().c_str(), learningMatrix.toString().c_str());
 
-    const auto& inputMutations = config.getTransforms();
+    const auto& inputTransfroms = config.getTransforms();
 
     std::vector<SubCheck> subChecks;
     if (config.useSingleLearningKernels)
     {
         const auto learningItems = learningMatrix.asItems();
-        subChecks.reserve(learningItems.size() * inputMutations.size());
+        subChecks.reserve(learningItems.size() * inputTransfroms.size());
 
         for (const auto& item : learningItems)
         {
-            for (const auto& transform : inputMutations)
+            for (const auto& transform : inputTransfroms)
             {
                 subChecks.push_back({ KeeloqLearning::Matrix{ item }, transform });
             }
@@ -94,8 +94,8 @@ BruteforceResult Bruteforcer::run(const BruteforceConfig& config, const CudaConf
     }
     else
     {
-        subChecks.reserve(inputMutations.size());
-        for (const auto& transform : inputMutations)
+        subChecks.reserve(inputTransfroms.size());
+        for (const auto& transform : inputTransfroms)
         {
             subChecks.push_back({ learningMatrix, transform });
         }

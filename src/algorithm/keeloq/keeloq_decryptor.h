@@ -56,7 +56,7 @@ public:
         }
     }
 
-    /** Use seed value as Xor for the input value, only for XORed input modifier*/
+    /** Use seed value as Xor for the input value, only for XORed input transform */
     template<bool IsXored>
     __host__ __device__ __forceinline__ uint32_t getXored(uint32_t value) const
     {

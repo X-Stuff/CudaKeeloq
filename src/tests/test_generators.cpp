@@ -33,10 +33,10 @@ BruteforceConfig GetSingleKeyConfig(uint64_t key, bool rev = true)
         std::reverse(pattern.begin(), pattern.end());
     }
 
-    const auto inputModifier = rev ? InputsTransform::RevKey : InputsTransform::None;
+    const auto inputTransform = rev ? InputsTransform::RevKey : InputsTransform::None;
 
     BruteforcePattern br_pattern(std::move(pattern), "Test");
-    return BruteforceConfig::GetPattern(Decryptor::Make(0, 0, true), inputModifier, br_pattern, 0xFFFFFFFF);
+    return BruteforceConfig::GetPattern(Decryptor::Make(0, 0, true), inputTransform, br_pattern, 0xFFFFFFFF);
 }
 }
 

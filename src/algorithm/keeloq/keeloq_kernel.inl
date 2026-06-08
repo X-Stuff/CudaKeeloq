@@ -140,10 +140,10 @@ struct KernelModeToInputTransform
 };
 
 /**
- *  Single decryption call for specific learning type and modifier.
+ *  Single decryption call for specific learning type and algorithm type.
  * Returns decryption result.
  * Uses template parameters to optimize code and remove branches.
- * So for each learning type and modifier will be generated separate function.
+ * So for each learning type and algorithm type will be generated separate function.
  *
  *  call-stack:
  *   -> keeloq_encdec_single
@@ -151,8 +151,8 @@ struct KernelModeToInputTransform
  *      keeloq_decrypt_[seed,normal]
  *      keeloq_encdec
  */
-template<bool IsDecrypt, InputsTransform InputsMut, LearningType type, Modifier::Algo AMod>
-__device__ __host__ __forceinline__ uint32_t keeloq_encdec_single(uint32_t hop, uint32_t fixed, const Decryptor& decryptor)
+template<bool IsDecrypt, InputsTransform InputsMut, LearningType type, AlgoType AType>
+__device__ __forceinline__ uint32_t keeloq_encdec_single(uint32_t hop, uint32_t fixed, const Decryptor& decryptor)
 {
     static constexpr bool IsEncrypt = !IsDecrypt;
 
@@ -169,19 +169,19 @@ __device__ __host__ __forceinline__ uint32_t keeloq_encdec_single(uint32_t hop, 
     const uint32_t data = decryptor.template getXored<NeedPreXor>(hop);
     const uint32_t seed = decryptor.seed();
 
-    static_assert(AMod == Modifier::Algo::Normal || AMod == Modifier::Algo::Inverted, "Unsupported/Unknown Keeloq Algorithm Modifier");
+    static_assert(AType == AlgoType::Normal || AType == AlgoType::Inverted, "Unsupported/Unknown Keeloq algorithm type");
 
     static_assert(
         type == LearningType::Simple    || type == LearningType::Normal || type == LearningType::Secure ||
         type == LearningType::Xor       || type == LearningType::Faac   || type == LearningType::Serial1 ||
         type == LearningType::Serial2   || type == LearningType::Serial3, "Unsupported KeeloqLearningType");
 
-    static_assert(DecryptedResults::getIndex<type, AMod>() != KeeloqLearning::InvalidResultIndex, "Unsupported KeeloqLearningType/Mod combination");
+    static_assert(DecryptedResults::getIndex<type, AType>() != KeeloqLearning::InvalidResultIndex, "Unsupported KeeloqLearningType/AlgoType combination");
 
     uint32_t result = 0;
 
     // Inverted logic for learning types that support it (Normal, Secure, Faac)
-    if constexpr (AMod == Modifier::Algo::Inverted)
+    if constexpr (AType == AlgoType::Inverted)
     {
         if constexpr (type == LearningType::Normal)
         {
@@ -200,7 +200,7 @@ __device__ __host__ __forceinline__ uint32_t keeloq_encdec_single(uint32_t hop, 
             result = keeloq::common::encdec<IsDecrypt>(data, n_key);
         }
     }
-    else if (AMod == Modifier::Algo::Normal)
+    else if (AType == AlgoType::Normal)
     {
         if constexpr (type == LearningType::Simple)
         {
@@ -247,7 +247,7 @@ __device__ __host__ __forceinline__ uint32_t keeloq_encdec_single(uint32_t hop, 
 }
 
 /**
- *  Single decryption call wrapper for specific learning type and modification.
+ *  Single decryption call wrapper for specific learning type and algorithm type.
  * Result will be written to results array according to index from KeeloqLearning::DecryptedResults::getIndex() method.
  *
  *  call-stack:
@@ -256,13 +256,13 @@ __device__ __host__ __forceinline__ uint32_t keeloq_encdec_single(uint32_t hop, 
  *      keeloq_decrypt_[seed,normal]
  *      keeloq_encdec
  */
-template<bool IsDecrypt, InputsTransform InputsMut, LearningType type, Modifier::Algo AMod>
-__device__ __host__ __forceinline__ void keeloq_encdec_single(uint32_t data, uint32_t fix, const Decryptor& decryptor, DecryptedResults& results)
+template<bool IsDecrypt, InputsTransform InputsMut, LearningType type, AlgoType AType>
+__device__ __forceinline__ void keeloq_encdec_single(uint32_t data, uint32_t fix, const Decryptor& decryptor, DecryptedResults& results)
 {
-    static constexpr auto index = DecryptedResults::getIndex<type, AMod>();
+    static constexpr auto index = DecryptedResults::getIndex<type, AType>();
     if constexpr (index != KeeloqLearning::InvalidResultIndex)
     {
-        results[index] = keeloq_encdec_single<IsDecrypt, InputsMut, type, AMod>(data, fix, decryptor);
+        results[index] = keeloq_encdec_single<IsDecrypt, InputsMut, type, AType>(data, fix, decryptor);
     }
 }
 
@@ -275,16 +275,16 @@ __device__ __host__ __forceinline__ void keeloq_encdec_single(uint32_t data, uin
  *      keeloq_decrypt_[seed,normal]
  *      keeloq_encdec
  */
-template<bool IsDecrypt, InputsTransform InputsMut, Modifier::Algo AMod, LearningType... LTypes>
-__device__ __host__ __forceinline__ void keeloq_encdec_multi(uint32_t data, uint32_t fix, const Decryptor& decryptor,
+template<bool IsDecrypt, InputsTransform InputsMut, AlgoType AType, LearningType... LTypes>
+__device__ __forceinline__ void keeloq_encdec_multi(uint32_t data, uint32_t fix, const Decryptor& decryptor,
     DecryptedResults& results, helpers::ValuesSet<LearningType, LTypes...>)
 {
-    ((keeloq_encdec_single<IsDecrypt, InputsMut, LTypes, AMod>(data, fix, decryptor, results)), ...);
+    ((keeloq_encdec_single<IsDecrypt, InputsMut, LTypes, AType>(data, fix, decryptor, results)), ...);
 }
 
 /**
  *  Conditional param pack expansion call for single calls.
- * Uses if block, but in case of small number of learning types and modifications should be better than loop with if block inside.
+ * Uses if block, but in case of small number of learning types and algorithm types should be better than loop with if block inside.
  *
  *  call-stack:
  *      keeloq_encdec_single
@@ -292,15 +292,15 @@ __device__ __host__ __forceinline__ void keeloq_encdec_multi(uint32_t data, uint
  *      keeloq_decrypt_[seed,normal,all]
  *      keeloq_encdec
  */
-template<bool IsDecrypt, InputsTransform InputsMut, Modifier::Algo AMod, LearningType... LTypes>
-__device__ __host__ __forceinline__ void keeloq_encdec_multi_cond(uint32_t data, uint32_t fix, const Decryptor& decryptor,
+template<bool IsDecrypt, InputsTransform InputsMut, AlgoType AType, LearningType... LTypes>
+__device__ __forceinline__ void keeloq_encdec_multi_cond(uint32_t data, uint32_t fix, const Decryptor& decryptor,
     const Matrix& learnings_matrix, DecryptedResults& results, helpers::ValuesSet<LearningType, LTypes...>)
 {
-    ((learnings_matrix.template isEnabled<LTypes, AMod, true>() ? keeloq_encdec_single<IsDecrypt, InputsMut, LTypes, AMod>(data, fix, decryptor, results) : void()), ...);
+    ((learnings_matrix.template isEnabled<LTypes, AType, true>() ? keeloq_encdec_single<IsDecrypt, InputsMut, LTypes, AType>(data, fix, decryptor, results) : void()), ...);
 }
 
 /**
- *  This function call unconditional or conditional multi call for seed learning types with specific modification.
+ *  This function call unconditional or conditional multi call for seed learning types with specific algorithm type.
  * In fact this is just magic wrapper for `keeloq_encdec_single` for Secure and Faac learning types
  *
  *  call-stack:
@@ -309,22 +309,22 @@ __device__ __host__ __forceinline__ void keeloq_encdec_multi_cond(uint32_t data,
  *   -> keeloq_decrypt_[seed,normal,all]
  *      keeloq_encdec
  */
-template<bool IgnoreMatrix, bool IsDecrypt, InputsTransform InputsMut, Modifier::Algo AMod>
-__device__ __host__ __forceinline__ void keeloq_encdec_seed_all(uint32_t data, uint32_t fix, const Decryptor& decryptor,
+template<bool IgnoreMatrix, bool IsDecrypt, InputsTransform InputsMut, AlgoType AType>
+__device__ __forceinline__ void keeloq_encdec_seed_all(uint32_t data, uint32_t fix, const Decryptor& decryptor,
     const Matrix& learnings_matrix, ThreadResult::LearningsArray& decrypted)
 {
     if constexpr (IgnoreMatrix)
     {
-        keeloq_encdec_multi<IsDecrypt, InputsMut, AMod>(data, fix, decryptor, decrypted.data, SeededTypes{});
+        keeloq_encdec_multi<IsDecrypt, InputsMut, AType>(data, fix, decryptor, decrypted.data, SeededTypes{});
     }
     else
     {
-        keeloq_encdec_multi_cond<IsDecrypt, InputsMut, AMod>(data, fix, decryptor, learnings_matrix, decrypted.data, SeededTypes{});
+        keeloq_encdec_multi_cond<IsDecrypt, InputsMut, AType>(data, fix, decryptor, learnings_matrix, decrypted.data, SeededTypes{});
     }
 }
 
 /**
- *  This function call unconditional or conditional multi call for all (seeded and normal) learning types with specific modification.
+ *  This function call unconditional or conditional multi call for all (seeded and normal) learning types with specific algorithm type.
  * In fact this is just magic wrapper for `keeloq_encdec_single`
  *
  *  call-stack:
@@ -333,22 +333,22 @@ __device__ __host__ __forceinline__ void keeloq_encdec_seed_all(uint32_t data, u
  *   -> keeloq_decrypt_[seed,normal,all]
  *      keeloq_encdec
  */
-template<bool IgnoreMatrix, bool IsDecrypt, InputsTransform InputsMut, Modifier::Algo AMod>
-__device__ __host__ __forceinline__ void keeloq_encdec_all(uint32_t data, uint32_t fix, const Decryptor& decryptor,
+template<bool IgnoreMatrix, bool IsDecrypt, InputsTransform InputsMut, AlgoType AType>
+__device__ __forceinline__ void keeloq_encdec_all(uint32_t data, uint32_t fix, const Decryptor& decryptor,
     const Matrix& learnings_matrix, ThreadResult::LearningsArray& decrypted)
 {
     if constexpr (IgnoreMatrix)
     {
-        keeloq_encdec_multi<IsDecrypt, InputsMut, AMod>(data, fix, decryptor, decrypted.data, EveryLearningType{});
+        keeloq_encdec_multi<IsDecrypt, InputsMut, AType>(data, fix, decryptor, decrypted.data, EveryLearningType{});
     }
     else
     {
-        keeloq_encdec_multi_cond<IsDecrypt, InputsMut, AMod>(data, fix, decryptor, learnings_matrix, decrypted.data, EveryLearningType{});
+        keeloq_encdec_multi_cond<IsDecrypt, InputsMut, AType>(data, fix, decryptor, learnings_matrix, decrypted.data, EveryLearningType{});
     }
 }
 
 /**
- *  This function call unconditional or conditional multi call for non-seed (normal) learning types with specific modification.
+ *  This function call unconditional or conditional multi call for non-seed (normal) learning types with specific algorithm type.
  * In fact this is just magic wrapper for `keeloq_encdec_single` for Simple, Normal, Xor and Serial learning types
  *
  *  call-stack:
@@ -357,22 +357,22 @@ __device__ __host__ __forceinline__ void keeloq_encdec_all(uint32_t data, uint32
  *   -> keeloq_decrypt_[seed,normal]
  *      keeloq_encdec
  */
-template<bool IgnoreMatrix, bool IsDecrypt, InputsTransform InputsMut, Modifier::Algo AMod>
-__device__ __host__ __forceinline__ void keeloq_encdec_normal_all(uint32_t data, uint32_t fix, const Decryptor& decryptor,
+template<bool IgnoreMatrix, bool IsDecrypt, InputsTransform InputsMut, AlgoType AType>
+__device__ __forceinline__ void keeloq_encdec_normal_all(uint32_t data, uint32_t fix, const Decryptor& decryptor,
     const Matrix& learnings_matrix, ThreadResult::LearningsArray& decrypted)
 {
     if constexpr (IgnoreMatrix)
     {
-        keeloq_encdec_multi<IsDecrypt, InputsMut, AMod>(data, fix, decryptor, decrypted.data, NormalTypes{});
+        keeloq_encdec_multi<IsDecrypt, InputsMut, AType>(data, fix, decryptor, decrypted.data, NormalTypes{});
     }
     else
     {
-        keeloq_encdec_multi_cond<IsDecrypt, InputsMut, AMod>(data, fix, decryptor, learnings_matrix, decrypted.data, NormalTypes{});
+        keeloq_encdec_multi_cond<IsDecrypt, InputsMut, AType>(data, fix, decryptor, learnings_matrix, decrypted.data, NormalTypes{});
     }
 }
 
 /**
- *  This function calls seeded and/or normal wrapper function for all modifications according to template parameters and learning matrix.
+ *  This function calls seeded and/or normal wrapper function for all algorithm types according to template parameters and learning matrix.
  *
  *  call-stack:
  *      keeloq_encdec_single
@@ -381,38 +381,38 @@ __device__ __host__ __forceinline__ void keeloq_encdec_normal_all(uint32_t data,
  *   -> keeloq_encdec
  */
 template<KernelLearningMode Mode, bool IsDecrypt = true>
-__device__ __host__ inline void keeloq_encdec(const EncParcel& enc, const Decryptor& decryptor, const Matrix& learnings_matrix, ThreadResult::LearningsArray& results)
+__device__ __forceinline__ void keeloq_encdec(const EncParcel& enc, const Decryptor& decryptor, const Matrix& learnings_matrix, ThreadResult::LearningsArray& results)
 {
     static constexpr bool IgnoreMatrix     = !!(Mode & KernelLearningMode::Force);
     static constexpr bool ExplicitDecrypt  = !!(Mode & KernelLearningMode::Explicit);
 
     static_assert(IgnoreMatrix != ExplicitDecrypt, "Can't be only Force or Explicit");
 
-    // Modifiers that DISABLES specific calculations. Only used if not Force mode
-    constexpr KernelLearningMode Modifiers = (Mode & (IgnoreMatrix ? static_cast<KernelLearningMode>(0) : KernelLearningMode::ModMask));
+    // Algorithm-type flags that disable specific calculations. Only used if not Force mode.
+    constexpr KernelLearningMode disabledAlgoTypes = (Mode & (IgnoreMatrix ? static_cast<KernelLearningMode>(0) : KernelLearningMode::AlgoMask));
     constexpr InputsTransform InputsMut = KernelModeToInputTransform<Mode>::value;
 
     // Normal learning types (NO SEED)
     if constexpr (!!(Mode & KernelLearningMode::Normal))
     {
-        keeloq_encdec_normal_all<IgnoreMatrix, IsDecrypt, InputsMut, Modifier::Algo::Normal>(enc.hop(), enc.fix(), decryptor, learnings_matrix, results);
+        keeloq_encdec_normal_all<IgnoreMatrix, IsDecrypt, InputsMut, AlgoType::Normal>(enc.hop(), enc.fix(), decryptor, learnings_matrix, results);
 
         // If inverted algo logic allowed
-        if constexpr (!(Modifiers & KernelLearningMode::NoInv))
+        if constexpr (!(disabledAlgoTypes & KernelLearningMode::NoInv))
         {
-            keeloq_encdec_normal_all<IgnoreMatrix, IsDecrypt, InputsMut, Modifier::Algo::Inverted>(enc.hop(), enc.fix(), decryptor, learnings_matrix, results);
+            keeloq_encdec_normal_all<IgnoreMatrix, IsDecrypt, InputsMut, AlgoType::Inverted>(enc.hop(), enc.fix(), decryptor, learnings_matrix, results);
         }
     }
 
     // Seeded learning types
     if constexpr (!!(Mode & KernelLearningMode::Seeded))
     {
-        keeloq_encdec_seed_all<IgnoreMatrix, IsDecrypt, InputsMut, Modifier::Algo::Normal>(enc.hop(), enc.fix(), decryptor, learnings_matrix, results);
+        keeloq_encdec_seed_all<IgnoreMatrix, IsDecrypt, InputsMut, AlgoType::Normal>(enc.hop(), enc.fix(), decryptor, learnings_matrix, results);
 
         // If inverted algo logic allowed
-        if constexpr (!(Modifiers & KernelLearningMode::NoInv))
+        if constexpr (!(disabledAlgoTypes & KernelLearningMode::NoInv))
         {
-            keeloq_encdec_seed_all<IgnoreMatrix, IsDecrypt, InputsMut, Modifier::Algo::Inverted>(enc.hop(), enc.fix(), decryptor, learnings_matrix, results);
+            keeloq_encdec_seed_all<IgnoreMatrix, IsDecrypt, InputsMut, AlgoType::Inverted>(enc.hop(), enc.fix(), decryptor, learnings_matrix, results);
         }
     }
 }
@@ -425,7 +425,7 @@ __device__ __host__ inline void keeloq_encdec(const EncParcel& enc, const Decryp
  * we want to have indication that this decryptor has a possibility to be the correct one.
  */
 template<KernelLearningMode LearningMode, uint8_t InputIndex>
-__device__ inline void keeloq_decrypt_and_quick_analyze(const CudaContext& ctx, const Decryptor& decryptor, const Matrix& learning_matrix, Span<ThreadResult::Multi>& results)
+__device__ __forceinline__ void keeloq_decrypt_and_quick_analyze(const CudaContext& ctx, const Decryptor& decryptor, const Matrix& learning_matrix, Span<ThreadResult::Multi>& results)
 {
     const EncParcel& enc = InputsCache[InputIndex];
 
@@ -440,7 +440,7 @@ __device__ inline void keeloq_decrypt_and_quick_analyze(const CudaContext& ctx, 
     result.match = analyze_single_result<LearningMode>(result, enc.srl(), enc.btn(), learning_matrix);
 }
 
-template<uint8_t InputIndex, InputsTransform InputMut, LearningType LType, Modifier::Algo AMod>
+template<uint8_t InputIndex, InputsTransform InputMut, LearningType LType, AlgoType AType>
 __device__ __forceinline__ bool keeloq_decrypt_single_learning(const CudaContext& ctx, const Decryptor& decryptor, ThreadResult::Single& result)
 {
     const EncParcel& enc = InputsCache[InputIndex];
@@ -450,7 +450,7 @@ __device__ __forceinline__ bool keeloq_decrypt_single_learning(const CudaContext
     result.setInputTransform(InputMut);
 
     static constexpr bool IsDecrypt = true;
-    result.decrypted = keeloq_encdec_single<IsDecrypt, InputMut, LType, AMod>(enc.hop(), enc.fix(), decryptor);
+    result.decrypted = keeloq_encdec_single<IsDecrypt, InputMut, LType, AType>(enc.hop(), enc.fix(), decryptor);
 
     const bool match = result.srl() == enc.srl() && result.btn() == enc.btn();
 
@@ -466,7 +466,7 @@ __device__ __forceinline__ bool keeloq_decrypt_single_learning(const CudaContext
  * LearningMode - determines which learning calculation could be thrown away. (we could have no seed, that mean we don't need to even check ifs)
  */
 template<KernelLearningMode LearningMode>
-__device__ bool inline keeloq_decryption_run(const CudaContext& ctx, KeeloqKernelMultiLearningInput& input)
+__device__ __forceinline__ bool keeloq_decryption_run(const CudaContext& ctx, KeeloqKernelMultiLearningInput& input)
 {
     static constexpr uint8_t NumInputs = 3;
     static_assert(First < Second && Second < Third, "Static assert just to get rid of warning");
@@ -609,7 +609,7 @@ __global__ KERNEL_LAUNCH_BOUNDS void Kernel_keeloq_bruteforce(KeeloqKernelMultiL
     ret->onKernelFinish(hasMatch);
 }
 
-template<InputsTransform InputMut, KeeloqLearning::LearningType LType, Modifier::Algo AMod>
+template<InputsTransform InputMut, KeeloqLearning::LearningType LType, AlgoType AType>
 __global__ KERNEL_LAUNCH_BOUNDS void Kernel_keeloq_single_learning(KeeloqKernelSingleLearningInput::TCudaPtr KernelInputs, KernelResult::TCudaPtr ret)
 {
     // Now only 3 inputs supports in kernels
@@ -625,14 +625,14 @@ __global__ KERNEL_LAUNCH_BOUNDS void Kernel_keeloq_single_learning(KeeloqKernelS
         const Decryptor& decryptor = KernelInputs->GetDecryptor(decryptor_index);
 
         // Single input
-        uint8_t num_matches = keeloq_decrypt_single_learning<First, InputMut, LType, AMod>(ctx, decryptor, KernelInputs->template Result<First, NumInputs>(decryptor_index));
+        uint8_t num_matches = keeloq_decrypt_single_learning<First, InputMut, LType, AType>(ctx, decryptor, KernelInputs->template Result<First, NumInputs>(decryptor_index));
 
         static constexpr uint8_t MaxCounterDeviation = NumInputs + 1;
 
         // and first input has match - check next input
         if (num_matches == 1)
         {
-            num_matches += keeloq_decrypt_single_learning<Second, InputMut, LType, AMod>(
+            num_matches += keeloq_decrypt_single_learning<Second, InputMut, LType, AType>(
                 ctx, decryptor, KernelInputs->template Result<Second, NumInputs>(decryptor_index));
 
             uint16_t counter0 = KernelInputs->template Result<First, NumInputs>(decryptor_index).cnt();
@@ -644,7 +644,7 @@ __global__ KERNEL_LAUNCH_BOUNDS void Kernel_keeloq_single_learning(KeeloqKernelS
             // and second input also has match - check next input
             if (num_matches == 2)
             {
-                num_matches += keeloq_decrypt_single_learning<Third, InputMut, LType, AMod>(
+                num_matches += keeloq_decrypt_single_learning<Third, InputMut, LType, AType>(
                     ctx, decryptor, KernelInputs->template Result<Third, NumInputs>(decryptor_index));
 
                 uint16_t counter2 = KernelInputs->template Result<Third, NumInputs>(decryptor_index).cnt();
@@ -671,10 +671,10 @@ using BruteforceKernelLauncherFunc = void(*)(const CudaConfig&, bool allLearning
 
 using SingleKernelLauncherFunc = void(*)(uint64_t, uint64_t, uint32_t, bool, DecryptKernelResult::TCudaPtr);
 
-template<std::uint32_t RawInputModMask>
+template<std::uint32_t RawInputTransform>
 __host__ void LaunchBruteforceKernel(const CudaConfig& cuda, bool allLearnings, bool seedOnly, KeeloqKernelMultiLearningInput::TCudaPtr KernelInputs, KernelResult::TCudaPtr ret)
 {
-    static constexpr auto Mask = static_cast<InputsTransform>(RawInputModMask);
+    static constexpr auto Mask = static_cast<InputsTransform>(RawInputTransform);
 
     static constexpr auto ForceSeedOnly = true;
     static constexpr auto NotSeedOnly = false;
@@ -700,10 +700,10 @@ __host__ void LaunchBruteforceKernel(const CudaConfig& cuda, bool allLearnings, 
     }
 }
 
-template<std::uint32_t RawInputModMask>
+template<std::uint32_t RawInputTransform>
 __host__ void LaunchSingleTemplatedKernel(uint64_t ota, uint64_t man, uint32_t seed, bool isDecrypt, DecryptKernelResult::TCudaPtr ret)
 {
-    static constexpr auto Mask = static_cast<InputsTransform>(RawInputModMask);
+    static constexpr auto Mask = static_cast<InputsTransform>(RawInputTransform);
     Kernel_keeloq_single_encdec<Mask> << <1, 1 >> > (ota, man, seed, isDecrypt, ret);
 }
 
@@ -732,19 +732,19 @@ namespace SingleMode
 
 using BruteforceKernelLauncherFunc = void(*)(const CudaConfig&, KeeloqKernelSingleLearningInput::TCudaPtr, KernelResult::TCudaPtr);
 
-template<std::uint32_t RawInputModMask, std::uint32_t RawLearningType, std::uint32_t RawAlgoModifier>
+template<std::uint32_t RawInputTransform, std::uint32_t RawLearningType, std::uint32_t RawAlgoType>
 __host__ void LaunchFlatBruteforceKernel(const CudaConfig& cuda, KeeloqKernelSingleLearningInput::TCudaPtr KernelInputs, KernelResult::TCudaPtr ret)
 {
     static constexpr auto LearningType = static_cast<KeeloqLearning::LearningType>(RawLearningType);
-    static constexpr auto AlgoModifier = static_cast<Modifier::Algo>(RawAlgoModifier);
+    static constexpr auto AlgoTypeValue = static_cast<AlgoType>(RawAlgoType);
 
-    static constexpr bool IsValidCombination = DecryptedResults::getIndex<LearningType, AlgoModifier>() != KeeloqLearning::InvalidResultIndex;
+    static constexpr bool IsValidCombination = DecryptedResults::getIndex<LearningType, AlgoTypeValue>() != KeeloqLearning::InvalidResultIndex;
 
     if constexpr (IsValidCombination)
     {
-        static constexpr auto InputsMut = static_cast<InputsTransform>(RawInputModMask);
+        static constexpr auto InputsMut = static_cast<InputsTransform>(RawInputTransform);
 
-        Kernel_keeloq_single_learning<InputsMut, LearningType, AlgoModifier> << <cuda.blocks, cuda.threads >> > (KernelInputs, ret);
+        Kernel_keeloq_single_learning<InputsMut, LearningType, AlgoTypeValue> << <cuda.blocks, cuda.threads >> > (KernelInputs, ret);
     }
 }
 
@@ -811,12 +811,12 @@ struct KernelTableIndexer<std::index_sequence<Is...>, std::index_sequence<Ls...>
         return N; // not found
     }
 
-    static constexpr std::size_t GetFlatIndex(std::size_t inputsMut, std::size_t learningType, std::size_t algoMod)
+    static constexpr std::size_t GetFlatIndex(std::size_t inputsMut, std::size_t learningType, std::size_t algoType)
     {
         std::size_t iIdx = NumI, lIdx = NumL, mIdx = NumM;
         for (std::size_t i = 0; i < NumI; ++i) { if (IVals[i] == inputsMut) { iIdx = i; break; } }
         for (std::size_t i = 0; i < NumL; ++i) { if (LVals[i] == learningType) { lIdx = i; break; } }
-        for (std::size_t i = 0; i < NumM; ++i) { if (MVals[i] == algoMod) { mIdx = i; break; } }
+        for (std::size_t i = 0; i < NumM; ++i) { if (MVals[i] == algoType) { mIdx = i; break; } }
         return iIdx * (NumL * NumM) + lIdx * NumM + mIdx;
     }
 
@@ -826,13 +826,13 @@ struct KernelTableIndexer<std::index_sequence<Is...>, std::index_sequence<Ls...>
 using KernelIndexer = KernelTableIndexer<
     std::make_index_sequence<static_cast<std::size_t>(InputTransformVariantsCount)>,
     KeeloqLearning::LearningTypesSequence,
-    KeeloqLearning::Modifier::TypeSequence>;
+    KeeloqLearning::AlgoTypeSequence>;
 
 /** Launch table for CUDA kernels */
 static constexpr auto LaunchTable = MakeKernelsLaunchTable(
     std::make_index_sequence<static_cast<std::size_t>(InputTransformVariantsCount)>{},
     KeeloqLearning::LearningTypesSequence{},
-    KeeloqLearning::Modifier::TypeSequence{});
+    KeeloqLearning::AlgoTypeSequence{});
 
 } // namespace SingleMode
 
@@ -876,7 +876,7 @@ __host__ KernelResult keeloq::kernels::internal::cuda_brute(KeeloqKernelSingleLe
     const auto launcherIndex = SingleMode::KernelIndexer::GetFlatIndex(
         static_cast<std::size_t>(flatInputs.inputsTransform),
         static_cast<std::size_t>(flatInputs.learning),
-        static_cast<std::size_t>(flatInputs.algorithModifier));
+        static_cast<std::size_t>(flatInputs.algoType));
 
     SingleMode::LaunchTable[launcherIndex](cuda, flatInputs.ptr(), kernel_results.ptr());
 

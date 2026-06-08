@@ -600,12 +600,12 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv, AppVerbosity
         // By default we use normal algos
         if (!result.count(ARG_NO_REG_ALGS) || !result[ARG_NO_REG_ALGS].as<bool>())
         {
-            args.selected_algo_mods.push_back(KeeloqLearning::Modifier::Algo::Normal);
+            args.selected_algo_types.push_back(KeeloqLearning::AlgoType::Normal);
         }
 
         if (result[ARG_CHECK_INV_ALGS].as<bool>())
         {
-            args.selected_algo_mods.push_back(KeeloqLearning::Modifier::Algo::Inverted);
+            args.selected_algo_types.push_back(KeeloqLearning::AlgoType::Inverted);
         }
     }
 

@@ -247,16 +247,16 @@ __host__ __forceinline__ KernelResult cuda_brute(BruteforceRound& round, const C
     }
 }
 
-// Single decrypt round with all learning types and modifications, used for testing and debugging
+// Single decrypt round with all learning types and algorithm types, used for testing and debugging
 __host__ ThreadResult::Multi cuda_encdec(uint64_t ota, uint64_t man, uint32_t seed, bool isDecrypt, InputsTransform inputTransform);
 
-// Single decrypt round with all learning types and modifications, used for testing and debugging
+// Single decrypt round with all learning types and algorithm types, used for testing and debugging
 __host__ __forceinline__ ThreadResult::Multi cuda_enc(uint64_t ota, uint64_t man, uint32_t seed, InputsTransform inputTransform)
 {
     return cuda_encdec(ota, man, seed, false, inputTransform);
 }
 
-// Single decrypt round with all learning types and modifications, used for testing and debugging
+// Single decrypt round with all learning types and algorithm types, used for testing and debugging
 __host__ __forceinline__ ThreadResult::Multi cuda_dec(uint64_t ota, uint64_t man, uint32_t seed, InputsTransform inputTransform)
 {
     return cuda_encdec(ota, man, seed, true, inputTransform);

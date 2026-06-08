@@ -258,15 +258,15 @@ TEST_CASE("cli: --learning-type accepts learning names as well as numeric indice
     auto matrix = args.getLearningMatrix();
 
     REQUIRE(matrix.numEnabled() == 6);
-    CHECK(matrix.isEnabled(KeeloqLearning::LearningType::Simple, KeeloqLearning::Modifier::Algo::Normal));
-    CHECK(matrix.isEnabled(KeeloqLearning::LearningType::Normal, KeeloqLearning::Modifier::Algo::Normal));
-    CHECK(matrix.isEnabled(KeeloqLearning::LearningType::Normal, KeeloqLearning::Modifier::Algo::Inverted));
-    CHECK(matrix.isEnabled(KeeloqLearning::LearningType::Secure, KeeloqLearning::Modifier::Algo::Normal));
-    CHECK(matrix.isEnabled(KeeloqLearning::LearningType::Secure, KeeloqLearning::Modifier::Algo::Inverted));
-    CHECK(matrix.isEnabled(KeeloqLearning::LearningType::Xor, KeeloqLearning::Modifier::Algo::Normal));
+    CHECK(matrix.isEnabled(KeeloqLearning::LearningType::Simple, KeeloqLearning::AlgoType::Normal));
+    CHECK(matrix.isEnabled(KeeloqLearning::LearningType::Normal, KeeloqLearning::AlgoType::Normal));
+    CHECK(matrix.isEnabled(KeeloqLearning::LearningType::Normal, KeeloqLearning::AlgoType::Inverted));
+    CHECK(matrix.isEnabled(KeeloqLearning::LearningType::Secure, KeeloqLearning::AlgoType::Normal));
+    CHECK(matrix.isEnabled(KeeloqLearning::LearningType::Secure, KeeloqLearning::AlgoType::Inverted));
+    CHECK(matrix.isEnabled(KeeloqLearning::LearningType::Xor, KeeloqLearning::AlgoType::Normal));
 }
 
-TEST_CASE("cli: mode-5 variation selects only the single chosen input/algo modifier")
+TEST_CASE("cli: mode-5 variation selects only the single chosen input/algo type")
 {
     const char* argv[] = {
         APP_NAME,
@@ -275,7 +275,7 @@ TEST_CASE("cli: mode-5 variation selects only the single chosen input/algo modif
         "--" ARG_START      "=0xAABBCCDD00112233",
         "--" ARG_CHECK_INV_ALGS  "=true",   // Includes only inverted algorithms (plus 3)
         "--" ARG_CHECK_REVKEYS  "=true",    // Additional input transform
-        "--" ARG_NO_REG_ALGS    "=true",    // Removes all normal modifiers (minus 11)
+        "--" ARG_NO_REG_ALGS    "=true",    // Removes all normal algorithm types (minus 11)
     };
 
     auto args = parseArgs(argv);
@@ -285,9 +285,9 @@ TEST_CASE("cli: mode-5 variation selects only the single chosen input/algo modif
 
     auto matrix = args.getLearningMatrix();
     REQUIRE(matrix.numEnabled() == 3);
-    CHECK(matrix.isEnabled<KeeloqLearning::LearningType::Normal, KeeloqLearning::Modifier::Algo::Inverted>());
-    CHECK(matrix.isEnabled<KeeloqLearning::LearningType::Secure, KeeloqLearning::Modifier::Algo::Inverted>());
-    CHECK(matrix.isEnabled<KeeloqLearning::LearningType::Faac, KeeloqLearning::Modifier::Algo::Inverted>());
+    CHECK(matrix.isEnabled<KeeloqLearning::LearningType::Normal, KeeloqLearning::AlgoType::Inverted>());
+    CHECK(matrix.isEnabled<KeeloqLearning::LearningType::Secure, KeeloqLearning::AlgoType::Inverted>());
+    CHECK(matrix.isEnabled<KeeloqLearning::LearningType::Faac, KeeloqLearning::AlgoType::Inverted>());
 
     REQUIRE(args.brute_configs.size() == 1);
     auto hasTransform = [](const BruteforceConfig& cfg, InputsTransform t) {
