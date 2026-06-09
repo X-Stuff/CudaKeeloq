@@ -1,12 +1,12 @@
 #pragma once
 
-#include "common.h"
-
-#include <vector>
-#include <tuple>
 #include <string>
+#include <tuple>
+#include <vector>
 
 #include <cuda_runtime_api.h>
+
+#include "common.h"
 
 
 constexpr uint8_t KeySizeBytes = sizeof(uint64_t);
@@ -14,11 +14,11 @@ constexpr uint8_t KeySizeBytes = sizeof(uint64_t);
 constexpr uint8_t KeySizeBits = sizeof(uint64_t) * 8;
 
 /**
- *  Filters for +1 bruteforce.
- * Will apply if `include(value) && !exclude(value)`
+ * Include/exclude filters for the +1 bruteforce generator.
+ * A candidate key is accepted when `include(key) && !exclude(key)`.
  *
- * Very little performance increase over simple +1 with exclude
- * The filters are not optimized quite good and have a lot of `if` blocks
+ * Filters provide a modest speedup over a plain exclude list, but each predicate
+ * adds branches and the overall gain is small.
  */
 struct BruteforceFilters
 {
@@ -76,13 +76,16 @@ struct BruteforceFilters
 
 public:
 
+    /** Human-readable description of the given flag set. */
     std::string toString(Flags::Type flags) const;
 
+    /** Human-readable summary of the active include/exclude filters. */
     std::string toString() const;
 
-    // Return true if key pass current filters
+    /** True if the key satisfies the configured include/exclude rules. */
     __host__ __device__ inline bool Pass(uint64_t key) const;
 
+    /** Shared filter evaluation used on both host and device. */
     __host__ __device__ inline static bool check_filters(uint64_t key, Flags::Type filter);
 
 private:

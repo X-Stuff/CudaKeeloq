@@ -1,9 +1,10 @@
 #pragma once
 
-#include "common.h"
-
 #include <vector>
+
 #include <cuda_runtime_api.h>
+
+#include "common.h"
 
 #include "algorithm/multibase_digit.h"
 #include "algorithm/multibase_number.h"
@@ -11,46 +12,37 @@
 
 
 /**
-*  This represents a number system where each digit has it's one base
-* Imagine this as set of rolling cylinders, installed side-by-side.
-* This is stateless structure. It allows to do arithmetical calculations
-* and conversions.
-*
-* Since application of this struct is only byte bruteforce - the maximum supported base is 255
-*
-* e.g. NumDigits == 4
-*  So there are 4 cylinders
-*  For example 1st cylinder has base 2, second - 4, third - 6, fourth - 8
-*  So the number 1 will be equal 0001
-*  number 10 is equals 0012    (1 * 8) + 2 = | 0 | 0 | 1 | 2 | )
-*  number 100 is       0204   (12 * 8) + 4 = | 0 | 2 | 0 | 4 | )
-*  number 500 is       2224   (62 * 8) + 4 = | 2 | 2 | 2 | 4 | ) = ((10 * 6 + 2) * 8) + 4 = ((((2 * 4 + 2)) * 6 + 2) * 8) + 4
-*
-*  Since this structure is pretty heavy
-* The idea is NOT allow non-const methods on device
-* You should have a single const reference on device.
-*/
+ * A numeric system where each digit has its own base.
+ *
+ * Visualise as a set of rolling cylinders installed side-by-side; each has an
+ * independent alphabet. This struct is stateless, allowing it to be safely
+ * shared on-device as a `const` reference for arithmetic and conversions.
+ *
+ * Since this is used for byte bruteforce, the maximum supported base is 255.
+ *
+ * e.g. NumDigits == 4
+ *  So there are 4 cylinders
+ *  For example 1st cylinder has base 2, second - 4, third - 6, fourth - 8
+ *  So the number 1 will be equal 0001
+ *  number 10 is equals 0012    (1 * 8) + 2 = | 0 | 0 | 1 | 2 | )
+ *  number 100 is       0204   (12 * 8) + 4 = | 0 | 2 | 0 | 4 | )
+ *  number 500 is       2224   (62 * 8) + 4 = | 2 | 2 | 2 | 4 | ) = ((10 * 6 + 2) * 8) + 4 = ((((2 * 4 + 2)) * 6 + 2) * 8) + 4
+ */
 template<uint8_t NumDigits = 8>
 struct MultibaseSystem
 {
 	static_assert(NumDigits <= 8, "At the moment we only support 8 bytes numbers");
 
-	// For easier usage with aliased types
+	/** Exposed count of digits in the system (useful with aliased types). */
 	constexpr static uint8_t DigitsNumber = NumDigits;
 
-	/**
-	 *  A generic case when all digits has different bases (pattern usage)
-	 */
+	/** Per-digit alphabets (pattern usage). */
 	__host__ MultibaseSystem(const std::vector<std::vector<uint8_t>>& numerals);
 
-	/**
-	 *  Use the same ByteDigit for every digit in this value (alphabet usage)
-	 */
+	/** Uniform alphabet shared across all digits (plain alphabet usage). */
 	__host__ MultibaseSystem(const MultibaseDigit& digit);
 
-	/**
-	 *  Default constructor where all Digits are Default - full range 0-255
-	 */
+	/** Default construction: every digit uses the full 0..255 byte range. */
 	__host__ MultibaseSystem() : MultibaseSystem(MultibaseDigit()) { }
 
 	// It's pretty heavy struct if you want clone it - constructor above
@@ -60,17 +52,17 @@ struct MultibaseSystem
 
 public:
 
-	// count of all numbers in this system
+	/** Total count of representable numbers in this system. */
 	__host__ __device__ inline size_t invariants() const;
 
-	// cast base10 number into number of this system
+	/** Convert a base-10 integer to the corresponding number in this system. */
 	__host__ __device__ inline MultibaseNumber cast(uint64_t input) const;
 
-	// Adds @amount in base10 to the @target argument and returns it
+	/** Add a base-10 amount to `target` (in-place) and return the reference. */
 	__host__ __device__ inline MultibaseNumber& increment(MultibaseNumber& target, uint64_t amount) const;
 
-	// get digit config by its index
-	__host__ __device__ inline const MultibaseDigit& get_config(uint8_t digit_index) const { assert(digit_index < NumDigits); return digits[digit_index]; }
+	/** Access the configuration of a single digit by its index. */
+	__host__ __device__ inline const MultibaseDigit& getConfig(uint8_t digit_index) const { assert(digit_index < NumDigits); return digits[digit_index]; }
 
 protected:
 
@@ -78,7 +70,7 @@ protected:
 	MultibaseDigit digits[NumDigits];
 };
 
-//
+/** Convenience alias for the common 8-digit (64-bit key) case. */
 using Multibase8DigitsSystem = MultibaseSystem<8>;
 
 

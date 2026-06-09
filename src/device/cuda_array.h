@@ -1,13 +1,17 @@
 #pragma once
 
-#include "common.h"
-
 #include <vector>
+#include <limits>
+
 #include <cuda_runtime_api.h>
+
+#include "common.h"
 
 
 /**
- *  A helper class for arrays allocated in GPU memory
+ * Owning array allocated in GPU memory.
+ * The struct itself also lives in device memory — host-side helpers are static and take `device`
+ * pointers; member helpers (free/write/copy/read/host) dispatch to those statics.
  */
 template<typename T>
 struct CudaArray
@@ -18,46 +22,57 @@ struct CudaArray
 
     size_t num;
 
-    __host__ __device__ inline T& operator[](uint32_t index)
+    __host__ __device__ inline T& operator[](size_t index)
     {
         assert(index < num && "Index is out of range in CudaArray");
         return CUDA_data[index];
     }
-    __host__ __device__ inline const T& operator[](uint32_t index) const
+    __host__ __device__ inline const T& operator[](size_t index) const
     {
         assert(index < num && "Index is out of range in CudaArray");
         return CUDA_data[index];
     }
 
-    // Frees all associated resources assuming this pointer is GPU address
+    /** Release the underlying GPU allocation (this pointer must be a device address). */
     inline void free()
     {
         TCudaArray::free(this);
     }
 
-    // Copies bytes from @source to this array
-    // Assumes array was allocated on GPU, will not fail if num > size
+    /** Upload `num` elements from host memory into this array. */
     inline void write(const T* source, size_t num)
     {
         TCudaArray::write(this, source, num);
     }
 
-    // Copies data from GPU to @target array
-    inline size_t copy(std::vector<T>& target)
+    /** Copy the full array from GPU into `target`, returning the element count. */
+    inline size_t copy(std::vector<T>& target) const
     {
         return TCudaArray::copy(this, target);
     }
 
-    // Copies self GPU object (without all underlying data in array)
-    // into CPU memory
-    inline TCudaArray host()
+    /** Download a slice (up to full array) `[index, index+num)` from GPU into a new host vector. */
+    inline std::vector<T> read(size_t index = 0, size_t num = std::numeric_limits<size_t>::max()) const
+    {
+        return TCudaArray::read(host(), index, num);
+    }
+
+    /** Copy this array's header (pointer + size) from GPU into host memory. */
+    inline TCudaArray host() const
     {
         // thiscall should work even with invalid pointer
         return TCudaArray::host(this);
     }
 
-    // Copies this pointer (which assumes to be GPU) to host and return copy of the last element
-    inline T host_last()
+    /** Total device bytes allocated for this array's payload. */
+    inline size_t allocated() const
+    {
+        // thiscall should work even with invalid pointer
+        return TCudaArray::host(this).num * sizeof(T);
+    }
+
+    /** Download the last element of this array from GPU. */
+    inline T hostLast() const
     {
         // thiscall should work even with invalid pointer
         TCudaArray HOST_array = TCudaArray::host(this);
@@ -65,15 +80,28 @@ struct CudaArray
     }
 
 public:
+    /** Allocate a device array seeded with `source`'s contents. */
     static TCudaArray* allocate(const std::vector<T>& source);
+
+    /** Allocate an uninitialised device array of `size` elements. */
+    static TCudaArray* allocate(const size_t size);
+
+    /** Free a device array (its header and payload). */
     static void free(TCudaArray* array);
 
+    /** Copy a device array's header (pointer + size) back to host. */
     static TCudaArray host(const TCudaArray* device);
 
+    /** Download a single element from a host-side header's payload. */
     static T read(const TCudaArray& HOST_Array, size_t index);
 
+    /** Download a slice (up to full array) from a host-side header's payload. */
+    static std::vector<T> read(const TCudaArray& HOST_Array, size_t index, size_t num);
+
+    /** Download an entire array into the supplied host vector. */
     static size_t copy(const TCudaArray* array, std::vector<T>& target);
 
+    /** Upload `num` elements from host memory into a device array. */
     static void write(TCudaArray* dest, const T* source, size_t num);
 };
 
@@ -90,35 +118,66 @@ T CudaArray<T>::read(const TCudaArray& HOST_Array, size_t index)
 }
 
 template<typename T>
-CudaArray<T>* CudaArray<T>::allocate(const std::vector<T>& source)
+std::vector<T> CudaArray<T>::read(const TCudaArray& HOST_Array, size_t index, size_t num)
+{
+    assert(index < HOST_Array.num);
+
+    auto elements = std::min(num, HOST_Array.num - index);
+
+    std::vector<T> result(elements);
+    auto error = cudaMemcpy(result.data(), &HOST_Array.CUDA_data[index], elements * sizeof(T), cudaMemcpyDeviceToHost);
+    CUDA_CHECK(error);
+
+    return result;
+}
+
+template<typename T>
+CudaArray<T>* CudaArray<T>::allocate(const size_t size)
 {
     // Allocate memory of vector itself (ptr + size_t == 16 bytes)
     CudaArray<T>* result = nullptr;
-    uint32_t error = cudaMalloc((void**) & result, sizeof(CudaArray<T>));
-    CUDA_CHECK(error);
+    uint32_t error = cudaMalloc((void**)&result, sizeof(CudaArray<T>));
+    CUDA_CHECK_RETURN(error, nullptr);
 
     // Write size_t - size of the data
-    size_t source_size = source.size();
-    error = cudaMemcpy(&result->num, &source_size, sizeof(size_t), cudaMemcpyHostToDevice);
-    CUDA_CHECK(error);
+    error = cudaMemcpy(&result->num, &size, sizeof(size_t), cudaMemcpyHostToDevice);
+    CUDA_CHECK_RETURN(error, nullptr);
 
     // Device pointer of data (if available)
     T* data_ptr = nullptr;
-    if (source_size > 0)
+    if (size > 0)
     {
-        size_t allocated_bytes = sizeof(T) * source_size;
+        const size_t allocated_bytes = sizeof(T) * size;
 
         // allocate data on device and copy from RAW
         error = cudaMalloc((void**)&data_ptr, allocated_bytes);
-        CUDA_CHECK(error);
-
-        error = cudaMemcpy(data_ptr, source.data(), allocated_bytes, cudaMemcpyHostToDevice);
-        CUDA_CHECK(error);
+        CUDA_CHECK_RETURN(error, nullptr);
     }
 
     // Write data pointer (null if no data)
     error = cudaMemcpy(&result->CUDA_data, &data_ptr, sizeof(T*), cudaMemcpyHostToDevice);
-    CUDA_CHECK(error);
+    CUDA_CHECK_RETURN(error, nullptr);
+
+    return result;
+}
+
+template<typename T>
+CudaArray<T>* CudaArray<T>::allocate(const std::vector<T>& source)
+{
+    auto result = allocate(source.size());
+    if (result && source.size() > 0)
+    {
+        const size_t allocated_bytes = sizeof(T) * source.size();
+
+        T* data_ptr = nullptr;
+        cudaMemcpy(&data_ptr, &result->CUDA_data, sizeof(T*), cudaMemcpyDeviceToHost);
+
+        assert(data_ptr && "CUDA Data wasn't allocated");
+
+        // Write data pointer (null if no data)
+        auto error = cudaMemcpy(data_ptr, source.data(), allocated_bytes, cudaMemcpyHostToDevice);
+        CUDA_CHECK(error);
+    }
 
     return result;
 }

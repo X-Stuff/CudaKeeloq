@@ -1,260 +1,448 @@
-## Intro
-This is a CUDA accelerated simple bruteforcer of [KeeLoq](https://en.wikipedia.org/wiki/KeeLoq) algorithm.
+# CudaKeeloq
+
+CudaKeeloq is a CUDA-accelerated KeeLoq bruteforcer. It can test manufacturer
+keys, seed values, dictionary entries, and constrained key spaces using NVIDIA
+GPUs.
 
 ## Disclaimer
 
-> 64-bit keeloq key is 18,446,744,073,709,551,615 possible combinations.
-EVEN! if your GPU will be able to calculate 1 billion keys in a second.
-You will need 18446744073709551615 / 1000000000 / 3600 / 24 / 365 = 584 YEARS! to brute a single key.
-> My laptop 3080Ti can do only 230 MKeys/s
-So it's practically impossible to use this application "as is" in real life attack.
+A 64-bit KeeLoq manufacturer key has `18,446,744,073,709,551,616` possible
+values. Even at 1 billion keys per second, a full key search takes about 584
+years. This project is useful for research, validation, and constrained search
+spaces, but a raw full-range attack is not practical.
+
+Use this only on systems and captures you are allowed to analyze.
 
 ## Version history
 
- * `0.1.2`
-   - Fixed `dockerfile`, added `CMD` (issue: https://github.com/X-Stuff/CudaKeeloq/issues/4).
-   - CUDA version updated to `12.2``
- * `0.1.1`
-   - Added seed bruteforce mode (issue: https://github.com/x-stuff/CudaKeeloq/issues/2).
-   - Added support of specifying seed in a text dictionaries.
-   - Fixed some minor bugs and internal refactoring.
-   - Slightly improved performance (1-5%)
- * `0.1.0`
-   - Initial public release.
+### 0.2.0
+
+* Updated the build to CUDA 13.2.
+* Refactored the bruteforce pipeline, CUDA device helpers, kernel input handling,
+  and result handling.
+* Added benchmark tooling that sweeps CUDA block/thread configurations and
+  reports the best throughput for each tested workload.
+* Added a separate `CudaKeeloqTests` test runner and expanded CLI, CUDA smoke,
+  generator, filter, alphabet, and KeeLoq tests.
+* Added named CLI values for bruteforce modes and learning types. Numeric values
+  still work.
+* Added input transforms for reversed manufacturer keys (`--check-rev`, enabled
+  by default) and XOR variants over the fixed part, hopping part, and decrypted
+  hopping part (`--check-xorfix`, `--check-xorhop`, `--check-xordec`).
+* Added inverted algorithm checks for Normal, Secure, and FAAC learning types
+  (`--check-inv-algs`, enabled by default).
+* Added experimental Xor bruteforce mode for fixed manufacturer keys and unknown XOR values.
+* Three-capture inputs is the only supported mode now.
+* Simplified the matching path around the normal three-capture workflow.
+* Improved Docker support. The image now builds the app and test runner, ships a
+  runnable entrypoint, and defaults to `--help`.
+
+### 0.1.2
+
+* Fixed the Dockerfile and added a default `CMD`.
+* Updated CUDA to 12.2.
+
+### 0.1.1
+
+* Added seed bruteforce mode.
+* Added seed support in text dictionaries.
+* Fixed minor bugs and did internal cleanup.
+* Improved performance by about 1-5%.
+
+### 0.1.0
+
+* Initial public release.
 
 ## Capabilities
 
-* **Simple** (+1) bruteforce
-  > Regular straightforward bruteforce where keys just incremented +1
-* **Filtered** (+1) bruteforce
-  > Some basics filters for simple bruteforce, like "keys with more that 6 subsequent zeros". Filters may apply to `Include` and/or `Exclude` rules. e.g. you can exclude keys with all ASCII symbols. You may also use `Include` filter but its performance is incredibly bad, so I don't recommend this attack type at all.
-* **Alphabet** attack
-  > You may specify exact set of bytes which should be used for generating keys during bruteforce. For example you may want to use only numbers, or only ascii symbols.
-* **Pattern** attack
-  > This is like extended alphabet. You may specify individual set of bytes for each byte in 64bit key. For example you may want first byte be any value, but others be only numbers.
-* **Dictionary** attack
-  > Manufacturer keys will be taken from input files. Supports binary and text modes. In text mode it's allowed to specify a seed also.
+* **Dictionary** - reads manufacturer keys from text or binary dictionaries.
+  Text dictionaries may include seeds.
+* **Simple** - increments manufacturer keys by `+1` from `--start`.
+* **Filtered** - simple bruteforce with include/exclude key filters.
+* **Alphabet** - generates keys from a fixed set of allowed bytes.
+* **Pattern** - generates keys from per-byte constants, ranges, alternatives,
+  wildcards, or alphabets.
+* **Seed** - bruteforces a 32-bit seed for a known manufacturer key.
+* **Xor** - bruteforces 32-bit XOR values for a known manufacturer key.
 
 ## Limitations
 
- * Doesn't support mixed bruteforce mode, when you need to bruteforce keys and seeds. You have to specify either `seed` or `key` if you want to brute `secure` or `faac` types.
- * Can't do binary dictionary window attack. If you want something similar, you can make 63 more files. Where each file's content will be shifted by 1-to-63 bit to the left.
+* Full 64-bit manufacturer-key bruteforce is usually not practical.
+* The normal workflow expects three captures from the same transmitter button.
+  Fewer captures are likely to produce too many phantom matches.
+* The app does not brute a 64-bit manufacturer key and a 32-bit seed or XOR
+  value as one combined search space. Use a fixed seed/XOR value while
+  bruteforcing keys, or use a fixed manufacturer key while bruteforcing seeds
+  or XOR values.
+* Binary dictionary window attacks are not implemented. If you need shifted
+  dictionary windows, prepare shifted dictionary files yourself.
 
-## Build
+## Requirements
+
+### Runtime
+
+* NVIDIA GPU with CUDA support.
+* NVIDIA driver compatible with CUDA 13.2.
+* Enough GPU memory for the selected CUDA launch configuration.
+* Linux Docker runs require NVIDIA Container Toolkit.
+
+### Windows build
+
+* CUDA Toolkit 13.2.
+* Microsoft Visual Studio 2022 with the v143 toolset.
+
+Open `CudaKeeloq.vcxproj` in Visual Studio and build the desired configuration.
+`CudaKeeloqTests.vcxproj` builds the test runner.
+
+> NOTE: Release build takes significant amount of time, around 5 minutes, due to enormous amount of kernels permutations.
+
+### Linux build
+
+Requirements:
+
+* CUDA Toolkit 13.2.
+* `make`
+* `g++`
+
+```sh
+make release
+```
+
+For a debug build:
+
+```sh
+make debug
+```
+
+Other useful targets:
+
+```sh
+make profile
+make app CONFIG=release
+make tests CONFIG=release
+make clean
+```
+
+The binaries are written under `.build/x64/<config>/linux/bin/`.
+
+## Docker usage
+
+Docker is optional. It is useful when you want a reproducible CUDA 13.2 build
+environment or a ready-to-run image.
+
+Build the image:
+
+```sh
+./build.sh
+```
+
+This builds `cudakeeloq:local`. You can override the image name:
+
+```sh
+CONTAINER=my-keeloq TAG=dev ./build.sh
+```
+
+Run the app through the helper script:
+
+```sh
+./run.sh --help
+```
+
+Example bruteforce run:
+
+```sh
+./run.sh \
+  --inputs=0xC65D52A0A81FD504,0xCCA9B335A81FD504,0xE0DA7372A81FD504 \
+  --mode=simple \
+  --start=0x9876543210 \
+  --count=1000000
+```
+
+The helper runs:
+
+```sh
+docker run --rm -it --init --gpus=all --device /dev/dxg:/dev/dxg cudakeeloq:local <args>
+```
+
+On WSL, `--device /dev/dxg:/dev/dxg` is required for the container to access
+the GPU. On native Linux, remove that option if `/dev/dxg` does not exist.
+
+To use files that are not already copied into the image, mount them with
+`DOCKER_ARGS`:
+
+```sh
+DOCKER_ARGS="-v $PWD/data:/data" ./run.sh \
+  --inputs=0xC65D52A0A81FD504,0xCCA9B335A81FD504,0xE0DA7372A81FD504 \
+  --mode=dictionary \
+  --word-dict=/data/keys.txt
+```
+
+Run the test binary from the Docker image:
+
+```sh
+docker run --rm --gpus=all --entrypoint /app/CudaKeeloqTests cudakeeloq:local
+```
+
+## Benchmarking
+
+Use the benchmark mode to find the fastest CUDA launch settings for your GPU:
+
+```sh
+./run.sh --benchmark=true
+```
+
+The benchmark tries different block/thread counts and both single-learning and
+multi-learning kernel modes. For each workload it prints the best result, for
+example:
+
+```text
+Best result: Multiple learnings mode in kernel, 8192 blocks, 256 threads - 1234.567 million keys/s
+```
+
+Use the reported values with:
+
+```sh
+./run.sh \
+  --inputs=<input1>,<input2>,<input3> \
+  --mode=simple \
+  --start=<first-key> \
+  --count=<count> \
+  --cuda-blocks=<best-blocks> \
+  --cuda-threads=<best-threads>
+```
+
+Press `Esc` during benchmarking to skip the current benchmark section.
+
+## Captures and inputs
+
+`--inputs` expects three captured KeeLoq OTA packets as 64-bit hex values:
+
+```text
+0x[HOPPING_32][FIXED_32]
+```
+
+Capture the same transmitter button three times. The fixed part should match,
+and the decoded counters should increase. Fewer captures are not useful for
+normal operation because they are much more likely to produce false matches.
+
+## Examples
+
+### Simple bruteforce
+
+```sh
+./CudaKeeloq \
+  --inputs=0xC65D52A0A81FD504,0xCCA9B335A81FD504,0xE0DA7372A81FD504 \
+  --mode=simple \
+  --start=0x9876543210 \
+  --count=1000000
+```
+
+Checks 1 million manufacturer keys starting at `0x9876543210`.
+
+### Alphabet bruteforce
+
+```sh
+./CudaKeeloq \
+  --inputs=0xC65D52A0A81FD504,0xCCA9B335A81FD504,0xE0DA7372A81FD504 \
+  --mode=alphabet \
+  --learning-type=Simple \
+  --alphabet=examples/alphabet.bin,10:20:30:AA:BB:CC:DD:EE:FF:02:33
+```
+
+This starts one attack using `examples/alphabet.bin` and another using the byte
+list from the command line.
+
+### Pattern bruteforce
+
+```sh
+./CudaKeeloq \
+  --inputs=0xC65D52A0A81FD504,0xCCA9B335A81FD504,0xE0DA7372A81FD504 \
+  --mode=pattern \
+  --pattern=FF:11:*:*:AA-FF:01|10:00:FF,*:*:*:*:AB:CD:EF:00
+```
+
+Patterns are written in big-endian byte order. `*` means any byte, `AA-FF` means
+a byte range, and `01|10` means either byte.
+
+### Dictionary bruteforce
+
+```sh
+./CudaKeeloq \
+  --inputs=0xC65D52A0A81FD504,0xCCA9B335A81FD504,0xE0DA7372A81FD504 \
+  --mode=dictionary \
+  --word-dict=0x0FDE4531BBACAD12,examples/dictionary.words \
+  --bin-dict=examples/dictionary.bin \
+  --bin-dict-mode=1
+```
+
+Text dictionaries contain one key per line. To include a decimal seed in a text
+dictionary, use `key:seed`, for example:
+
+```text
+0xAABBCCDDEEFF0011:123456
+```
+
+### Seed bruteforce
+
+```sh
+./CudaKeeloq \
+  --inputs=0xC65D52A0A81FD504,0xCCA9B335A81FD504,0xE0DA7372A81FD504 \
+  --mode=seed \
+  --start=0xAABBCCDDEEFF0011
+```
+
+This keeps the manufacturer key fixed and checks the seed space for seeded
+learning types such as Secure and FAAC.
+
+### Xor bruteforce
+
+```sh
+./CudaKeeloq \
+  --inputs=0xC65D52A0A81FD504,0xCCA9B335A81FD504,0xE0DA7372A81FD504 \
+  --mode=xor \
+  --start=0xAABBCCDDEEFF0011 \
+  --seed=0
+```
+
+This keeps the manufacturer key fixed and searches XOR values for supported
+input transform locations.
+
+## Command line reference
+
+### General
+
+* `--help`, `-h` - print help.
+* `--version`, `-v` - print the version.
+* `--benchmark` - run the benchmark suite instead of a bruteforce run.
+* `--inputs=<i1,i2,i3>` - three captured OTA packets.
+* `--first-match=true|false` - stop when the first match is found. Default:
+  `true`.
+
+### CUDA settings
+
+* `--cuda-blocks=<num>` - CUDA blocks per kernel launch. `0` lets the app choose.
+* `--cuda-threads=<num>` - CUDA threads per block. `0` lets the app choose.
+
+Higher values can improve throughput, but they also use more GPU memory. Use
+`--benchmark=true` to find good values for your GPU and workload.
+
+### Modes
+
+`--mode` accepts comma-separated names or numeric IDs:
+
+* `0`, `dictionary` - dictionary attack. Uses `--word-dict` and/or `--bin-dict`.
+* `1`, `simple` - `+1` manufacturer-key bruteforce.
+* `2`, `filtered` - simple bruteforce with filters.
+* `3`, `alphabet` - generate keys from one or more alphabets.
+* `4`, `pattern` - generate keys from one or more byte patterns.
+* `5`, `seed` - brute seeds for a fixed manufacturer key.
+* `6`, `xor` - brute XOR values for a fixed manufacturer key.
+
+Several modes can be selected at once, for example:
+
+```sh
+--mode=dictionary,simple,pattern
+```
+
+Provide all arguments required by every selected mode.
+
+### Key range
+
+* `--start=<value>` - first manufacturer key, or the fixed manufacturer key for
+  `seed` and `xor` modes. Default: `0`.
+* `--count=<value>` - number of generated values to check. Default:
+  `0xFFFFFFFFFFFFFFFF`.
+* `--seed=<value>` - fixed seed for learning types that need one. For XOR
+  transforms it is also used as the XOR value; in `xor` mode it is the first XOR
+  value to test. For text dictionaries, a per-entry seed can also be written as
+  `key:seed`.
+
+### Dictionaries
+
+* `--word-dict=<file,key,...>` - text dictionary files or literal hex keys.
+* `--bin-dict=<file,...>` - binary dictionary files. Each 8 bytes are read as
+  one key.
+* `--bin-dict-mode=0` - read binary dictionary keys as-is, big-endian.
+* `--bin-dict-mode=1` - read binary dictionary keys reversed, little-endian.
+* `--bin-dict-mode=2` - add both byte orders.
+
+### Alphabet and pattern
+
+* `--alphabet=<file,AA:BB:01,...>` - binary alphabet files or colon-separated
+  byte lists.
+* `--pattern=<pattern,...>` - big-endian byte patterns.
+
+Pattern byte syntax:
+
+* `*` - any byte.
+* `0A` or `0x0A` - exact byte.
+* `0x10-0x32` - inclusive byte range.
+* `33|44|FA` - one of the listed bytes.
+* `AL0`, `AL1`, ... - reuse alphabets from `--alphabet` by index.
+
+### Filters
+
+* `--exclude-filter=<flags>` - skip generated keys matching these filter flags.
+* `--include-filter=<flags>` - keep only generated keys matching these filter
+  flags. This can be slow.
+
+See `src/bruteforce/bruteforce_filters.h` for the filter flag values.
+
+### Learning types and transforms
+
+`--learning-type` accepts comma-separated names or numeric IDs:
+
+* `0`, `Simple`
+* `1`, `Normal`
+* `2`, `Secure` - requires a seed.
+* `3`, `Xor`
+* `4`, `FAAC` - requires a seed.
+* `5`, `Serial1`
+* `6`, `Serial2`
+* `7`, `Serial3`
+* `ALL` - default.
+
+Related options:
+
+* `--check-rev=true|false` - also check byte-reversed manufacturer keys.
+  Default: `true`.
+* `--check-xorfix=true|false` - also check XOR applied to the fixed part of the
+  captured packet.
+  Default: `false`.
+* `--check-xorhop=true|false` - also check XOR applied to the hopping part of
+  the captured packet.
+  Default: `false`.
+* `--check-xordec=true|false` - also check XOR applied after decrypting the
+  hopping part.
+  Default: `false`.
+* `--check-xors=true|false` - check **all** XOR transforms.
+  Default: `false`.
+* `--check-inv-algs=true|false` - also check inverted algorithm variants where
+  they exist. Default: `true`.
+* `--no-reg-algs=true|false` - disable regular algorithm variants. This is only
+  useful when intentionally checking only alternate variants. Default: `false`.
+
+XOR transforms expand the number of input-transform variants the kernels must
+check. Enable only the specific XOR locations you need when performance matters.
+
+Selecting a specific learning type usually reduces work, but on some GPUs the
+`ALL` path may still be competitive because it avoids some branching patterns.
+
+## Changing CUDA version
 
 ### Windows
-#### Requirements
 
-* CUDA Toolkit v12.2.0
-  - nvcc
-  - cuda runtime
-  - visual studio extension
+Update the Visual Studio project files:
 
-* Microsoft Visual Studio 2022
+* replace `CUDA_PATH_V13_2` with the desired CUDA environment variable
+* replace `CUDA 13.2.props` and `CUDA 13.2.targets` with the desired version
 
-#### Compiling
- Just open `.vcxproj` file and build it
+### Docker/Linux
 
-### Linux
-#### Requirements
-* docker
-* NVIDIA Container [Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
+Edit `dockerfile`:
 
-#### Compiling
+```dockerfile
+ARG CUDA_MAJOR=13
+ARG CUDA_MINOR=2
+ARG CUDA_PATCH=0
 ```
-$ ./build.sh
-```
-This will create a container `cudakeeloq:local` with compiled app
-
-Run the bruteforcer
-```
-$ ./run.sh <ARGS>
-```
-> NOTE: You may need to have CUDA docker extension installed in order to have `--gpus` command line argument works.
-
-### Different CUDA Version
-
-#### Windows
-Open `.vcxproj` find and replace:
- * `CUDA 12.2.targets` with desired version
- * `CUDA 12.2.props` with disired version
-
-#### Linux
-Open `dockerfile` and change `CUDA_MAJOR`, `CUDA_MINOR` and `CUDA_PATCH` variables
-
-## Run
-
-### Requirements
-* NVidia GPU (1GB+ RAM)
-* RAM 1GB+
-* **(Linux only)** installed CUDA docker extension `nvidia-container-toolkit`
-
-### Examples
-
-#### Simple bruteforce
-
-```
-./CudaKeeloq --inputs xx,yy,zz --mode=1 --start=0x9876543210 --count=1000000
-```
- - bruteforce of 1 million keys starting from `0x9876543210`
-
-#### Alphabet bruteforce
-
-```
-./CudaKeeloq --inputs xx,yy,zz --mode=3 --learning-type=0 --alphabet=examples/alphabet.bin,10:20:30:AA:BB:CC:DD:EE:FF:02:33
-```
-Specified 2 alphabets - 2 attacks will be launched:
- - First will use file `examples/alphabet.bin` as alphabet source.
- - Second alphabet is provided via command line `10:20:30:AA:BB:CC:DD:EE:FF:02:33`
-
-#### Pattern bruteforce
-
-```
-./CudaKeeloq --inputs xx,yy,zz --mode=4 --pattern=FF:11:*:*:AA-FF:01|10:00:FF,*:*:*:*:AB:CD:EF:00
-```
-Specified 2 patterns - 2 attacks will be launched:
-  - First will check keys started (less significant bytes) from `..00FF`, then will be either `01` or `10` bytes, then bytes range `AA, AB, AC, AD ... FF`, then 2 any bytes [`0x00`:`0xFF`], and final 2 bytes will be `11` and `FF`.
-  - Second has constant lower 32 bit value `ABCDEF00` and higher 32 bits will be bruted.
-
-#### Seed bruteforce
-
-```
-./CudaKeeloq --inputs xx,yy,zz --mode=5 --start=<man>
-```
-This will launch seed attack with specified manufacturer key: `<man>`. If `--learning-type=` not specified - will try to check all learning types with seed - `FAAC` and `Secure` ( `Rev` version dropped intentionally since manufacturer key explicitly set ). You can specify start seed with `--seed=` but it's kind of useless. Check all 32-bit values is matter of minutes, and check will be forced to do all over the `uint32` range anyway.
-
-#### Dictionary bruteforce
-
-```
-./CudaKeeloq --inputs xx,yy,zz --mode=0 --word-dict=0xFDE4531BBACAD12,examples/dictionary.words --bin-dict=examples/dictionary.bin --bin-dict-mode=1
-```
-This will launch 2 dictionary attacks:
-  1. Explicit key `0xFDE4531BBACAD12` from command line and parsed keys from `examples/dictionary.words`
-  2. Keys created from bytes of file `examples/dictionary.bin`. Since `--bin-dict-mode=1` specified, read 8-bytes from file will be reversed. So the bytes `01 00 00 00 ...` will become `uint64` number with value `1`.
-
-Other arguments for this mode aren't used.
-
-## Command line arguments
-
-### Inputs
-
-* `--inputs=[i1, i2, i3]` - inputs are captured "over the air" bytes, you need to provide 1-3 in format of hexadecimal number: `0x1122334455667788`.
-  > NOTE: It is possible to launch bruteforce over the single captured data, but there will be tons of false matches. You shouldn't use it. Even with 2 inputs chances are pretty high.
-
-#### Bruteforce range
-
-* `--start=<value>` - defines the initial value from which bruteforce begins. Applies to all types except dictionary ( default is `0` ).
-For alphabet or pattern types, should be specified value which can be converted to pattern or alphabet. e.g.
-if you use alphabet `77:88:FF:AA:BB` and specify `--start=0x778899FFAABBAABB` - bruteforce will start from `0x7788`**`77`**`FFAABBAABB` since `99` is not exist in alphabet it will be replace with the first byte in alphabet.
-If you specify `0` as start value bruteforce will start from `0x77777..`.
-
-* `--count=<value>` - number of keys to generate and check ( default is `uint64 max` - means all ).
-If you using simple +1 mode it will define the last key to check. In other mode determine the last key might be not trivial task.
-
-* `--seed=<value>` - seed value. It used only in `SECURE` and `FAAC` learning modes. Providing `seed` without a learning mode will just significantly reduce bruteforce speed.
-If you definitely know that captured data encrypted with `seed`'ed algorithm - specify `--learning-type=4,5,8,9` (`SECURE` and `FAAC` both with `_rev` variation), no sense in that case to calculate the others. And vice versa, if you don't know the `seed` - do not specify it, otherwise - useless calculation would be done.
-Not supported in `dictionary` mode.
-
-
-#### Modes
-
-In case of `single` input - the match check will be done only by match 18-bits of `serial`.
-Keeloq OTA packet divided into 2 parts `fix` and `hop`.
-  - `fix` - 4-bit encoded `button` and 28-bit `serial` number of transmitter
-  - `hop` - encoded `serial`, `button` and `counter`
-So in single mode decoded `serial` will be matched to stripped `serial` from `fix` part.
-This is not accurate and gives you tons of *phantoms*.
-
-In case of `normal` inputs (2-3) - the analysis will be slightly more complex.
-  - All inputs will be decode with same key
-  - All decoded coded `hop` parts will be compared by `serial`
-    - if `serial` match - then will be checked `button` - button should be the same
-    - if `button` match - then will be checked `counter` - is should be increasing per each input
-
-3 inputs is enough to eliminate *phantoms* no need to provide more (however there is still a possibility to catch one).
-
-2 inputs might give you less accurate results with *phantoms*.
-
-Obviously `single` mode is 3-4x times faster than `normal` due to optimizations. However results in `single` mode might not be accurate.
-
-#### Capture
-
-The idea of normal flow is:
- - Setup your radio capture device.
- - Click same button 3 times on your transmitter (same serial, same button, increasing counter).
- - Convert encoded signal to bytes.
- - Provide these bytes as inputs.
-
-### CUDA Setup
-
-* `--cuda-blocks=N` - `N` is a number of thread blocks for each bruteforce attack round
-* `--cuda-threads=N` - `N` is a number of CUDA threads for each block (above). If `0` (default) - the maximum from device caps will be set.
-
-Overall number of threads is multiplication of `cuda-blocks` and `cuda-threads`.
-
-Keep in mind that the more overall threads you will have - the more memory they will consume. (e.g. `8196` and `1024` consumes approx. 2.5 GB RAM (and GPU RAM))
-
-### Attack modes
-
-Each bruteforce run must define a mode.
-Several modes can be specified at the same time like `--mode=0,1,3,4` but you should provide all expected arguments for each mode.
-
- * `--mode=0` - Dictionary. Expects (one or both):
-    - `--word-dict=[f1, w1, ...]` - `f1` - text dictionary file(s) with hexadecimal values, `w1` hexadecimal word itself. Supports seed also, should be provided with `:` as delimiter (e.g.: `0xAABBCCDDEE:1234`) and as decimal number only.
-    - `--bin-dict=[f1, f2]` - binary file(s) each 8 bytes of which will be used as dictionary word.
-    Supports `--bin-dict-mode=M` where `M` = { `0`, `1`, `2`}. `0` - as is (big endian). `1` - reverse (little endian), `2` - both.
- * `--mode=1` - Simple bruteforce mode.
-    - `--start` defines the first key from which bruteforce begins.
-    - `--count` how much keys to check.
- * `--mode=2` - Filtered bruteforce mode. Same as simple, but with filters:
-    - `--exclude-filter=V` where `V` is number representing filers flags combinations. (see: [bruteforce_filters.h](src/bruteforce/bruteforce_filters.h))
-    - `--include-filter=V` (same as above)
- * `--mode=3` - Alphabet mode. Expects:
-    - `--alphabet=[f1, a1, ...]` - where `f1` is a binary file contents of which will be interpreted as allowed bytes in key during bruteforce. where `a1` is `:` separated hex string of bytes in alphabet (like: `AA:BB:01`)
-    - Also allowed to use `--start` and `--count` arguments, with same meaning
- * `--mode=4` - Pattern mode. Expects:
-    - `--pattern=[f1, p1, ...]` - where `f1` is a text file with hexadecimal pattern, and `p1` is `:` separated hexadecimal pattern like `*:aa:00-33:0xF3|0x11:AL0 ...`.
-        - `*` - means any byte
-        - `0xNN-0xMM` - means range from `0xNN` to `0xMM`
-        - `A|B|C` - means `A` or `B` or `C`
-        - `AL[0..N]` - means alphabet from inputs (must be specified with `--alphabet=`)
-    - `--alphabet=` - if pattern has `AL` - alphabet must be specified.
- * `--mode=5` - Seed bruteforce mode. Expects:
-    - `--start=<man>` - Manufacturer key. This will be the only key to check. Instead of bruteforcing keys, this mode bruteforce seeds.
-
-### Learning types
-
-By default the app will try to brute all known learning keys (16 or 12 depending if seed is specified), however if you know exact learning type, you might increase you bruteforce time x12-16 times. You may also specify several learning types simultaneously `--learning-type=0,5,7`.
-> NOTE: Depending on your GPU, at some point, using `ALL` learning types *might be* faster than explicitly specified, due to the GPU branching problem.
-
-Each learning type has its `_REV` modification. That's mean it will use byte-reversed key for decryption. See more [keeloq_learning_types.h](src/algorithm/keeloq/keeloq_learning_types.h)
-
-Here and below `=x[y]` - `x` value for normal mode, `y` for reversed.
-
-* `--learning-type=0[1]` - Simple learning
-* `--learning-type=2[3]` - Normal learning
-* `--learning-type=4[5]` - Secure learning (requires seed)
-* `--learning-type=6[7]` - XOR learning
-* `--learning-type=8[9]` - FAAC learning (requires seed)
-* `--learning-type=10[11]` - *UNKNOWN TYPE1*
-* `--learning-type=12[13]` - *UNKNOWN TYPE2*
-* `--learning-type=14[15]` - *UNKNOWN TYPE3*
-
-### Miscellaneous
-
- * `--first-match` - if `true` (default) will stop all bruteforce on first match
- * `--test` - launches internal debug tests (useful mostly if built in `Debug` configuration)
- * `--benchmark` - launches CUDA setup benchmark. Will show comparison of different CUDA setup (block and threads).
- * `--help`, `-h` - prints help
-
-
- ## Performance
-
- > Windows executable, release mode, MSVS 2022, CUDA 12.0.0
-
- For my laptop's GPU ( 3080Ti ) the best results with `8196` CUDA Blocks and maximum CUDA threads (from device info - `1024`) - it gives me approx.:
-  * `28` MKeys/s for `ALL` learning types if `seed` **is** specified.
-  * `49` MKeys/s for `ALL` learning types if `seed` is **not** provided.
-  * `500` MKeys for `Simple` ( the easiest type single keeloq decryption ).
-  * `250` MKeys for `Normal` and `Secure`.
-  * `220` MKeys for `FAAC`.

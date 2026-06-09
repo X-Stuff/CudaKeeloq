@@ -1,4 +1,4 @@
-#include "console.h"
+#include "host/console.h"
 
 #include <cstring>
 
@@ -15,7 +15,7 @@
 static Term::Terminal s_term = Term::Terminal(true, false);
 
 
-void console::progress_bar(double percent, const std::chrono::seconds& elapsed)
+void console::progressBar(double percent, const std::chrono::seconds& elapsed)
 {
     constexpr auto progress_width = 80;
 
@@ -27,7 +27,7 @@ void console::progress_bar(double percent, const std::chrono::seconds& elapsed)
         std::memset(progress_none, '-', sizeof(progress_none));
     }
 
-    std::chrono::seconds eta = elapsed.count() > 0 ?
+    const auto eta = (elapsed.count() > 0 && percent >= 0.001) ?
         std::chrono::seconds((uint64_t)(elapsed.count() / percent)) - elapsed : std::chrono::seconds(0);
 
     printf("[%.*s>", (int)(progress_width * percent), progress_fill);
@@ -37,29 +37,44 @@ void console::progress_bar(double percent, const std::chrono::seconds& elapsed)
         eta.count() / 3600, (eta.count() / 60) % 60, eta.count() % 60);
 }
 
-void console::clear_line(int width /*= 0*/)
+void console::clearLine(int width /*= 0*/)
 {
-    int tWidth = 0;
-    int tHeight = 0;
-
-    s_term.get_term_size(tHeight, tWidth);
-    printf("\r%*s", width > 0 ? width : (tWidth - 1), "");
-    printf("\r");
+    console_clear_line();
 }
 
 
-int console::read_esc_press()
+void console::clearLinesUp(int numlines, int width /*= 0*/)
+{
+    for (int i = 0; i < numlines; ++i)
+    {
+        console_cursor_ret_up(1);
+        console::clearLine(width);
+    }
+}
+
+int console::readEscPress()
 {
     return s_term.read_key0() == Term::ESC;
 }
 
 
-void console::set_cursor_state(bool visible)
+void console::setWidth(int width)
+{
+#if defined(_WIN32)
+    char cmd[64];
+    sprintf_s(cmd, "mode con: cols=%d", width);
+    system(cmd);
+#else
+    printf("\033[%du", width);
+#endif
+}
+
+void console::setCursorState(bool visible)
 {
     s_term.write(visible ? Term::cursor_on() : Term::cursor_off());
 }
 
-uint32_t console::get_width()
+uint32_t console::getWidth()
 {
     int cols = CONSOLE_WIDTH;
     int rows = 0;

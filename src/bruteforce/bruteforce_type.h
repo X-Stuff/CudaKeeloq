@@ -3,7 +3,8 @@
 #include "common.h"
 
 /**
- *  Type of bruteforce attack
+ * Enumerates the attack modes supported by the bruteforcer.
+ * Each mode corresponds to a specific decryptor generator kernel.
  */
 struct BruteforceType
 {
@@ -30,11 +31,18 @@ struct BruteforceType
         // Simple +1 seed bruteforce. Since seed is 32bit value, seed bruteforce may be done in a acceptable amount of time
         Seed,
 
+        // Simple +1 bruteforce for XOR value of fix, hop and dec parts. Used for every learning types, Seed types uses the same value
+        Xor,
+
         // Not for usage
         LAST,
     };
 
-    static const char* Name(Type type);
+    /** Human-readable name for a bruteforce type, or "UNKNOWN" for out-of-range values. */
+    static const char* name(Type type);
+
+    /** Parse a bruteforce-type name (case-insensitive) or numeric index. */
+    static bool parse(const char* name, Type& out);
 
 private:
 
@@ -42,4 +50,3 @@ private:
 
     static const size_t GeneratorTypeNamesCount;
 };
-
