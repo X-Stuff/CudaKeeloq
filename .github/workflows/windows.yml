@@ -7,7 +7,7 @@ on:
       - release-v*
 
 env:
-  CUDA_VERSION: '13.2.0'
+  CUDA_VERSION: '13.2.1'
   CUDA_VERSION_MAJOR: '13'
   CUDA_VERSION_MINOR: '2'
 
@@ -33,8 +33,6 @@ jobs:
         uses: Jimver/cuda-toolkit@v0.2.35
         with:
           cuda: ${{ env.CUDA_VERSION }}
-          method: network
-          sub-packages: '["nvcc", "cudart", "crt", "visual_studio_integration"]'
           use-github-cache: true
 
       - name: Export CUDA variables
@@ -53,10 +51,7 @@ jobs:
         shell: pwsh
         run: |
           Write-Host "CUDA PATH: $env:CUDA_PATH"
-          Write-Host "CUDA PATH (versioned): $env:CUDA_PATH_V${{ env.CUDA_VERSION_MAJOR }}_${{ env.CUDA_VERSION_MINOR }}"
           nvcc -V
-          Get-ChildItem -Force -LiteralPath "$env:CUDA_PATH/include"
-          Get-ChildItem -Force -LiteralPath "$env:CUDA_PATH/include/crt"
 
       - name: Build application
         shell: pwsh
