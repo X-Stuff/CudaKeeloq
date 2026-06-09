@@ -31,8 +31,8 @@ Use this only on systems and captures you are allowed to analyze.
   hopping part (`--check-xorfix`, `--check-xorhop`, `--check-xordec`).
 * Added inverted algorithm checks for Normal, Secure, and FAAC learning types
   (`--check-inv-algs`, enabled by default).
-* Added Serial1, Serial2, and Serial3 learning calculations.
-* Added Xor bruteforce mode for fixed manufacturer keys and unknown XOR values.
+* Added experimental Xor bruteforce mode for fixed manufacturer keys and unknown XOR values.
+* Three-capture inputs is the only supported mode now.
 * Simplified the matching path around the normal three-capture workflow.
 * Improved Docker support. The image now builds the app and test runner, ships a
   runnable entrypoint, and defaults to `--help`.
@@ -213,33 +213,12 @@ Use the reported values with:
 
 Press `Esc` during benchmarking to skip the current benchmark section.
 
-## Performance
-
-These values depend on the GPU, driver, CUDA version, build configuration, and
-selected learning types. Use `--benchmark=true` to measure your own setup.
-
-Shared configuration:
-
-* GPU: laptop RTX 3080 Ti.
-* CUDA: 13.2.
-* Build: Release.
-
-| Result | Native Windows | WSL | Docker in WSL |
-| --- | --- | --- | --- |
-| `ALL` learning types with seed |  |  |  |
-| `ALL` learning types without seed |  |  |  |
-| `Simple` |  |  |  |
-| `Normal` |  |  |  |
-| `Secure` |  |  |  |
-| `FAAC` |  |  |  |
-| `Xor` |  |  |  |
-
 ## Captures and inputs
 
 `--inputs` expects three captured KeeLoq OTA packets as 64-bit hex values:
 
 ```text
-0x<HOPPING_32><FIXED_32>
+0x[HOPPING_32][FIXED_32]
 ```
 
 Capture the same transmitter button three times. The fixed part should match,
@@ -334,7 +313,7 @@ input transform locations.
 
 * `--help`, `-h` - print help.
 * `--version`, `-v` - print the version.
-* `--benchmark=true` - run the benchmark suite instead of a bruteforce run.
+* `--benchmark` - run the benchmark suite instead of a bruteforce run.
 * `--inputs=<i1,i2,i3>` - three captured OTA packets.
 * `--first-match=true|false` - stop when the first match is found. Default:
   `true`.
@@ -435,6 +414,8 @@ Related options:
   Default: `false`.
 * `--check-xordec=true|false` - also check XOR applied after decrypting the
   hopping part.
+  Default: `false`.
+* `--check-xors=true|false` - check **all** XOR transforms.
   Default: `false`.
 * `--check-inv-algs=true|false` - also check inverted algorithm variants where
   they exist. Default: `true`.
