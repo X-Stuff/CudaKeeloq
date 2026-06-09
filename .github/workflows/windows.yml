@@ -1,5 +1,6 @@
 name: Windows
 on:
+  workflow_dispatch:
   push:
     tags:
       - test-windows*
