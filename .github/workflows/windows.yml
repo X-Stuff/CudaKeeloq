@@ -34,7 +34,7 @@ jobs:
         with:
           cuda: ${{ env.CUDA_VERSION }}
           method: network
-          sub-packages: '["nvcc","cudart","visual_studio_integration"]'
+          sub-packages: '["nvcc","cudart","thrust","visual_studio_integration"]'
 
       - name: Export CUDA variables
         shell: pwsh
