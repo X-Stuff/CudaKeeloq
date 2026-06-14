@@ -17,7 +17,7 @@ struct Encryptor
 
     static constexpr uint8_t kRandomButton = 0x3;
 
-    static constexpr uint16_t kRandomCounter = 0x123;
+    static constexpr uint32_t kRandomCounter = 0x123;
 
     static constexpr uint32_t kRandomSerial = 0xDEADBEEF;
 
@@ -30,8 +30,7 @@ public:
     {
     }
 
-private:
-    Encryptor(uint64_t key, uint32_t seed, uint32_t serial, uint8_t button, uint16_t count) :
+    Encryptor(uint64_t key, uint32_t seed, uint32_t serial, uint8_t button, uint32_t count) :
         key(key), seed(seed), serial(serial), button(button), count(count)
     {
     }
@@ -50,17 +49,17 @@ public:
     /** Derives the effective manufacturer key for the given learning type and algorithm type. */
     uint64_t man(InputsTransform inTransform, KeeloqLearning::LearningType ltype, KeeloqLearning::AlgoType algoType) const;
 
-    /** Assembled hopping-code value prior to encryption. */
-    inline uint32_t unencrypted() const { return (uint32_t)button << 28 | ((serial & 0x3FF) << 16) | count; }
+    /** Assembled hopping-code value prior to encryption for @ltype (FAAC SLH uses a distinct layout from standard KeeLoq). */
+    uint32_t unencrypted(KeeloqLearning::LearningType ltype) const;
 
-    /** Assembled fixed code (button + serial) — constant per device. */
-    inline uint32_t fixed() const { return (uint32_t)button << 28 | (serial & 0x0FFFFFFF); }
+    /** Assembled fixed code (button + serial) for @ltype — constant per device (FAAC SLH uses a distinct layout from standard KeeLoq). */
+    uint32_t fixed(KeeloqLearning::LearningType ltype) const;
 
-    /** Current counter value. */
-    inline uint16_t getCounter() const { return count; }
+    /** Current counter value. Counter is 16bit, but in some rare cases like FAAC SLH - 20bit */
+    inline uint32_t getCounter() const { return count; }
 
     /** Overrides the counter (for tests that need a deterministic counter). */
-    inline void setCounter(uint16_t value) { count = value; }
+    inline void setCounter(uint32_t value) { count = value; }
 
 private:
 
@@ -86,5 +85,5 @@ private:
 
     uint8_t button;
 
-    uint16_t count;
+    uint32_t count;
 };

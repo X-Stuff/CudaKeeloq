@@ -38,8 +38,10 @@ enum class InputsTransform : uint8_t
 static constexpr uint8_t InputTransformMask = 0b1111;
 static constexpr uint8_t InputTransformVariantsCount = InputTransformMask + 1;
 
+using EveryInputTransformSequence = std::make_index_sequence<InputTransformVariantsCount>;
+
 /** Every input transform as mask variation */
-using EveryInputTransform = helpers::MakeTypedValuesSet<InputsTransform, std::make_index_sequence<InputTransformVariantsCount>>::type;
+using EveryInputTransform = helpers::MakeTypedValuesSet<InputsTransform, EveryInputTransformSequence>::type;
 
 __host__ __device__ __forceinline__ constexpr InputsTransform operator|(InputsTransform a, InputsTransform b)
 {

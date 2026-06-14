@@ -1,5 +1,6 @@
 #include "bruteforce/bruteforcer.h"
 
+#include <algorithm>
 #include <chrono>
 #include <future>
 #include <numeric>
@@ -48,19 +49,9 @@ public:
     std::future<void> future;
 };
 
-Bruteforcer::Bruteforcer(const std::vector<EncParcel>& inInputs, bool breakOnEsc, AppVerbosity verbosity) : inputs(inInputs), breakOnEsc(breakOnEsc), verbosity(verbosity)
+Bruteforcer::Bruteforcer(const std::vector<EncParcel>& inInputs, bool breakOnEsc, AppVerbosity verbosity)
+    : inputs(makeInputs(inInputs)), breakOnEsc(breakOnEsc), verbosity(verbosity)
 {
-    assert(inputs.size() > 0);
-    if (inputs.size() < 3)
-    {
-        LOG_WARNING("Bruteforcer initialized with %zd inputs, but only 3 are supported. Duplicating first input to fill the rest.", inputs.size());
-
-        // We do not support any other amount of inputs rather than3
-        while (inputs.size() < 3)
-        {
-            inputs.push_back(inputs[0]);
-        }
-    }
 }
 
 BruteforceResult Bruteforcer::run(const BruteforceConfig& config, const CudaConfig& cuda)
@@ -246,6 +237,55 @@ void Bruteforcer::printProgress(const ProgressInfo& info)
 
     console::progressBar(progressPercent, info.elapsed);
 }
+
+
+std::vector<EncParcel> Bruteforcer::makeInputs(const std::vector<EncParcel>& rawInputs)
+{
+    std::vector<EncParcel> inputs = rawInputs;
+    assert(inputs.size() > 0);
+
+    if (inputs.size() > 0)
+    {
+        const auto fix = inputs[0].fix();
+
+        bool allSameFix = std::all_of(inputs.begin(), inputs.end(), [fix](const EncParcel& p) { return p.fix() == fix; });
+        if (!allSameFix)
+        {
+            std::transform(inputs.begin(), inputs.end(), inputs.begin(), [](const EncParcel& p)
+            {
+                // Reversing, trying to check maybe misinputed format (hop|fix instead of fix|hop)
+                return EncParcel(p.hop(), p.fix());
+            });
+
+
+            const auto newFix = inputs[0].fix();
+            allSameFix = std::all_of(inputs.begin(), inputs.end(), [newFix](const EncParcel& p) { return p.fix() == newFix; });
+            if (allSameFix)
+            {
+                LOG_WARNING("Your input data was reversed from (hop|fix) to (fix|hop)!");
+            }
+        }
+
+        if (!allSameFix)
+        {
+            LOG_ERROR("Invalid inputs! All inputs must have the same fixed part (serial|button). Please check your input data.");
+        }
+    }
+
+    if (inputs.size() < 3)
+    {
+        LOG_WARNING("Bruteforcer initialized with %zd inputs, but only 3 are supported. Duplicating first input to fill the rest.", inputs.size());
+
+        // We do not support any other amount of inputs rather than3
+        while (inputs.size() < 3)
+        {
+            inputs.push_back(inputs[0]);
+        }
+    }
+
+    return inputs;
+}
+
 
 BruteforceResult Bruteforcer::getMatchResult(const BruteforceRound& round, bool first)
 {

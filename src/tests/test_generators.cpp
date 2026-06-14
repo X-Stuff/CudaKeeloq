@@ -36,7 +36,7 @@ BruteforceConfig GetSingleKeyConfig(uint64_t key, bool rev = true)
     const auto inputTransform = rev ? InputsTransform::RevKey : InputsTransform::None;
 
     BruteforcePattern br_pattern(std::move(pattern), "Test");
-    return BruteforceConfig::GetPattern(Decryptor::Make(0, 0, true), inputTransform, br_pattern, 0xFFFFFFFF);
+    return BruteforceConfig::GetPattern(Decryptor::MakeSeed(0, 0), inputTransform, br_pattern, 0xFFFFFFFF);
 }
 }
 
@@ -85,7 +85,7 @@ TEST_CASE("generators: seed produces a contiguous, monotonically increasing sequ
     auto inputsTransform = InputsTransform::None;
     const auto inputs = tests::keeloq::genInputs(debugKey, inputsTransform, LearningType::Secure);
 
-    BruteforceConfig config = BruteforceConfig::GetSeedBruteforce(Decryptor::Make(debugKey, 0, true), inputsTransform);
+    BruteforceConfig config = BruteforceConfig::GetSeedBruteforce(Decryptor::MakeSeed(debugKey, 0), inputsTransform);
     REQUIRE(config.type == BruteforceType::Seed);
 
     KeeloqKernelMultiLearningInput generatorInputs;

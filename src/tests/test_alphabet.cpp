@@ -22,7 +22,7 @@ TEST_CASE("alphabet generator: produces expected decryptor sequence")
     const auto fullTurn = static_cast<uint32_t>(std::pow(pattern.size(), 8)); // 65536
     const auto inputsTransform = InputsTransform::None;
 
-    auto testConfig = BruteforceConfig::GetAlphabet(Decryptor::Make(0, 0, true), inputsTransform, pattern, 0xFFFFFFFF);
+    auto testConfig = BruteforceConfig::GetAlphabet(Decryptor::MakeSeed(0, 0), inputsTransform, pattern, 0xFFFFFFFF);
 
     auto inputs = tests::keeloq::genInputs(0x6161616161616161, inputsTransform);
 

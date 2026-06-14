@@ -247,19 +247,22 @@ __host__ __forceinline__ KernelResult cuda_brute(BruteforceRound& round, const C
     }
 }
 
-// Single decrypt round with all learning types and algorithm types, used for testing and debugging
-__host__ ThreadResult::Multi cuda_encdec(uint64_t ota, uint64_t man, uint32_t seed, bool isDecrypt, InputsTransform inputTransform);
+// Single enc/dec round for ONE learning/algorithm type, used for testing and debugging
+__host__ ThreadResult::Single cuda_encdec(uint64_t ota, uint64_t man, uint32_t seed, bool isDecrypt,
+    KeeloqLearning::LearningType learning, KeeloqLearning::AlgoType algoType, InputsTransform inputTransform);
 
-// Single decrypt round with all learning types and algorithm types, used for testing and debugging
-__host__ __forceinline__ ThreadResult::Multi cuda_enc(uint64_t ota, uint64_t man, uint32_t seed, InputsTransform inputTransform)
+// Single encrypt round for ONE learning/algorithm type, used for testing and debugging
+__host__ __forceinline__ ThreadResult::Single cuda_enc(uint64_t ota, uint64_t man, uint32_t seed,
+    KeeloqLearning::LearningType learning, KeeloqLearning::AlgoType algoType, InputsTransform inputTransform)
 {
-    return cuda_encdec(ota, man, seed, false, inputTransform);
+    return cuda_encdec(ota, man, seed, false, learning, algoType, inputTransform);
 }
 
-// Single decrypt round with all learning types and algorithm types, used for testing and debugging
-__host__ __forceinline__ ThreadResult::Multi cuda_dec(uint64_t ota, uint64_t man, uint32_t seed, InputsTransform inputTransform)
+// Single decrypt round for ONE learning/algorithm type, used for testing and debugging
+__host__ __forceinline__ ThreadResult::Single cuda_dec(uint64_t ota, uint64_t man, uint32_t seed,
+    KeeloqLearning::LearningType learning, KeeloqLearning::AlgoType algoType, InputsTransform inputTransform)
 {
-    return cuda_encdec(ota, man, seed, true, inputTransform);
+    return cuda_encdec(ota, man, seed, true, learning, algoType, inputTransform);
 }
 
 } // namespace keeloq::kernels

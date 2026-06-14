@@ -31,7 +31,7 @@ CommandLineArgs demoTestCommandlineArgs(int num_gen_input = 3)
 #endif
     uint64_t count = 0xFFFFFFF;
 
-    Decryptor first_decryptor_ptrn = Decryptor::Make(0, encryptor.getSeed(), true);
+    Decryptor first_decryptor_ptrn = Decryptor::MakeSeed(0, encryptor.getSeed());
 
     CommandLineArgs cmd;
     cmd.inputs.emplace_back(encryptor.click(InputsTransform::None, KeeloqLearning::LearningType::Faac, KeeloqLearning::AlgoType::Normal));
@@ -40,10 +40,10 @@ CommandLineArgs demoTestCommandlineArgs(int num_gen_input = 3)
 
     // Dictionary
     cmd.brute_configs.emplace_back(BruteforceConfig::GetDictionary({
-        Decryptor::Make(666, 777, true),
-        Decryptor::Make(encryptor.getKey() - 1, encryptor.getSeed(), true),
-        Decryptor::Make(encryptor.getKey(),     encryptor.getSeed(), true),
-        Decryptor::Make(encryptor.getKey() + 1, encryptor.getSeed(), true)
+        Decryptor::MakeSeed(666, 777),
+        Decryptor::MakeSeed(encryptor.getKey() - 1, encryptor.getSeed()),
+        Decryptor::MakeSeed(encryptor.getKey(),     encryptor.getSeed()),
+        Decryptor::MakeSeed(encryptor.getKey() + 1, encryptor.getSeed())
     }, InputsTransform::None));
 
     // Alphabet
@@ -53,7 +53,7 @@ CommandLineArgs demoTestCommandlineArgs(int num_gen_input = 3)
     cmd.brute_configs.emplace_back(BruteforceConfig::GetAlphabet(first_decryptor_ptrn, InputsTransform::None, cmd.alphabets[0], BruteforceConfig::MaxDecryptorsNum, "Wrong alphabet"));
 
     // Seed
-    cmd.brute_configs.emplace_back(BruteforceConfig::GetSeedBruteforce(Decryptor::Make(encryptor.getKey(), 0, true), InputsTransform::None));
+    cmd.brute_configs.emplace_back(BruteforceConfig::GetSeedBruteforce(Decryptor::MakeSeed(encryptor.getKey(), 0), InputsTransform::None));
 
     // Pattern (reversed)
     cmd.brute_configs.emplace_back(BruteforceConfig::GetPattern(first_decryptor_ptrn, InputsTransform::RevKey, BruteforcePattern(
@@ -69,7 +69,7 @@ CommandLineArgs demoTestCommandlineArgs(int num_gen_input = 3)
         }, "Match custom pattern")));
 
     // Simple
-    Decryptor first_decryptor_brtf = Decryptor::Make(first, encryptor.getSeed(), true);
+    Decryptor first_decryptor_brtf = Decryptor::MakeSeed(first, encryptor.getSeed());
     cmd.brute_configs.emplace_back(BruteforceConfig::GetBruteforce(first_decryptor_brtf, InputsTransform::None, count));
 
     // Filters

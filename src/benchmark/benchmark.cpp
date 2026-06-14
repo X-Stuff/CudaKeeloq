@@ -182,6 +182,47 @@ void benchmark::becnhmarkReal(bool useSingleLearningKernels)
 #endif
 
     {
+        constexpr uint64_t faacSlhMan = 0x53696C7669618C14;
+        constexpr uint32_t faacSlhSeed = 0x2CA28E1B;
+        constexpr auto learningFaacSlh = KeeloqLearning::LearningType::Faac;
+        [[maybe_unused]] const auto learningItem = KeeloqLearning::LearningItem(learningFaacSlh);
+
+        const std::vector<EncParcel> faacSlhInputs =
+        {
+            EncParcel(0xA0A28E16, 0xCDFEC2EE),
+            EncParcel(0xA0A28E16, 0x31DBF3B3),
+            EncParcel(0xA0A28E16, 0x5FFEEFA4)
+        };
+
+        auto timer = Timer<std::chrono::steady_clock>::start();
+        const auto faacSlhStartDecryptor = Decryptor::MakeSeed(faacSlhMan, faacSlhSeed);
+
+        Bruteforcer bruteforcer(faacSlhInputs, true);
+        BruteforceConfig simple = BruteforceConfig::GetSeedBruteforce(faacSlhStartDecryptor, InputsTransform::All);
+        simple.setLearningMatrix(KeeloqLearning::Matrix::Everything());
+        simple.useSingleLearningKernels = useSingleLearningKernels;
+
+        CudaConfig cudaConfig = CudaConfig::Optimal();
+
+        auto result = bruteforcer.run(simple, cudaConfig);
+        const auto& stats = bruteforcer.getStats();
+
+        if (stats.result != Bruteforcer::Stats::UserCancelled)
+        {
+            assert(stats.result == Bruteforcer::Stats::Success && "Benchmark real test failed, no successful result");
+            assert(result.isValid() && "Benchmark real test failed, no match found for FAAC SLH inputs");
+            assert(result.learningType == learningItem.learning && "Invalid LType match for real benchmark test (FAAC SLH)");
+            assert(result.algoType == learningItem.algoType && "Invalid AlgoType match for real benchmark test (FAAC SLH)");
+
+            result.print();
+            printf("Real benchmark for FAAC SLH: Time (s): %" PRIu64 "\n\n", timer.elapsedSeconds().count());
+
+            assert(result.decryptor.man() == faacSlhMan && "Benchmark decryption get the invalid decryptor for FAAC SLH (man mismatch)");
+            assert(result.decryptor.seed() == faacSlhSeed && "Benchmark decryption get the invalid decryptor for FAAC SLH (seed mismatch)");
+        }
+    }
+
+    {
         constexpr uint64_t manDH = 0x8455F43584941223;
         constexpr auto learningDH = KeeloqLearning::LearningType::Simple;
 
@@ -257,7 +298,7 @@ void benchmark::benchmarkSeedAttack(uint32_t TargetCalculationsNumber)
     constexpr auto NumInputs = 3;
     auto inputs = makeBenchmarkInputs(0xFF123FF3434FFFFF, NumInputs, LearningType::Serial3);
 
-    auto configSeedOnly = BruteforceConfig::GetSeedBruteforce(Decryptor::Make(0xAABBCCDDEEFFFFFF, 0, true), InputsTransform::None, TargetCalculationsNumber);
+    auto configSeedOnly = BruteforceConfig::GetSeedBruteforce(Decryptor::MakeSeed(0xAABBCCDDEEFFFFFF, 0), InputsTransform::None, TargetCalculationsNumber);
     run(inputs, KeeloqLearning::Matrix::Everything(), configSeedOnly);
 }
 
@@ -281,7 +322,7 @@ void benchmark::benchmarkXoredAttack(uint32_t TargetCalculationsNumber)
     auto inputs = makeBenchmarkInputs(0xFF123FF3434FFFFF, NumInputs, LearningType::Serial3);
 
     // XORed only
-    auto configXorFixed = BruteforceConfig::GetXorBruteforce(Decryptor::Make(0xAABBCCDDEEFFFFFF, 0, true), InputsTransform::RevKey, TargetCalculationsNumber / InputTransformVariantsCount);
+    auto configXorFixed = BruteforceConfig::GetXorBruteforce(Decryptor::MakeSeed(0xAABBCCDDEEFFFFFF, 0), InputsTransform::RevKey, TargetCalculationsNumber / InputTransformVariantsCount);
     run(inputs, KeeloqLearning::Matrix::Everything(), configXorFixed);
 }
 
@@ -293,10 +334,10 @@ void benchmark::benchmarkEveryLearningAlone(uint32_t TargetCalculationsNumber)
     auto inputs = makeBenchmarkInputs(0xFF123FF3434FFFFF, NumInputs, LearningType::Serial3);
 
     // Alphabet brute benchmarks
-    auto alphabetSeeded = BruteforceConfig::GetAlphabet(Decryptor::Make(0, 1234567, true), InputsTransform::None, "0123456789abcdefgh"_b, TargetCalculationsNumber);
+    auto alphabetSeeded = BruteforceConfig::GetAlphabet(Decryptor::MakeSeed(0, 1234567), InputsTransform::None, "0123456789abcdefgh"_b, TargetCalculationsNumber);
 
     // Simple+1 brute benchmarks
-    auto simplePlusOne = BruteforceConfig::GetBruteforce(Decryptor::Make(0, 1234567, true), InputsTransform::None, TargetCalculationsNumber);
+    auto simplePlusOne = BruteforceConfig::GetBruteforce(Decryptor::MakeSeed(0, 1234567), InputsTransform::None, TargetCalculationsNumber);
 
     for (auto learningItem : KeeloqLearning::Matrix::Everything().asItems())
     {
@@ -313,7 +354,7 @@ void benchmark::benchmarkEveryLearningAtOnce(uint32_t TargetCalculationsNumber)
     auto inputs = makeBenchmarkInputs(0xFF123FF3434FFFFF, NumInputs, LearningType::Serial3);
 
     // Simple+1 brute benchmarks
-    auto benchConfigSimpleBrute = BruteforceConfig::GetBruteforce(Decryptor::Make(0, 1234567, true), InputsTransform::None, TargetCalculationsNumber);
+    auto benchConfigSimpleBrute = BruteforceConfig::GetBruteforce(Decryptor::MakeSeed(0, 1234567), InputsTransform::None, TargetCalculationsNumber);
     benchConfigSimpleBrute.setTransforms({ EveryInputTransform::values.begin(), EveryInputTransform::values.end() });
     benchConfigSimpleBrute.size = TargetCalculationsNumber / EveryInputTransform::values.size();
 
@@ -331,6 +372,9 @@ void benchmark::all(const CommandLineArgs& /*args*/)
 
     console_clear();
 
+    becnhmarkReal(true);
+    becnhmarkReal(false);
+
     benchmarkEveryLearningAtOnce(TargetCalculationsNumber / 10);
     benchmarkEveryLearningAlone(TargetCalculationsNumber);
 
@@ -338,8 +382,5 @@ void benchmark::all(const CommandLineArgs& /*args*/)
     benchmarkNormalAttack(TargetCalculationsNumber);
 
     benchmarkXoredAttack(TargetCalculationsNumber);
-
-    becnhmarkReal(true);
-    becnhmarkReal(false);
 
 }

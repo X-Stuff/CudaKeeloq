@@ -23,6 +23,9 @@ struct Decryptor
     /** Creates a decryptor from a key alone; seed is marked invalid. */
     __host__ __device__ inline static Decryptor MakeNoSeed(uint64_t k) { return Decryptor(k); }
 
+    /** Creates a decryptor from a key and seed. Seed valid will be set to true automatically. */
+    __host__ __device__ inline static Decryptor MakeSeed(uint64_t k, uint32_t s) { return Decryptor(k, s, true); }
+
     /**
      * Creates a decryptor with an explicit seed validity flag.
      * The explicit flag lets device code avoid branching — 0/-1 are legal seed values,

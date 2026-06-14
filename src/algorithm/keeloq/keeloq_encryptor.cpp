@@ -8,18 +8,18 @@ EncParcel Encryptor::click(InputsTransform inTransform, KeeloqLearning::Learning
     const auto cpu_encrypted = cpuEncrypt(inTransform, ltype, algoType);
     assert(gpuEncrypt(inTransform, ltype, algoType) == cpu_encrypted && "GPU and CPU encryption results do not match");
 
-    const uint64_t detpyrcne = ((uint64_t)fixed() << 32) | cpu_encrypted;
+    const uint64_t detpyrcne = ((uint64_t)fixed(ltype) << 32) | cpu_encrypted;
     const auto ota = misc::rev_bits(detpyrcne);
 
     const auto cpu_decrypted = cpuDecrypt(ota, inTransform, ltype, algoType);
 
     assert(cpu_decrypted == gpuDecrypt(ota, inTransform, ltype, algoType) && "GPU and CPU decryption results do not match");
-    assert(cpu_decrypted == unencrypted() && "Decryption failed, decrypted result doesn't match initial unencrypted data");
+    assert(cpu_decrypted == unencrypted(ltype) && "Decryption failed, decrypted result doesn't match initial unencrypted data");
 
-    if (cpu_decrypted != unencrypted())
+    if (cpu_decrypted != unencrypted(ltype))
     {
         printf("Generation failed, decrypted result doesn't match initial unencrypted data. Expected: 0x%08X, got: 0x%08X\n",
-            unencrypted(), cpu_decrypted);
+            unencrypted(ltype), cpu_decrypted);
         return EncParcel();
     }
 
@@ -27,10 +27,56 @@ EncParcel Encryptor::click(InputsTransform inTransform, KeeloqLearning::Learning
     return ota;
 }
 
+uint32_t Encryptor::fixed(KeeloqLearning::LearningType ltype) const
+{
+    if (ltype == KeeloqLearning::LearningType::Faac)
+    {
+        // FAAC SLH fixed code: 28-bit serial in the high bits, 4-bit button in the low nibble.
+        return ((serial & 0x0FFFFFFFu) << 4) | (button & 0xFu);
+    }
+
+    // Standard KeeLoq fixed code: 4-bit button in the high nibble, 28-bit serial below.
+    return (uint32_t)button << 28 | (serial & 0x0FFFFFFF);
+}
+
+uint32_t Encryptor::unencrypted(KeeloqLearning::LearningType ltype) const
+{
+    if (ltype != KeeloqLearning::LearningType::Faac)
+    {
+        // Standard KeeLoq hopping-code plaintext: 4-bit button | 10-bit serial | 16-bit counter.
+        return (uint32_t)button << 28 | ((serial & 0x3FF) << 16) | (count & 0x0000FFFFu);
+    }
+
+    // FAAC SLH hopping-code plaintext: the low 20 bits hold the counter, the top 12 bits hold three
+    // fixed-code nibbles selected by counter parity (matches Flipper's faac_slh gen_data).
+    const uint32_t fix = fixed(ltype);
+
+    // Nibbles of the fixed code, most-significant first:
+    // nibble[0] = bits 28..31, ..., nibble[7] = bits 0..3 (the button).
+    uint8_t nibble[8];
+    for (uint32_t i = 0; i < 8; ++i)
+    {
+        nibble[i] = (fix >> (28u - i * 4u)) & 0xFu;
+    }
+
+    // Top 12 bits are three fixed-code nibbles chosen by counter parity; low 20 bits are the counter.
+    uint32_t top12;
+    if ((count & 1u) == 0u)
+    {
+        top12 = (uint32_t(nibble[6]) << 8) | (uint32_t(nibble[7]) << 4) | nibble[5];
+    }
+    else
+    {
+        top12 = (uint32_t(nibble[2]) << 8) | (uint32_t(nibble[3]) << 4) | nibble[4];
+    }
+
+    return (top12 << 20) | (count & 0xFFFFFu);
+}
+
 uint64_t Encryptor::man(InputsTransform inTransform, KeeloqLearning::LearningType ltype, KeeloqLearning::AlgoType algoType) const
 {
     const uint64_t use_key = has_flag(inTransform, InputsTransform::RevKey) ? misc::rev_bytes(key) : key;
-    const uint32_t use_fixed = has_flag(inTransform, InputsTransform::XorFix) ? (fixed() ^ seed) : fixed();
+    const uint32_t use_fixed = has_flag(inTransform, InputsTransform::XorFix) ? (fixed(ltype) ^ seed) : fixed(ltype);
 
     const bool useInv = (algoType == KeeloqLearning::AlgoType::Inverted);
 
@@ -78,7 +124,8 @@ uint64_t Encryptor::man(InputsTransform inTransform, KeeloqLearning::LearningTyp
 uint32_t Encryptor::cpuEncrypt(InputsTransform inTransform, KeeloqLearning::LearningType ltype, KeeloqLearning::AlgoType algoType) const
 {
     // Pre-Xor unencrypted
-    const auto use_unecrypted = has_flag(inTransform, InputsTransform::XorDec) ? (unencrypted() ^ seed) : unencrypted();
+    const auto plaintext = unencrypted(ltype);
+    const auto use_unecrypted = has_flag(inTransform, InputsTransform::XorDec) ? (plaintext ^ seed) : plaintext;
 
     const auto hop = keeloq::common::encrypt(use_unecrypted, man(inTransform, ltype, algoType));
 
@@ -107,18 +154,14 @@ uint32_t Encryptor::cpuDecrypt(uint64_t enc, InputsTransform inTransform, Keeloq
 
 uint32_t Encryptor::gpuEncrypt(InputsTransform inTransform, KeeloqLearning::LearningType ltype, KeeloqLearning::AlgoType algoType) const
 {
-    const uint8_t resIndex = KeeloqLearning::DecryptedResults::getIndex(ltype, algoType);
-    const auto results = keeloq::kernels::cuda_enc(((uint64_t)fixed() << 32) | unencrypted(), key, seed, inTransform);
-    const auto gpu_encrypted = results.decrypted[resIndex];
+    const auto result = keeloq::kernels::cuda_enc(((uint64_t)fixed(ltype) << 32) | unencrypted(ltype), key, seed, ltype, algoType, inTransform);
 
     // This is not bit-reversed result
-    return gpu_encrypted;
+    return result.decrypted;
 }
 
 uint32_t Encryptor::gpuDecrypt(uint64_t enc, InputsTransform inTransform, KeeloqLearning::LearningType ltype, KeeloqLearning::AlgoType algoType) const
 {
-    const uint8_t resIndex = KeeloqLearning::DecryptedResults::getIndex(ltype, algoType);
-
-    ThreadResult::Multi result = keeloq::kernels::cuda_dec(enc, key, seed, inTransform);
-    return result.decrypted.data[resIndex];
+    const auto result = keeloq::kernels::cuda_dec(enc, key, seed, ltype, algoType, inTransform);
+    return result.decrypted;
 }

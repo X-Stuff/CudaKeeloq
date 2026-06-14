@@ -17,94 +17,11 @@ static constexpr uint8_t Third = 2;
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-namespace
-{
-
-template<uint8_t NumInputs>
-__device__ uint8_t is_cnt_match(const Span<ThreadResult::Multi>& results)
-{
-    static_assert(NumInputs > 1, "This function is not supposed to be called in single input mode");
-
-    const uint8_t counter_maxdiff = NumInputs + 1;
-
-    const uint32_t expected_cnt = results[0].matchedCounter();
-    uint32_t lrn_matches = 1;
-
-    UNROLL
-    for (uint8_t item = 1; item < NumInputs; ++item)
-    {
-        const uint32_t cnt = results[item].matchedCounter();
-        // No underflow in CUDA
-        lrn_matches += __usad(expected_cnt, cnt, 0u) < counter_maxdiff;
-    }
-
-    return lrn_matches == NumInputs;
-}
-
+// Shared enc/dec engine: input-transform <-> kernel-mode conversion and the templated keeloq
+// encrypt/decrypt family used by every kernel path below. Kept in an anonymous namespace (with
+// `using namespace KeeloqLearning`) so its names — and KeeloqLearning's — stay visible to the named
+// path namespaces that follow via the anonymous namespace's implicit global using-directive.
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-// In case of single input we checking fixed part of parcel's serial (28-bit serial | 4-bit button)
-// with decoded serial
-template<KernelLearningMode LearningMode>
-__device__ KeeloqLearning::ResultIndex analyze_single_result(const ThreadResult::Multi& result, uint32_t exp_srl, uint8_t exp_btn, const KeeloqLearning::Matrix& learnings_matrix)
-{
-    static constexpr bool IgnoreMatrix = !!(LearningMode & KernelLearningMode::Force);
-
-    static constexpr bool NormalTypes = !!(LearningMode & KernelLearningMode::Normal);
-    static constexpr bool SeedTypes = !!(LearningMode & KernelLearningMode::Seeded);
-
-    auto match_res_index = KeeloqLearning::NoMatch;
-
-    if constexpr (SeedTypes)
-    {
-        static constexpr auto SeedIndicesSize = KeeloqLearning::DecryptedResults::SeededIndicesNum;
-        static constexpr auto SeedIndicesCache = KeeloqLearning::DecryptedResults::GetSeededIndicesCache();
-
-        UNROLL
-        for (uint8_t lIndex = 0; lIndex < SeedIndicesSize; ++lIndex)
-        {
-            const uint8_t resIndex = SeedIndicesCache[lIndex];
-
-            // Since `allowed` is uniform across the warp, an if block is cheaper
-            const bool allowed = IgnoreMatrix || learnings_matrix.isEnabled(resIndex);
-            if (allowed)
-            {
-                const uint32_t srl = result.decrypted.srl(resIndex);
-                const uint8_t btn = result.decrypted.btn(resIndex);
-
-                const bool has_match = srl == exp_srl && srl != 0 && btn == exp_btn;
-                match_res_index = (has_match * resIndex + !has_match * match_res_index);
-            }
-        }
-    }
-
-    if constexpr (NormalTypes)
-    {
-        static constexpr auto NormalIndicesSize = KeeloqLearning::DecryptedResults::NormalIndicesNum;
-        static constexpr auto NormalIndicesCache = KeeloqLearning::DecryptedResults::GetNormalIndicesCache();
-
-        UNROLL
-        for (uint8_t lIndex = 0; lIndex < NormalIndicesSize; ++lIndex)
-        {
-            const uint8_t resIndex = NormalIndicesCache[lIndex];
-
-            // Since `allowed` is uniform across the warp, an if block is cheaper
-            const bool allowed = IgnoreMatrix || learnings_matrix.isEnabled(resIndex);
-            if (allowed)
-            {
-                const uint32_t srl = result.decrypted.srl(resIndex);
-                const uint8_t btn = result.decrypted.btn(resIndex);
-                const bool has_match = srl == exp_srl && srl != 0 && btn == exp_btn;
-                match_res_index = (has_match * resIndex + !has_match * match_res_index);
-            }
-        }
-    }
-
-    return match_res_index;
-}
-
-}
 
 namespace
 {
@@ -417,6 +334,98 @@ __device__ __forceinline__ void keeloq_encdec(const EncParcel& enc, const Decryp
     }
 }
 
+} // namespace (shared enc/dec engine)
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Multi-learning bruteforce: each thread decrypts ALL learning/algo combinations, then matches the
+// decoded fixed part across the three captured inputs (with a counter-deviation check).
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+namespace multi
+{
+
+template<uint8_t NumInputs>
+__device__ uint8_t is_cnt_match(const Span<ThreadResult::Multi>& results)
+{
+    static_assert(NumInputs > 1, "This function is not supposed to be called in single input mode");
+
+    const uint8_t counter_maxdiff = NumInputs + 1;
+
+    const uint32_t expected_cnt = results[0].matchedCounter();
+    uint32_t lrn_matches = 1;
+
+    UNROLL
+    for (uint8_t item = 1; item < NumInputs; ++item)
+    {
+        const uint32_t cnt = results[item].matchedCounter();
+        // No underflow in CUDA
+        lrn_matches += __usad(expected_cnt, cnt, 0u) < counter_maxdiff;
+    }
+
+    return lrn_matches == NumInputs;
+}
+
+// In case of single input we checking fixed part of parcel's serial (28-bit serial | 4-bit button)
+// with decoded serial
+template<KernelLearningMode LearningMode>
+__device__ KeeloqLearning::ResultIndex analyze_single_result(const ThreadResult::Multi& result, uint32_t exp_srl, uint8_t exp_btn, const KeeloqLearning::Matrix& learnings_matrix)
+{
+    static constexpr bool IgnoreMatrix = !!(LearningMode & KernelLearningMode::Force);
+
+    static constexpr bool NormalTypes = !!(LearningMode & KernelLearningMode::Normal);
+    static constexpr bool SeedTypes = !!(LearningMode & KernelLearningMode::Seeded);
+
+    auto match_res_index = KeeloqLearning::NoMatch;
+
+    if constexpr (SeedTypes)
+    {
+        static constexpr auto SeedIndicesSize = KeeloqLearning::DecryptedResults::SeededIndicesNum;
+        static constexpr auto SeedIndicesCache = KeeloqLearning::DecryptedResults::GetSeededIndicesCache();
+
+        UNROLL
+        for (uint8_t lIndex = 0; lIndex < SeedIndicesSize; ++lIndex)
+        {
+            const uint8_t resIndex = SeedIndicesCache[lIndex];
+
+            // Since `allowed` is uniform across the warp, an if block is cheaper
+            const bool allowed = IgnoreMatrix || learnings_matrix.isEnabled(resIndex);
+            if (allowed)
+            {
+                const uint32_t srl = result.decrypted.srl(resIndex);
+                const uint8_t btn = result.decrypted.btn(resIndex);
+
+                const bool has_match = srl == exp_srl && srl != 0 && btn == exp_btn;
+                match_res_index = (has_match * resIndex + !has_match * match_res_index);
+            }
+        }
+    }
+
+    if constexpr (NormalTypes)
+    {
+        static constexpr auto NormalIndicesSize = KeeloqLearning::DecryptedResults::NormalIndicesNum;
+        static constexpr auto NormalIndicesCache = KeeloqLearning::DecryptedResults::GetNormalIndicesCache();
+
+        UNROLL
+        for (uint8_t lIndex = 0; lIndex < NormalIndicesSize; ++lIndex)
+        {
+            const uint8_t resIndex = NormalIndicesCache[lIndex];
+
+            // Since `allowed` is uniform across the warp, an if block is cheaper
+            const bool allowed = IgnoreMatrix || learnings_matrix.isEnabled(resIndex);
+            if (allowed)
+            {
+                const uint32_t srl = result.decrypted.srl(resIndex);
+                const uint8_t btn = result.decrypted.btn(resIndex);
+                const bool has_match = srl == exp_srl && srl != 0 && btn == exp_btn;
+                match_res_index = (has_match * resIndex + !has_match * match_res_index);
+            }
+        }
+    }
+
+    return match_res_index;
+}
+
 /**
  *  This function decrypts input specified in template argument @InputIndex
  * And writes `result.match` if fixed part matches decrypted hopping.
@@ -439,25 +448,6 @@ __device__ __forceinline__ void keeloq_decrypt_and_quick_analyze(const CudaConte
 
     result.match = analyze_single_result<LearningMode>(result, enc.srl(), enc.btn(), learning_matrix);
 }
-
-template<uint8_t InputIndex, InputsTransform InputMut, LearningType LType, AlgoType AType>
-__device__ __forceinline__ bool keeloq_decrypt_single_learning(const CudaContext& ctx, const Decryptor& decryptor, ThreadResult::Single& result)
-{
-    const EncParcel& enc = InputsCache[InputIndex];
-
-    result.decryptor = decryptor;
-    result.setInputIndex(InputIndex);
-    result.setInputTransform(InputMut);
-
-    static constexpr bool IsDecrypt = true;
-    result.decrypted = keeloq_encdec_single<IsDecrypt, InputMut, LType, AType>(enc.hop(), enc.fix(), decryptor);
-
-    const bool match = result.srl() == enc.srl() && result.btn() == enc.btn();
-
-    result.setHasMatch(match);
-    return match;
-}
-
 
 /**
  *  Run decryption parallel per thread and find matches
@@ -512,46 +502,6 @@ __device__ __forceinline__ bool keeloq_decryption_run(const CudaContext& ctx, Ke
     results[Third].match = KeeloqLearning::NoMatch;
 
     return false;
-}
-
-}
-
-namespace
-{
-
-__global__ KERNEL_LAUNCH_BOUNDS void Kernel_keeloq_test(KernelResult::TCudaPtr ret)
-{
-    CudaContext ctx = CudaContext::Get();
-
-    if (ctx.thread_id == 0)
-    {
-        const uint32_t pln_test = 0x11223344;
-        const uint64_t key_test = 0xDEADBEEF00226688;
-        const uint32_t enc_test = keeloq::common::encrypt(pln_test, key_test);
-
-        const bool match = pln_test == keeloq::common::decrypt(enc_test, key_test);
-        ret->onKernelFinish(match);
-    }
-}
-
-template<InputsTransform InputsMask>
-__global__ KERNEL_LAUNCH_BOUNDS void Kernel_keeloq_single_encdec(uint64_t ota, uint64_t man, uint32_t seed, bool isDecrypt, DecryptKernelResult::TCudaPtr res)
-{
-    static_assert(is_valid(InputsMask), "Invalid input transform mask");
-    constexpr KernelLearningMode InputsMode = InputTransformToKernelMode<InputsMask>::value;
-
-    if (isDecrypt)
-    {
-        keeloq_encdec<KernelLearningMode::ForceAll | InputsMode, true>(EncParcel(ota), Decryptor::Make(man, seed, true), KeeloqLearning::Matrix::Everything(), res->result.decrypted);
-    }
-    else
-    {
-        // specially prepared data for encryption, fix and hop
-        EncParcel unencrypted(static_cast<uint32_t>(ota >> 32), static_cast<uint32_t>(ota));
-        keeloq_encdec<KernelLearningMode::ForceAll | InputsMode, false>(unencrypted, Decryptor::Make(man, seed, true), KeeloqLearning::Matrix::Everything(), res->result.decrypted);
-    }
-
-    res->result.setInputTransform(InputsMask);
 }
 
 template<InputsTransform InputsTransform, bool SeedOnly, bool ForceAll>
@@ -611,67 +561,7 @@ __global__ KERNEL_LAUNCH_BOUNDS void Kernel_keeloq_bruteforce(KeeloqKernelMultiL
     ret->onKernelFinish(hasMatch);
 }
 
-template<InputsTransform InputMut, KeeloqLearning::LearningType LType, AlgoType AType>
-__global__ KERNEL_LAUNCH_BOUNDS void Kernel_keeloq_single_learning(KeeloqKernelSingleLearningInput::TCudaPtr KernelInputs, KernelResult::TCudaPtr ret)
-{
-    // Now only 3 inputs supports in kernels
-    static constexpr auto NumInputs = 3;
-
-    CudaContext ctx = CudaContext::Get();
-    assert(KernelInputs->decryptors->num % ctx.thread_max == 0 && "Number of decryptors must be equal or divisible by number of threads");
-
-    uint32_t num_full_matches = 0;
-
-    KEELOQ_INNER_LOOP(ctx, decryptor_index, KernelInputs->decryptors->num)
-    {
-        const Decryptor& decryptor = KernelInputs->GetDecryptor(decryptor_index);
-
-        // Single input
-        uint8_t num_matches = keeloq_decrypt_single_learning<First, InputMut, LType, AType>(ctx, decryptor, KernelInputs->template Result<First, NumInputs>(decryptor_index));
-
-        static constexpr uint8_t MaxCounterDeviation = NumInputs + 1;
-
-        // and first input has match - check next input
-        if (num_matches == 1)
-        {
-            num_matches += keeloq_decrypt_single_learning<Second, InputMut, LType, AType>(
-                ctx, decryptor, KernelInputs->template Result<Second, NumInputs>(decryptor_index));
-
-            uint16_t counter0 = KernelInputs->template Result<First, NumInputs>(decryptor_index).cnt();
-            uint16_t counter1 = KernelInputs->template Result<Second, NumInputs>(decryptor_index).cnt();
-
-            // We reduce number of matches if counter deviation is bigger than MaxCounterDeviation
-            num_matches -= __usad(counter0, counter1, 0u) > MaxCounterDeviation;
-
-            // and second input also has match - check next input
-            if (num_matches == 2)
-            {
-                num_matches += keeloq_decrypt_single_learning<Third, InputMut, LType, AType>(
-                    ctx, decryptor, KernelInputs->template Result<Third, NumInputs>(decryptor_index));
-
-                uint16_t counter2 = KernelInputs->template Result<Third, NumInputs>(decryptor_index).cnt();
-
-                // We reduce number of matches if counter deviation is bigger than MaxCounterDeviation
-                num_matches -= __usad(counter0, counter2, 0u) > MaxCounterDeviation;
-            }
-        }
-
-        num_full_matches += (num_matches == NumInputs);
-    }
-
-    ret->onKernelFinish(num_full_matches);
-}
-
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-namespace
-{
-
 using BruteforceKernelLauncherFunc = void(*)(const CudaConfig&, bool allLearnings, bool seedOnly, KeeloqKernelMultiLearningInput::TCudaPtr, KernelResult::TCudaPtr);
-
-using SingleKernelLauncherFunc = void(*)(uint64_t, uint64_t, uint32_t, bool, DecryptKernelResult::TCudaPtr);
 
 template<std::uint32_t RawInputTransform>
 __host__ void LaunchBruteforceKernel(const CudaConfig& cuda, bool allLearnings, bool seedOnly, KeeloqKernelMultiLearningInput::TCudaPtr KernelInputs, KernelResult::TCudaPtr ret)
@@ -702,13 +592,6 @@ __host__ void LaunchBruteforceKernel(const CudaConfig& cuda, bool allLearnings, 
     }
 }
 
-template<std::uint32_t RawInputTransform>
-__host__ void LaunchSingleTemplatedKernel(uint64_t ota, uint64_t man, uint32_t seed, bool isDecrypt, DecryptKernelResult::TCudaPtr ret)
-{
-    static constexpr auto Mask = static_cast<InputsTransform>(RawInputTransform);
-    Kernel_keeloq_single_encdec<Mask> << <1, 1 >> > (ota, man, seed, isDecrypt, ret);
-}
-
 template<std::size_t... Is>
 __host__ constexpr auto MakeLaunchBruteTable(std::index_sequence<Is...>)
 {
@@ -718,19 +601,85 @@ __host__ constexpr auto MakeLaunchBruteTable(std::index_sequence<Is...>)
     };
 }
 
-template<std::size_t... Is>
-__host__ constexpr auto MakeLaunchSingleTable(std::index_sequence<Is...>)
+} // namespace multi
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Single-learning bruteforce: each thread decrypts exactly ONE learning/algo type, chosen on the
+// host. Smaller per-thread footprint; dispatched through a (transform x learning x algo) launch table.
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+namespace single
 {
-    return std::array<SingleKernelLauncherFunc, sizeof...(Is)>
-    {
-        &LaunchSingleTemplatedKernel<Is>...
-    };
+
+template<uint8_t InputIndex, InputsTransform InputMut, LearningType LType, AlgoType AType>
+__device__ __forceinline__ bool keeloq_decrypt_single_learning(const CudaContext& ctx, const Decryptor& decryptor, ThreadResult::Single& result)
+{
+    const EncParcel& enc = InputsCache[InputIndex];
+
+    result.decryptor = decryptor;
+    result.setInputIndex(InputIndex);
+    result.setInputTransform(InputMut);
+
+    static constexpr bool IsDecrypt = true;
+    result.decrypted = keeloq_encdec_single<IsDecrypt, InputMut, LType, AType>(enc.hop(), enc.fix(), decryptor);
+
+    const bool match = ThreadResult::Match<LType>::check(result.decrypted, enc);
+
+    result.setHasMatch(match);
+    return match;
 }
 
-} // namespace
-
-namespace SingleMode
+template<InputsTransform InputMut, KeeloqLearning::LearningType LType, AlgoType AType>
+__global__ KERNEL_LAUNCH_BOUNDS void Kernel_keeloq_single_learning(KeeloqKernelSingleLearningInput::TCudaPtr KernelInputs, KernelResult::TCudaPtr ret)
 {
+    // Now only 3 inputs supports in kernels
+    static constexpr auto NumInputs = 3;
+
+    CudaContext ctx = CudaContext::Get();
+    assert(KernelInputs->decryptors->num % ctx.thread_max == 0 && "Number of decryptors must be equal or divisible by number of threads");
+
+    uint32_t num_full_matches = 0;
+
+    KEELOQ_INNER_LOOP(ctx, decryptor_index, KernelInputs->decryptors->num)
+    {
+        const Decryptor& decryptor = KernelInputs->GetDecryptor(decryptor_index);
+
+        // Single input
+        uint8_t num_matches = keeloq_decrypt_single_learning<First, InputMut, LType, AType>(ctx, decryptor, KernelInputs->template Result<First, NumInputs>(decryptor_index));
+
+        static constexpr uint8_t MaxCounterDeviation = NumInputs + 1;
+
+        // and first input has match - check next input
+        if (num_matches == 1)
+        {
+            num_matches += keeloq_decrypt_single_learning<Second, InputMut, LType, AType>(
+                ctx, decryptor, KernelInputs->template Result<Second, NumInputs>(decryptor_index));
+
+            uint32_t counter0 = ThreadResult::Match<LType>::counter(KernelInputs->template Result<First, NumInputs>(decryptor_index).decrypted);
+            uint32_t counter1 = ThreadResult::Match<LType>::counter(KernelInputs->template Result<Second, NumInputs>(decryptor_index).decrypted);
+
+            // We reduce number of matches if counter deviation is bigger than MaxCounterDeviation
+            num_matches -= __usad(counter0, counter1, 0u) > MaxCounterDeviation;
+
+            // and second input also has match - check next input
+            if (num_matches == 2)
+            {
+                num_matches += keeloq_decrypt_single_learning<Third, InputMut, LType, AType>(
+                    ctx, decryptor, KernelInputs->template Result<Third, NumInputs>(decryptor_index));
+
+                uint32_t counter2 = ThreadResult::Match<LType>::counter(KernelInputs->template Result<Third, NumInputs>(decryptor_index).decrypted);
+
+                // We reduce number of matches if counter deviation is bigger than MaxCounterDeviation
+                num_matches -= __usad(counter0, counter2, 0u) > MaxCounterDeviation;
+            }
+        }
+
+        num_full_matches += (num_matches == NumInputs);
+    }
+
+    ret->onKernelFinish(num_full_matches);
+}
 
 using BruteforceKernelLauncherFunc = void(*)(const CudaConfig&, KeeloqKernelSingleLearningInput::TCudaPtr, KernelResult::TCudaPtr);
 
@@ -836,11 +785,101 @@ static constexpr auto LaunchTable = MakeKernelsLaunchTable(
     KeeloqLearning::LearningTypesSequence{},
     KeeloqLearning::AlgoTypeSequence{});
 
-} // namespace SingleMode
+} // namespace single
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Single-value enc/dec: 1x1 debug/helper launch for ONE learning/algo. One non-templated kernel,
+// the only compile-time dimension (input transform) is unrolled at runtime via a fold.
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+namespace single_encdec
+{
+
+// Computes every learning for one compile-time transform into @out (decrypt or encrypt at runtime).
+template<InputsTransform Mut>
+__device__ __forceinline__ void single_encdec_for_transform(bool isDecrypt, uint64_t ota, const Decryptor& decryptor, ThreadResult::LearningsArray& out)
+{
+    if constexpr (is_valid(Mut))
+    {
+        static constexpr KernelLearningMode Mode = KernelLearningMode::ForceAll | InputTransformToKernelMode<Mut>::value;
+
+        static constexpr auto LearningMatrix = KeeloqLearning::Matrix::Everything();
+
+        if (isDecrypt)
+        {
+            // OTA is bit-reversed wire data; EncParcel splits it into fixed/hopping halves.
+            keeloq_encdec<Mode, true>(EncParcel(ota), decryptor, LearningMatrix, out);
+        }
+        else
+        {
+            // For encryption `ota` is the prepared (fixed << 32 | plaintext) pair, taken as-is (not reversed).
+            keeloq_encdec<Mode, false>(EncParcel(static_cast<uint32_t>(ota >> 32), static_cast<uint32_t>(ota)), decryptor, LearningMatrix, out);
+        }
+    }
+}
+
+// Runtime-matches @transform against each compile-time variant and runs the one that hits.
+template<std::size_t... Transforms>
+__device__ __forceinline__ void single_encdec_dispatch(InputsTransform transform, bool isDecrypt, uint64_t ota, const Decryptor& decryptor, ThreadResult::LearningsArray& out, std::index_sequence<Transforms...>)
+{
+    ((transform == static_cast<InputsTransform>(Transforms)
+        ? single_encdec_for_transform<static_cast<InputsTransform>(Transforms)>(isDecrypt, ota, decryptor, out)
+        : void()), ...);
+}
+
+// Single-value enc/dec is a 1x1 debug/helper launch, so rather than a templated launch table over
+// (transform, learning, algo) we keep ONE non-templated kernel. Only the input transform must be a
+// compile-time value, so it is the only dimension unrolled (via the fold above); learning and algo
+// need no dispatch because keeloq_encdec computes every learning and we pick one by result index.
+__global__ KERNEL_LAUNCH_BOUNDS void Kernel_keeloq_single_encdec(uint64_t ota, uint64_t man, uint32_t seed, bool isDecrypt,
+    InputsTransform transform, KeeloqLearning::LearningType learning, AlgoType algoType, DecryptKernelResult::TCudaPtr res)
+{
+    res->result.decryptor = Decryptor::MakeSeed(man, seed);
+
+    ThreadResult::LearningsArray all = {};
+    single_encdec_dispatch(transform, isDecrypt, ota, res->result.decryptor, all, EveryInputTransformSequence{});
+
+    // direct access to .data because `__ldca` not supported on local memory
+    res->result.decrypted = all.data[KeeloqLearning::DecryptedResults::getIndex(learning, algoType)];
+    res->result.setInputTransform(transform);
+}
+
+} // namespace single_encdec
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Self-test
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+namespace
+{
+
+__global__ KERNEL_LAUNCH_BOUNDS void Kernel_keeloq_test(KernelResult::TCudaPtr ret)
+{
+    CudaContext ctx = CudaContext::Get();
+
+    if (ctx.thread_id == 0)
+    {
+        const uint32_t pln_test = 0x11223344;
+        const uint64_t key_test = 0xDEADBEEF00226688;
+        const uint32_t enc_test = keeloq::common::encrypt(pln_test, key_test);
+
+        const bool match = pln_test == keeloq::common::decrypt(enc_test, key_test);
+        ret->onKernelFinish(match);
+    }
+}
+
+} // namespace (self-test)
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Host entry points (keeloq::kernels)
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 __host__ KernelResult keeloq::kernels::internal::cuda_brute(KeeloqKernelMultiLearningInput& mainInputs, const CudaConfig& cuda)
 {
-    static constexpr auto LaunchTable = MakeLaunchBruteTable(std::make_index_sequence<static_cast<std::size_t>(InputTransformVariantsCount)>{});
+    static constexpr auto LaunchTable = multi::MakeLaunchBruteTable(std::make_index_sequence<static_cast<std::size_t>(InputTransformVariantsCount)>{});
 
     KernelResult kernel_results;
 
@@ -875,12 +914,12 @@ __host__ KernelResult keeloq::kernels::internal::cuda_brute(KeeloqKernelSingleLe
 {
     KernelResult kernel_results;
 
-    const auto launcherIndex = SingleMode::KernelIndexer::GetFlatIndex(
+    const auto launcherIndex = single::KernelIndexer::GetFlatIndex(
         static_cast<std::size_t>(flatInputs.inputsTransform),
         static_cast<std::size_t>(flatInputs.learning),
         static_cast<std::size_t>(flatInputs.algoType));
 
-    SingleMode::LaunchTable[launcherIndex](cuda, flatInputs.ptr(), kernel_results.ptr());
+    single::LaunchTable[launcherIndex](cuda, flatInputs.ptr(), kernel_results.ptr());
 
     kernel_results.read();
     flatInputs.read();
@@ -888,21 +927,12 @@ __host__ KernelResult keeloq::kernels::internal::cuda_brute(KeeloqKernelSingleLe
     return kernel_results;
 }
 
-__host__ ThreadResult::Multi keeloq::kernels::cuda_encdec(uint64_t ota, uint64_t man, uint32_t seed, bool isDecrypt, InputsTransform inputTransform)
+__host__ ThreadResult::Single keeloq::kernels::cuda_encdec(uint64_t ota, uint64_t man, uint32_t seed, bool isDecrypt,
+    KeeloqLearning::LearningType learning, KeeloqLearning::AlgoType algoType, InputsTransform inputTransform)
 {
-    static constexpr auto LaunchTable = MakeLaunchSingleTable(std::make_index_sequence<static_cast<std::size_t>(InputTransformVariantsCount)>{});
-
     DecryptKernelResult kernel_results;
 
-    const auto launcherIndex = static_cast<std::size_t>(inputTransform);
-    if (launcherIndex >= LaunchTable.size())
-    {
-        printf("Invalid input transform for templated single enc/dec launch: %d! CUDA launch skipped!\n", static_cast<uint32_t>(inputTransform));
-        assert(false && "Invalid input transform for templated single enc/dec launch!");
-        return kernel_results.result;
-    }
-
-    LaunchTable[launcherIndex](ota, man, seed, isDecrypt, kernel_results.ptr());
+    single_encdec::Kernel_keeloq_single_encdec<<<1, 1 >>>(ota, man, seed, isDecrypt, inputTransform, learning, algoType, kernel_results.ptr());
 
     kernel_results.read();
     return kernel_results.result;

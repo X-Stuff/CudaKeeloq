@@ -28,8 +28,8 @@ struct EncParcel
 
     __device__ __host__ EncParcel(uint32_t fix, uint32_t hop) : fixed(fix), hopping(hop)
     {
-        auto rev_hop = misc::rev_bits(hop);
-        auto rev_fix = misc::rev_bits(fix);
+        uint64_t rev_hop = misc::rev_bits(hop);
+        uint64_t rev_fix = misc::rev_bits(fix);
 
         ota = rev_hop | (rev_fix >> 32);
     }

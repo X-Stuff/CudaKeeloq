@@ -146,9 +146,12 @@ private:
 
     void printProgress(const ProgressInfo& info);
 
+    // Returns valid inputs array, does some additional checks
+    std::vector<EncParcel> makeInputs(const std::vector<EncParcel>& rawInputs);
+
 private:
     // Input data for bruteforce (captured encoded)
-    std::vector<EncParcel> inputs;
+    const std::vector<EncParcel> inputs;
 
     // Last round stats
     Stats stats;

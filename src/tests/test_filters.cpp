@@ -92,7 +92,7 @@ TEST_CASE("filters: filtered generator produces the target filtered key")
     constexpr auto FilteredKey = 0xAADEADBEEFA63ED2;
 
     const auto inputsTransform = InputsTransform::None;
-    auto first_decryptor = Decryptor::Make(0xAADEADBEEFA00000, 0, true);
+    auto first_decryptor = Decryptor::MakeSeed(0xAADEADBEEFA00000, 0);
 
     auto testConfig = BruteforceConfig::GetBruteforce(first_decryptor, inputsTransform, NumToGenerate,
         BruteforceFilters{
