@@ -174,6 +174,16 @@ constexpr inline uint64_t operator "" _u64(const char* ascii, size_t num)
 
 namespace helpers
 {
+/**
+ * Dependent always-false for `static_assert` inside member functions of a full specialization that
+ * must never be instantiated. A plain `static_assert(false, ...)` there fires at parse time even when
+ * the member is never called, because the enclosing specialization is not itself a template. Making
+ * the condition depend on a template parameter (`always_false_v<Dependent>`) defers the diagnostic to
+ * actual instantiation — required for GCC.
+ */
+template<typename...>
+inline constexpr bool always_false_v = false;
+
 /** Compile-time set of learning types, used to expand template packs. */
 template<typename T, T... Values>
 struct ValuesSet

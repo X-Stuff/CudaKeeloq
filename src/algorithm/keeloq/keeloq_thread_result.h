@@ -23,11 +23,18 @@ namespace ThreadResult
 {
 
 /**
- * Static helpers for unpacking a 32-bit keeloq decrypted value into its logical fields.
- * Layout: [31:28] button | [27:26] serial (2 bits) not for all | [25:16] serial(10-bit) | [15:0] counter
+ * Learning-aware view of a 32-bit keeloq *decrypted hop*. The field layout depends on the learning
+ * type, so the extractors live in a template specialized per layout: asking a layout for a field it
+ * doesn't have (e.g. Decode<Faac>::serial) is a compile error rather than silently returning garbage.
+ *
+ * Primary template = standard KeeLoq layout: [31:28] button | [25:16] serial(10-bit) | [15:0] counter(16).
  */
+template<KeeloqLearning::LearningType TLearning>
 struct Decode
 {
+    /** Bits occupied by the counter in the decrypted hop (16-bit for standard KeeLoq). */
+    static constexpr uint32_t CounterMask = 0x0000FFFFu;
+
     /** Extract the serial portion (10 bits at [25:16]). */
     __host__ __device__ __forceinline__ static uint32_t serial(uint32_t value)
     {
@@ -41,9 +48,52 @@ struct Decode
     }
 
     /** Extract the counter portion (lower 16 bits). */
-    __host__ __device__ __forceinline__ static uint16_t counter(uint32_t value)
+    __host__ __device__ __forceinline__ static uint32_t counter(uint32_t value)
     {
-        return (value & 0x0000FFFF);
+        return value & CounterMask;
+    }
+};
+
+/**
+ * FAAC SLH decrypted-hop layout: [31:20] = three fixed-code nibbles (selected by counter parity),
+ * [19:0] = 20-bit counter. Serial/button are NOT carried in the hop (they live in the cleartext
+ * fixed code), so this specialization exposes the counter and the top-12 field instead — asking it
+ * for serial/button is a compile error.
+ */
+template<>
+struct Decode<KeeloqLearning::LearningType::Faac>
+{
+    /** FAAC counter occupies the low 20 bits of the decrypted hop. */
+    static constexpr uint32_t CounterMask = 0x000FFFFFu;
+
+    /** Extract the 20-bit counter (low 20 bits at [19:0]). */
+    __host__ __device__ __forceinline__ static uint32_t counter(uint32_t value)
+    {
+        return value & CounterMask;
+    }
+
+    /** Extract the top 12 bits ([31:20]) — three fixed-code nibbles selected by the counter parity. */
+    __host__ __device__ __forceinline__ static uint32_t top12(uint32_t value)
+    {
+        return value >> 20;
+    }
+
+    // FAAC SLH carries serial/button in the cleartext FIXED code, not the decrypted hop, so they are
+    // not decodable here. These overloads exist only to turn an accidental Decode<Faac>::serial()/
+    // button() into a clear compile error; the template parameter keeps the static_assert dependent
+    // so it fires on use, not at parse time.
+    template<typename Dependent = void>
+    __host__ __device__ __forceinline__ static uint32_t serial(uint32_t)
+    {
+        static_assert(helpers::always_false_v<Dependent>, "FAAC SLH has no serial in the decrypted hop — read it from the fixed code (EncParcel::serial/srl).");
+        return 0;
+    }
+
+    template<typename Dependent = void>
+    __host__ __device__ __forceinline__ static uint8_t button(uint32_t)
+    {
+        static_assert(helpers::always_false_v<Dependent>, "FAAC SLH has no button in the decrypted hop — read it from the fixed code (EncParcel::btn).");
+        return 0;
     }
 };
 
@@ -62,13 +112,13 @@ struct Match
     /** True if @decrypted is a valid hop for @enc's fixed code under this learning type. */
     __host__ __device__ __forceinline__ static bool check(uint32_t decrypted, const EncParcel& enc)
     {
-        return Decode::serial(decrypted) == enc.srl() && Decode::button(decrypted) == enc.btn();
+        return Decode<TLearning>::serial(decrypted) == enc.srl() && Decode<TLearning>::button(decrypted) == enc.btn();
     }
 
     /** Counter value used to compare consecutive captures (low 16 bits for standard KeeLoq). */
     __host__ __device__ __forceinline__ static uint32_t counter(uint32_t decrypted)
     {
-        return Decode::counter(decrypted);
+        return Decode<TLearning>::counter(decrypted);
     }
 };
 
@@ -84,12 +134,14 @@ struct Match<KeeloqLearning::LearningType::Faac>
     /** Reconstruct the parity-selected fix nibbles and compare against the hop's top 12 bits. */
     __host__ __device__ __forceinline__ static bool check(uint32_t decrypted, const EncParcel& enc)
     {
+        using Layout = Decode<KeeloqLearning::LearningType::Faac>;
+
         const uint32_t fix = enc.fix();
-        const uint32_t top12 = decrypted >> 20;
+        const uint32_t top12 = Layout::top12(decrypted);
 
         // The decrypted counter parity selects which three fixed-code nibbles the top 12 bits must
         // reconstruct. Branchless select (parity is 0/1) avoids a warp-divergent branch.
-        const uint32_t parity = counter(decrypted) & 1u;
+        const uint32_t parity = Layout::counter(decrypted) & 1u;
         const uint32_t even = (nibble(fix, 6) << 8) | (nibble(fix, 7) << 4) | nibble(fix, 5);
         const uint32_t odd  = (nibble(fix, 2) << 8) | (nibble(fix, 3) << 4) | nibble(fix, 4);
         const uint32_t expected = parity * odd + (1u - parity) * even;
@@ -100,7 +152,7 @@ struct Match<KeeloqLearning::LearningType::Faac>
     /** FAAC counter is 20-bit (low 20 bits of the decrypted hop). */
     __host__ __device__ __forceinline__ static uint32_t counter(uint32_t decrypted)
     {
-        return decrypted & 0xFFFFFu;
+        return Decode<KeeloqLearning::LearningType::Faac>::counter(decrypted);
     }
 
 private:
@@ -190,7 +242,9 @@ struct InputInfo
 
 /**
  * Per-learning decrypted values array, indexed by `DecryptedResults::getIndex(learning, algoType)`.
- * Provides CUDA-optimized cached reads and field extraction helpers.
+ * Provides CUDA-optimized cached reads. Serial/button are intentionally NOT exposed here: their
+ * layout depends on the learning type (and FAAC carries neither in the hop), so callers that know the
+ * learning type extract via `Match<LType>`/`Decode<LType>` instead of reading raw fields off an index.
  */
 struct LearningsArray
 {
@@ -209,22 +263,27 @@ struct LearningsArray
     }
 
 public:
-    /** Extract the serial portion of a decrypted entry (10 bits). */
-    __host__ __device__ __forceinline__ uint32_t srl(uint8_t index) const
+    /** Counter of a decrypted entry at its learning-correct width (20-bit for FAAC, 16-bit otherwise). */
+    __host__ __device__ __forceinline__ uint32_t counter(uint8_t index) const
     {
-        return Decode::serial((*this)[index]);
+        return (*this)[index] & counterMaskForIndex(index);
     }
 
-    /** Extract the button portion of a decrypted entry (top 4 bits). */
-    __host__ __device__ __forceinline__ uint16_t btn(uint8_t index) const
+    /**
+     * Counter bit-mask for a *runtime* result index. The decrypted-hop counter is 16-bit for every
+     * learning except FAAC SLH (20-bit). In multi-learning mode the matched learning is only known at
+     * runtime, so the width is selected by comparing against the compile-time FAAC result indices rather
+     * than via a `Decode<LType>` template parameter.
+     */
+    __host__ __device__ __forceinline__ static constexpr uint32_t counterMaskForIndex(KeeloqLearning::ResultIndex index)
     {
-        return Decode::button((*this)[index]);
-    }
+        constexpr auto faacNormal = KeeloqLearning::DecryptedResults::getIndex<KeeloqLearning::LearningType::Faac, KeeloqLearning::AlgoType::Normal>();
+        constexpr auto faacInverted = KeeloqLearning::DecryptedResults::getIndex<KeeloqLearning::LearningType::Faac, KeeloqLearning::AlgoType::Inverted>();
 
-    /** Extract the counter portion of a decrypted entry (lower 16 bits). */
-    __host__ __device__ __forceinline__ uint16_t cnt(uint8_t index) const
-    {
-        return Decode::counter((*this)[index]);
+        return (index == faacNormal || index == faacInverted)
+            ? Decode<KeeloqLearning::LearningType::Faac>::CounterMask
+            : Decode<KeeloqLearning::LearningType::Simple>::CounterMask
+            ;
     }
 };
 
@@ -267,25 +326,11 @@ public:
     /** True if this thread found a valid match */
     __host__ __device__ __forceinline__ bool hasMatch() const { return match != KeeloqLearning::NoMatch; }
 
-    /** Get the matched serial number. UNSAFE! */
-    __host__ __device__ __forceinline__ uint32_t matchedSerial() const
-    {
-        assert(hasMatch() && "Can't get matched serial from a thread result without a match");
-        return decrypted.srl(match);
-    }
-
-    /** Get the matched button. UNSAFE! */
-    __host__ __device__ __forceinline__ uint16_t matchedButton() const
-    {
-        assert(hasMatch() && "Can't get matched button from a thread result without a match");
-        return decrypted.btn(match);
-    }
-
-    /** Get the matched counter. UNSAFE! */
-    __host__ __device__ __forceinline__ uint16_t matchedCounter() const
+    /** Get the matched counter at its learning-correct width (20-bit for FAAC, 16-bit otherwise). UNSAFE! */
+    __host__ __device__ __forceinline__ uint32_t matchedCounter() const
     {
         assert(hasMatch() && "Can't get matched counter from a thread result without a match");
-        return decrypted.cnt(match);
+        return decrypted.counter(match);
     }
 };
 
@@ -310,15 +355,6 @@ struct Single
     uint32_t decrypted = 0;
 
 public:
-    /** Extract the serial portion (10 bits). */
-    __host__ __device__ __forceinline__ uint32_t srl() const { return Decode::serial(decrypted); }
-
-    /** Extract the button portion (top 4 bits). */
-    __host__ __device__ __forceinline__ uint16_t btn() const { return Decode::button(decrypted); }
-
-    /** Extract the counter portion (lower 16 bits). */
-    __host__ __device__ __forceinline__ uint16_t cnt() const { return Decode::counter(decrypted); }
-
     /** True if this thread found a valid match */
     __host__ __device__ __forceinline__ bool hasMatch() const { return InputInfo::Single::hasMatch(results); }
 

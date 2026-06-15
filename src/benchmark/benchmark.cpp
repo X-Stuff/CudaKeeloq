@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <numeric>
+#include <optional>
+#include <string_view>
 
 #include "common.h"
 
@@ -42,6 +44,46 @@ std::vector<EncParcel> makeBenchmarkInputs(uint64_t key, uint8_t num, KeeloqLear
         result.emplace_back(encryptor.click(InputsTransform::None, lType, KeeloqLearning::AlgoType::Normal));
     }
     return result;
+}
+
+// One "real captures" benchmark case: run the bruteforce against known inputs and validate the
+// recovered key/learning. `config` carries the per-target start decryptor and transform; the learning
+// matrix and kernel mode are filled in here since they're identical across cases. `expectedSeed` is
+// checked only when present (seeded learnings such as FAAC SLH).
+void runRealCase(std::string_view name, bool useSingleLearningKernels, const std::vector<EncParcel>& inputs,
+    BruteforceConfig config, KeeloqLearning::LearningType expectedLearning, uint64_t expectedMan,
+    std::optional<uint32_t> expectedSeed = std::nullopt)
+{
+    [[maybe_unused]] const auto learningItem = KeeloqLearning::LearningItem(expectedLearning);
+
+    config.setLearningMatrix(KeeloqLearning::Matrix::Everything());
+    config.useSingleLearningKernels = useSingleLearningKernels;
+
+    auto timer = Timer<std::chrono::steady_clock>::start();
+    Bruteforcer bruteforcer(inputs, true);
+    CudaConfig cudaConfig = CudaConfig::Optimal();
+
+    auto result = bruteforcer.run(config, cudaConfig);
+    const auto& stats = bruteforcer.getStats();
+
+    if (stats.result == Bruteforcer::Stats::UserCancelled)
+    {
+        return;
+    }
+
+    assert(stats.result == Bruteforcer::Stats::Success && "Benchmark real test failed, no successful result");
+    assert(result.isValid() && "Benchmark real test failed, no match found");
+    assert(result.learningType == learningItem.learning && "Invalid LType match for real benchmark test");
+    assert(result.algoType == learningItem.algoType && "Invalid AlgoType match for real benchmark test");
+
+    result.print();
+    printf("Real benchmark for %s: Time (s): %" PRIu64 "\n\n", name.data(), timer.elapsedSeconds().count());
+
+    assert(result.decryptor.man() == expectedMan && "Benchmark decryption got the invalid decryptor (man mismatch)");
+    if (expectedSeed)
+    {
+        assert(result.decryptor.seed() == *expectedSeed && "Benchmark decryption got the invalid decryptor (seed mismatch)");
+    }
 }
 }
 
@@ -181,113 +223,37 @@ void benchmark::becnhmarkReal(bool useSingleLearningKernels)
     static constexpr auto ClearMask = 0xFFFFFFFF00000000;
 #endif
 
+    // FAAC SLH — seeded learning, recovered via a seed bruteforce (transform: All).
     {
-        constexpr uint64_t faacSlhMan = 0x53696C7669618C14;
-        constexpr uint32_t faacSlhSeed = 0x2CA28E1B;
-        constexpr auto learningFaacSlh = KeeloqLearning::LearningType::Faac;
-        [[maybe_unused]] const auto learningItem = KeeloqLearning::LearningItem(learningFaacSlh);
-
-        const std::vector<EncParcel> faacSlhInputs =
+        constexpr uint64_t man = 0x53696C7669618C14;
+        constexpr uint32_t seed = 0x2CA28E1B;
+        const std::vector<EncParcel> inputs =
         {
             EncParcel(0xA0A28E16, 0xCDFEC2EE),
             EncParcel(0xA0A28E16, 0x31DBF3B3),
             EncParcel(0xA0A28E16, 0x5FFEEFA4)
         };
 
-        auto timer = Timer<std::chrono::steady_clock>::start();
-        const auto faacSlhStartDecryptor = Decryptor::MakeSeed(faacSlhMan, faacSlhSeed);
-
-        Bruteforcer bruteforcer(faacSlhInputs, true);
-        BruteforceConfig simple = BruteforceConfig::GetSeedBruteforce(faacSlhStartDecryptor, InputsTransform::All);
-        simple.setLearningMatrix(KeeloqLearning::Matrix::Everything());
-        simple.useSingleLearningKernels = useSingleLearningKernels;
-
-        CudaConfig cudaConfig = CudaConfig::Optimal();
-
-        auto result = bruteforcer.run(simple, cudaConfig);
-        const auto& stats = bruteforcer.getStats();
-
-        if (stats.result != Bruteforcer::Stats::UserCancelled)
-        {
-            assert(stats.result == Bruteforcer::Stats::Success && "Benchmark real test failed, no successful result");
-            assert(result.isValid() && "Benchmark real test failed, no match found for FAAC SLH inputs");
-            assert(result.learningType == learningItem.learning && "Invalid LType match for real benchmark test (FAAC SLH)");
-            assert(result.algoType == learningItem.algoType && "Invalid AlgoType match for real benchmark test (FAAC SLH)");
-
-            result.print();
-            printf("Real benchmark for FAAC SLH: Time (s): %" PRIu64 "\n\n", timer.elapsedSeconds().count());
-
-            assert(result.decryptor.man() == faacSlhMan && "Benchmark decryption get the invalid decryptor for FAAC SLH (man mismatch)");
-            assert(result.decryptor.seed() == faacSlhSeed && "Benchmark decryption get the invalid decryptor for FAAC SLH (seed mismatch)");
-        }
+        const auto config = BruteforceConfig::GetSeedBruteforce(Decryptor::MakeSeed(man, seed), InputsTransform::All);
+        runRealCase("FAAC SLH", useSingleLearningKernels, inputs, config, KeeloqLearning::LearningType::Faac, man, seed);
     }
 
+    // DH — simple learning, full-key bruteforce from the cleared key (transform: None).
     {
-        constexpr uint64_t manDH = 0x8455F43584941223;
-        constexpr auto learningDH = KeeloqLearning::LearningType::Simple;
+        constexpr uint64_t man = 0x8455F43584941223;
+        const std::vector<EncParcel> inputs = { 0xFBE31D94BB33DD55, 0xD7577925BB33DD55, 0xAA17DD6CBB33DD55 };
 
-        const std::vector<EncParcel> dhInputs = { 0xFBE31D94BB33DD55, 0xD7577925BB33DD55, 0xAA17DD6CBB33DD55 };
-
-        auto timer = Timer<std::chrono::steady_clock>::start();
-        const auto dhStartDecryptor = Decryptor::MakeNoSeed(manDH & ClearMask);
-
-        Bruteforcer bruteforcer(dhInputs, true);
-        BruteforceConfig simple = BruteforceConfig::GetBruteforce(dhStartDecryptor, InputsTransform::None, 0xFFFFFFFF);
-        simple.setLearningMatrix(KeeloqLearning::Matrix::Everything()); // { learningItem });
-        simple.useSingleLearningKernels = useSingleLearningKernels;
-
-        CudaConfig cudaConfig = CudaConfig::Optimal();
-
-        [[maybe_unused]] const auto learningItem = KeeloqLearning::LearningItem(learningDH);
-        auto result = bruteforcer.run(simple, cudaConfig);
-        const auto& stats = bruteforcer.getStats();
-
-        if (stats.result != Bruteforcer::Stats::UserCancelled)
-        {
-            assert(stats.result == Bruteforcer::Stats::Success && "Benchmark real test failed, no successful result");
-            assert(result.isValid() && "Benchmark real test failed, no match found for DH inputs");
-            assert(result.learningType == learningItem.learning && "Invalid LType match for real benchmark test (DH)");
-            assert(result.algoType == learningItem.algoType && "Invalid AlgoType match for real benchmark test (DH)");
-
-            result.print();
-            printf("Real benchmark for DH: Time (s): %" PRIu64 "\n\n", timer.elapsedSeconds().count());
-
-            assert(result.decryptor.man() == manDH && "Benchmark decryption get the invalid decryptor for DH");
-        }
+        const auto config = BruteforceConfig::GetBruteforce(Decryptor::MakeNoSeed(man & ClearMask), InputsTransform::None, 0xFFFFFFFF);
+        runRealCase("DH", useSingleLearningKernels, inputs, config, KeeloqLearning::LearningType::Simple, man);
     }
 
+    // Sommer — normal learning, full-key bruteforce with reversed key bytes (transform: RevKey).
     {
-        constexpr uint64_t manSommer = 0x7BCBEED4376EDCBF;
-        constexpr auto learningSommer = KeeloqLearning::LearningType::Normal;
+        constexpr uint64_t man = 0x7BCBEED4376EDCBF;
+        const std::vector<EncParcel> inputs = { 0x54E9888FBB33DD55, 0x10439539BB33DD55, 0x3210C297BB33DD55 };
 
-        const std::vector<EncParcel> sommerInputs = { 0x54E9888FBB33DD55, 0x10439539BB33DD55, 0x3210C297BB33DD55 };
-
-        auto timer = Timer<std::chrono::steady_clock>::start();
-        const auto smStartDecryptor = Decryptor::MakeNoSeed(manSommer & ClearMask);
-
-        Bruteforcer bruteforcer(sommerInputs, true);
-        BruteforceConfig simple = BruteforceConfig::GetBruteforce(smStartDecryptor, InputsTransform::RevKey, 0xFFFFFFFF);
-        simple.setLearningMatrix(KeeloqLearning::Matrix::Everything()); // { learningItem });
-        simple.useSingleLearningKernels = useSingleLearningKernels;
-
-        CudaConfig cudaConfig = CudaConfig::Optimal();
-
-        [[maybe_unused]] const auto learningItem = KeeloqLearning::LearningItem(learningSommer);
-        auto result = bruteforcer.run(simple, cudaConfig);
-        const auto& stats = bruteforcer.getStats();
-
-        if (stats.result != Bruteforcer::Stats::UserCancelled)
-        {
-            assert(stats.result == Bruteforcer::Stats::Success && "Benchmark real test failed, no successful result");
-            assert(result.isValid() && "Benchmark real test failed, no match found for Sommer inputs");
-            assert(result.learningType == learningItem.learning && "Invalid LType match for real benchmark test (Sommer)");
-            assert(result.algoType == learningItem.algoType && "Invalid AlgoType match for real benchmark test (Sommer)");
-
-            result.print();
-            printf("Real benchmark for Sommer: Time (s): %" PRIu64 "\n\n", timer.elapsedSeconds().count());
-
-            assert(result.decryptor.man() == manSommer && "Benchmark decryption get the invalid decryptor for Sommer");
-        }
+        const auto config = BruteforceConfig::GetBruteforce(Decryptor::MakeNoSeed(man & ClearMask), InputsTransform::RevKey, 0xFFFFFFFF);
+        runRealCase("Sommer", useSingleLearningKernels, inputs, config, KeeloqLearning::LearningType::Normal, man);
     }
 }
 
@@ -372,9 +338,6 @@ void benchmark::all(const CommandLineArgs& /*args*/)
 
     console_clear();
 
-    becnhmarkReal(true);
-    becnhmarkReal(false);
-
     benchmarkEveryLearningAtOnce(TargetCalculationsNumber / 10);
     benchmarkEveryLearningAlone(TargetCalculationsNumber);
 
@@ -383,4 +346,6 @@ void benchmark::all(const CommandLineArgs& /*args*/)
 
     benchmarkXoredAttack(TargetCalculationsNumber);
 
+    becnhmarkReal(true);
+    becnhmarkReal(false);
 }

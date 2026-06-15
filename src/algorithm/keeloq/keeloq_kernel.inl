@@ -366,61 +366,69 @@ __device__ uint8_t is_cnt_match(const Span<ThreadResult::Multi>& results)
     return lrn_matches == NumInputs;
 }
 
-// In case of single input we checking fixed part of parcel's serial (28-bit serial | 4-bit button)
-// with decoded serial
-template<KernelLearningMode LearningMode>
-__device__ KeeloqLearning::ResultIndex analyze_single_result(const ThreadResult::Multi& result, uint32_t exp_srl, uint8_t exp_btn, const KeeloqLearning::Matrix& learnings_matrix)
+// Checks one (learning, algo) result against the parcel's fixed code. The learning type is a template
+// parameter, so the per-layout match rule (standard serial/button vs FAAC's parity-selected fix
+// nibbles) is resolved at compile time via ThreadResult::Match<LType> — no runtime branch, no decode
+// of bits that don't exist for that layout.
+template<bool IgnoreMatrix, LearningType LType, AlgoType AType>
+__device__ __forceinline__ void analyze_match_one(const ThreadResult::Multi& result, const EncParcel& enc, const Matrix& learnings_matrix, ResultIndex& match_res_index)
 {
-    static constexpr bool IgnoreMatrix = !!(LearningMode & KernelLearningMode::Force);
-
-    static constexpr bool NormalTypes = !!(LearningMode & KernelLearningMode::Normal);
-    static constexpr bool SeedTypes = !!(LearningMode & KernelLearningMode::Seeded);
-
-    auto match_res_index = KeeloqLearning::NoMatch;
-
-    if constexpr (SeedTypes)
+    static constexpr ResultIndex resIndex = DecryptedResults::getIndex<LType, AType>();
+    if constexpr (resIndex != InvalidResultIndex)
     {
-        static constexpr auto SeedIndicesSize = KeeloqLearning::DecryptedResults::SeededIndicesNum;
-        static constexpr auto SeedIndicesCache = KeeloqLearning::DecryptedResults::GetSeededIndicesCache();
-
-        UNROLL
-        for (uint8_t lIndex = 0; lIndex < SeedIndicesSize; ++lIndex)
+        // `allowed` is uniform across the warp, so a real branch is cheaper than predicating the body.
+        const bool allowed = IgnoreMatrix || learnings_matrix.isEnabled(resIndex);
+        if (allowed)
         {
-            const uint8_t resIndex = SeedIndicesCache[lIndex];
+            const uint32_t decrypted = result.decrypted[resIndex];
 
-            // Since `allowed` is uniform across the warp, an if block is cheaper
-            const bool allowed = IgnoreMatrix || learnings_matrix.isEnabled(resIndex);
-            if (allowed)
+            // Reject the degenerate all-zero decrypt. For standard layouts that means serial==0 (keeps
+            // prior behaviour); FAAC carries no serial, so guard on the whole hop instead.
+            bool plausible;
+            if constexpr (LType == LearningType::Faac)
             {
-                const uint32_t srl = result.decrypted.srl(resIndex);
-                const uint8_t btn = result.decrypted.btn(resIndex);
-
-                const bool has_match = srl == exp_srl && srl != 0 && btn == exp_btn;
-                match_res_index = (has_match * resIndex + !has_match * match_res_index);
+                plausible = decrypted != 0;
             }
+            else
+            {
+                plausible = ThreadResult::Decode<LType>::serial(decrypted) != 0;
+            }
+
+            const bool has_match = plausible && ThreadResult::Match<LType>::check(decrypted, enc);
+            match_res_index = (has_match * resIndex + !has_match * match_res_index);
         }
     }
+}
 
-    if constexpr (NormalTypes)
+// Unrolls analyze_match_one across a value-set of learning types for one algorithm type.
+template<bool IgnoreMatrix, AlgoType AType, LearningType... LTypes>
+__device__ __forceinline__ void analyze_match_fold(const ThreadResult::Multi& result, const EncParcel& enc, const Matrix& learnings_matrix, ResultIndex& match_res_index, helpers::ValuesSet<LearningType, LTypes...>)
+{
+    ((analyze_match_one<IgnoreMatrix, LTypes, AType>(result, enc, learnings_matrix, match_res_index)), ...);
+}
+
+// Finds which (if any) learning/algo combination decodes @enc's fixed code correctly. Mirrors the set
+// of combinations computed by keeloq_encdec for the same LearningMode, dispatching each to its own
+// compile-time Match<LType>. Returns the matched result index, or NoMatch.
+template<KernelLearningMode LearningMode>
+__device__ __forceinline__ ResultIndex analyze_single_result(const ThreadResult::Multi& result, const EncParcel& enc, const Matrix& learnings_matrix)
+{
+    static constexpr bool IgnoreMatrix = !!(LearningMode & KernelLearningMode::Force);
+    static constexpr bool DoNormal = !!(LearningMode & KernelLearningMode::Normal);
+    static constexpr bool DoSeeded = !!(LearningMode & KernelLearningMode::Seeded);
+
+    ResultIndex match_res_index = NoMatch;
+
+    if constexpr (DoSeeded)
     {
-        static constexpr auto NormalIndicesSize = KeeloqLearning::DecryptedResults::NormalIndicesNum;
-        static constexpr auto NormalIndicesCache = KeeloqLearning::DecryptedResults::GetNormalIndicesCache();
+        analyze_match_fold<IgnoreMatrix, AlgoType::Normal>(result, enc, learnings_matrix, match_res_index, SeededTypes{});
+        analyze_match_fold<IgnoreMatrix, AlgoType::Inverted>(result, enc, learnings_matrix, match_res_index, SeededTypes{});
+    }
 
-        UNROLL
-        for (uint8_t lIndex = 0; lIndex < NormalIndicesSize; ++lIndex)
-        {
-            const uint8_t resIndex = NormalIndicesCache[lIndex];
-
-            // Since `allowed` is uniform across the warp, an if block is cheaper
-            const bool allowed = IgnoreMatrix || learnings_matrix.isEnabled(resIndex);
-            if (allowed)
-            {
-                const uint32_t srl = result.decrypted.srl(resIndex);
-                const uint8_t btn = result.decrypted.btn(resIndex);
-                const bool has_match = srl == exp_srl && srl != 0 && btn == exp_btn;
-                match_res_index = (has_match * resIndex + !has_match * match_res_index);
-            }
-        }
+    if constexpr (DoNormal)
+    {
+        analyze_match_fold<IgnoreMatrix, AlgoType::Normal>(result, enc, learnings_matrix, match_res_index, NormalTypes{});
+        analyze_match_fold<IgnoreMatrix, AlgoType::Inverted>(result, enc, learnings_matrix, match_res_index, NormalTypes{});
     }
 
     return match_res_index;
@@ -446,7 +454,7 @@ __device__ __forceinline__ void keeloq_decrypt_and_quick_analyze(const CudaConte
 
     keeloq_encdec<LearningMode>(enc, decryptor, learning_matrix, result.decrypted);
 
-    result.match = analyze_single_result<LearningMode>(result, enc.srl(), enc.btn(), learning_matrix);
+    result.match = analyze_single_result<LearningMode>(result, enc, learning_matrix);
 }
 
 /**
