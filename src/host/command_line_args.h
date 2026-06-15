@@ -25,7 +25,7 @@
 #define ARG_BLOCKS "cuda-blocks"
 #define ARG_THREADS "cuda-threads"
 #define ARG_MODE "mode"
-#define ARG_LTYPE "learning-type"
+#define ARG_LTYPE "learning"
 #define ARG_NO_REG_ALGS "no-reg-algs"
 #define ARG_CHECK_INV_ALGS "check-inv-algs"
 #define ARG_CHECK_REVKEYS "check-rev"

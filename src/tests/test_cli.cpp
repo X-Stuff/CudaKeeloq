@@ -242,7 +242,7 @@ TEST_CASE("cli: --mode rejects unknown bruteforce-type names")
     CHECK(args.brute_configs.empty());
 }
 
-TEST_CASE("cli: --learning-type accepts learning names as well as numeric indices")
+TEST_CASE("cli: --learning accepts learning names as well as numeric indices")
 {
     const char* argv[] = {
         APP_NAME,

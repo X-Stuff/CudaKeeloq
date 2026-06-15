@@ -31,6 +31,11 @@ Use this only on systems and captures you are allowed to analyze.
   hopping part (`--check-xorfix`, `--check-xorhop`, `--check-xordec`).
 * Added inverted algorithm checks for Normal, Secure, and FAAC learning types
   (`--check-inv-algs`, enabled by default).
+* Corrected FAAC SLH support. FAAC SLH uses a different packet layout than
+  standard KeeLoq: the serial and button live in the fixed code, and the hopping
+  plaintext carries a 20-bit counter with parity-selected fixed-code nibbles. This
+  layout is now handled correctly in the host encryptor and in both the
+  single-learning and multi-learning kernel match paths.
 * Added experimental Xor bruteforce mode for fixed manufacturer keys and unknown XOR values.
 * Three-capture inputs is the only supported mode now.
 * Simplified the matching path around the normal three-capture workflow.
@@ -245,7 +250,7 @@ Checks 1 million manufacturer keys starting at `0x9876543210`.
 ./CudaKeeloq \
   --inputs=0xC65D52A0A81FD504,0xCCA9B335A81FD504,0xE0DA7372A81FD504 \
   --mode=alphabet \
-  --learning-type=Simple \
+  --learning=Simple \
   --alphabet=examples/alphabet.bin,10:20:30:AA:BB:CC:DD:EE:FF:02:33
 ```
 
@@ -314,6 +319,7 @@ input transform locations.
 * `--help`, `-h` - print help.
 * `--version`, `-v` - print the version.
 * `--benchmark` - run the benchmark suite instead of a bruteforce run.
+* `--demo` - run the built-in demo bruteforce scenario.
 * `--inputs=<i1,i2,i3>` - three captured OTA packets.
 * `--first-match=true|false` - stop when the first match is found. Default:
   `true`.
@@ -390,7 +396,7 @@ See `src/bruteforce/bruteforce_filters.h` for the filter flag values.
 
 ### Learning types and transforms
 
-`--learning-type` accepts comma-separated names or numeric IDs:
+`--learning` accepts comma-separated names or numeric IDs:
 
 * `0`, `Simple`
 * `1`, `Normal`

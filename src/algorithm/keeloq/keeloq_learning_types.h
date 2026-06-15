@@ -16,7 +16,7 @@ struct BruteforceConfig;
 
 /**
  * Bitmask describing which decryption path the kernel takes and which optional
- * learning-type groups / algorithm types are included in a single kernel launch.
+ * learning groups / algorithm types are included in a single kernel launch.
  */
 enum class KernelLearningMode
 {
