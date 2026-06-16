@@ -1,1 +1,4 @@
-x64/*
+.build/
+.git/
+.claude/
+.vscode/

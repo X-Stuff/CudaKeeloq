@@ -1,48 +1,49 @@
 #pragma once
 
-#include "common.h"
-
-#include <vector>
 #include <string>
+#include <vector>
+
+#include "common.h"
 
 
 /**
- *  This struct represents single digit in multi-base system (each digit has own base)
- * Imagine this like cylinder with N elements on it
+ * Represents a single digit in a multi-base number where each digit has its own base.
  *
- * This struct represents all possible variant for a number (byte_ in multi-base system (attack pattern) setup
+ * Conceptually a "rolling cylinder" whose face shows one numeral from a fixed set.
+ * Used to describe per-byte search alphabets for the bruteforce attack patterns.
  */
 struct MultibaseDigit
 {
 	template<uint8_t TNum> friend struct MultibaseSystem;
 
-	// Creates digit config
+	/** Build a digit from an explicit set of numerals (max 256). */
 	__host__ inline MultibaseDigit(const std::vector<uint8_t>& numerals);
 
 public:
-	// Return numeral by index
+	/** Return the numeral stored at the given position in this digit's alphabet. */
 	__host__ __device__ inline uint8_t numeral(uint8_t in_index) const;
 
-	// Cast from byte-255 value to Digit's config
+	/** Map a raw byte value to the configured numeral for it. */
 	__host__ __device__ inline uint8_t cast(uint8_t value) const { return numeral(lookup(value)); }
 
-	// return numeral index of the value
-	// e.g.
-	//  num = { 0x04, 0xAB, 0xd7, 0x56 }
-	//  lookup(0xAB) returns 1
-	//  lookup(0x56) returns 3
-	//  lookup(0xFF) returns 0 (not found returns default)
+	/**
+	 * Return the numeral index for a given byte value.
+	 * e.g. num = { 0x04, 0xAB, 0xd7, 0x56 }: lookup(0xAB) == 1, lookup(0x56) == 3,
+	 * lookup(0xFF) == 0 (missing value falls back to default 0).
+	 */
 	__host__ __device__ inline uint8_t lookup(uint8_t value) const { return lut[value]; }
 
-	// return count of possible numerals for that digit
+	/** Number of distinct numerals configured for this digit (its base). */
 	__host__ __device__ inline uint8_t count() const { return size; }
 
-	__host__ inline std::vector<uint8_t> as_vector() const { return std::vector<uint8_t>(&num[0], &num[0] + size); }
+	/** Copy of the digit's numerals as a host vector. */
+	__host__ inline std::vector<uint8_t> asVector() const { return std::vector<uint8_t>(&num[0], &num[0] + size); }
 
-	__host__ inline std::string to_string() const;
+	/** Colon-separated hex string of the digit's numerals (debug/printing). */
+	__host__ inline std::string toString() const;
 
 private:
-	MultibaseDigit() : MultibaseDigit(DefaultByteArray<>::as_vector<std::vector<uint8_t>>())
+	MultibaseDigit() : MultibaseDigit(DefaultByteArray<>::asVector<std::vector<uint8_t>>())
 	{
 	}
 
@@ -106,7 +107,7 @@ __host__ inline MultibaseDigit::MultibaseDigit(const std::vector<uint8_t>& numer
 	assert(size > 0 && "Digit base should be at least 0");
 }
 
-__host__ inline std::string MultibaseDigit::to_string() const
+__host__ inline std::string MultibaseDigit::toString() const
 {
     std::string hex;
 

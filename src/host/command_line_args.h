@@ -1,24 +1,38 @@
 #pragma once
 
-#include "common.h"
-
+#include <cstdio>
 #include <vector>
 
-#include "algorithm/keeloq/keeloq_learning_types.h"
+#include "common.h"
+
+#include "device/cuda_config.h"
+
 #include "algorithm/keeloq/keeloq_encrypted.h"
+#include "algorithm/keeloq/keeloq_learning_types.h"
+
+#include "kernels/input_transform.h"
+
 #include "bruteforce/bruteforce_config.h"
+
 
 #define APP_NAME "CudaKeeloq"
 
 #define ARG_HELP "help"
-#define ARG_TEST "test"
+#define ARG_VERSION "version"
 #define ARG_BENCHMARK "benchmark"
+#define ARG_DEMO "demo"
 #define ARG_INPUTS "inputs"
 #define ARG_BLOCKS "cuda-blocks"
 #define ARG_THREADS "cuda-threads"
-#define ARG_LOOPS "cuda-loops"
 #define ARG_MODE "mode"
-#define ARG_LTYPE "learning-type"
+#define ARG_LTYPE "learning"
+#define ARG_NO_REG_ALGS "no-reg-algs"
+#define ARG_CHECK_INV_ALGS "check-inv-algs"
+#define ARG_CHECK_REVKEYS "check-rev"
+#define ARG_CHECK_XORFIX "check-xorfix"
+#define ARG_CHECK_XORHOP "check-xorhop"
+#define ARG_CHECK_XORDEC "check-xordec"
+#define ARG_CHECK_ALLXOR "check-xors"
 #define ARG_WORDDICT "word-dict"
 #define ARG_BINDICT "bin-dict"
 #define ARG_BINDMODE "bin-dict-mode"
@@ -33,7 +47,8 @@
 
 
 /**
- *  Aggregated configuration of application
+ * Parsed command-line invocation — aggregates every option the CLI understands
+ * and derives a CUDA launch configuration from it.
  */
 struct CommandLineArgs
 {
@@ -43,44 +58,67 @@ struct CommandLineArgs
     // How brute will be performed (may be several iterations)
     std::vector<BruteforceConfig> brute_configs;
 
-    // Do not do all 16 calculations, use predefined one
-    std::vector<KeeloqLearningType::Type> selected_learning = {};
+    // Additional input transform flags selected by the user via CLI.
+    InputsTransform inputsTransform = InputsTransform::None;
 
     //  Alphabets are just set of possible byte values
     // this sets may be shared between attacks
     std::vector<MultibaseDigit> alphabets;
 
     // Stop on first match
-    bool match_stop;
-
-    // Cuda setup
-    uint16_t cuda_blocks;
-    uint16_t cuda_threads;
-    uint16_t cuda_loops;
-
-    // run also tests
-    bool run_tests;
+    bool match_stop = false;
 
     // Run only benchmarks (with selected values)
-    bool run_bench;
+    bool run_bench = false;
+
+    // Run the built-in demo scenario.
+    bool run_demo = false;
+
+    // Print version information.
+    bool print_version = false;
+
+    // Set when the user requested help (-h, --help) or the invocation was
+    // incomplete in a way that warrants showing usage. main() prints the help;
+    // tests just check the flag.
+    bool print_help = false;
+
+    // Set when parsing encountered a fatal error (malformed/invalid argument).
+    // Parsing stops at the first fatal error. main() exits with non-zero.
+    bool has_errors = false;
+
+public:
+    inline uint32_t cudaBlocks() const { return cuda_blocks; }
+
+    inline uint16_t cudaThreads() const { return cuda_threads; }
 
 public:
 
-    // Parse from standard terminal way
-    static CommandLineArgs parse(int argc, const char** argv);
+    /** Parse a standard argc/argv invocation into a CommandLineArgs. */
+    static CommandLineArgs parse(int argc, const char** argv, AppVerbosity verbosity = AppVerbosity::Debug);
+
+    /** Print the full options help and usage examples. */
+    static void printHelp(std::FILE* out = stdout);
 
 public:
-    // Checks if arguments enough for bruteforcing
-    bool can_bruteforce();
+    /** True if parsed arguments are sufficient to start a bruteforce run. */
+    bool canBruteforce();
 
-    // Init enc parcel collection with raw OTA values
-    void init_inputs(const std::vector<uint64_t>& inp);
+    /** Populate `inputs` from raw OTA values. */
+    void initInputs(const std::vector<uint64_t>& inp);
 
-    void init_cuda(uint16_t b, uint16_t t, uint16_t l);
+    /** Creates learning matrix from current command line arguments */
+    KeeloqLearning::Matrix getLearningMatrix() const { return KeeloqLearning::Matrix(selected_learning, selected_algo_types); }
 
-    // Check device capabilities and returns maximum thread allowed for single block
-    static uint32_t max_cuda_threads();
+private:
+    // Brute all 7 or 11 learnings, or use predefined one
+    std::vector<KeeloqLearning::LearningType> selected_learning = {};
 
-    // Check device capabilities and returns maximum allowed number of blocks
-    static uint32_t max_cuda_blocks();
+    // Select specific algorithm logic types
+    std::vector<KeeloqLearning::AlgoType> selected_algo_types = {};
+
+
+    // Cuda setup
+    uint32_t cuda_blocks = 0;
+
+    uint16_t cuda_threads = 0;
 };

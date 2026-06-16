@@ -1,191 +1,183 @@
-#include "bruteforce_round.h"
-
-#include "common.h"
-#include "bruteforce_config.h"
-#include "kernels/kernel_result.h"
-#include "algorithm/keeloq/keeloq_encrypted.h"
-#include "algorithm/keeloq/keeloq_learning_types.h"
-#include "algorithm/keeloq/keeloq_single_result.h"
+#include "bruteforce/bruteforce_round.h"
 
 #include <cuda_runtime_api.h>
 
+#include "common.h"
 
-BruteforceRound::BruteforceRound(const std::vector<EncParcel>& enc, const BruteforceConfig& config, std::vector<KeeloqLearningType::Type> selected_learning,
-    uint32_t blocks, uint32_t threads, uint32_t iterations)
-    : encrypted_data(enc)
+#include "algorithm/keeloq/keeloq_kernel.h"
+#include "algorithm/keeloq/keeloq_encrypted.h"
+#include "algorithm/keeloq/keeloq_learning_types.h"
+#include "algorithm/keeloq/keeloq_thread_result.h"
+
+#include "generators/generator_bruteforce.h"
+
+#include "bruteforce/bruteforce_config.h"
+
+#include "kernels/kernel_result.h"
+#include "kernels/kernel_input_multi_learning.h"
+#include "kernels/kernel_input_single_learning.h"
+
+
+BruteforceRound::BruteforceRound(const std::vector<EncParcel>& inputs, const BruteforceConfig& config, const CudaConfig& cuda)
+    : cudaConfig(cuda), inputsNum(static_cast<uint8_t>(inputs.size()))
 {
-#if NO_INNER_LOOPS
-    iterations = 1;
-#endif
+    num_decryptors_per_batch = cudaConfig.blocks * cudaConfig.threads;
 
-    CUDASetup[0] = blocks;
-    CUDASetup[1] = threads;
-    CUDASetup[2] = iterations;
+    kernel_inputs = config.useSingleLearningKernels ?
+        IKeeloqKernelInputBase::Create<KeeloqKernelSingleLearningInput>() :
+        IKeeloqKernelInputBase::Create<KeeloqKernelMultiLearningInput>();
 
-    num_decryptors_per_batch = iterations * threads * blocks;
-
-    kernel_inputs.Initialize(config, KeeloqLearningType::to_mask(selected_learning));
+    kernel_inputs->Initialize(config, inputs);
 }
 
-const std::vector<SingleResult>& BruteforceRound::read_results_gpu()
+bool BruteforceRound::checkResults(const KernelResult& result, AppVerbosity verbosity)
 {
-    kernel_inputs.results->copy(block_results);
-    return block_results;
-}
-
-const std::vector<Decryptor>& BruteforceRound::read_decryptors_gpu()
-{
-    kernel_inputs.decryptors->copy(decryptors);
-    return decryptors;
-}
-
-bool BruteforceRound::check_results(const KernelResult& result)
-{
-    if (result.error < 0)
+    if (result.cudaError != cudaSuccess)
     {
-        printf("Kernel fatal error: %d\n Round should be finished!\n", result.error);
+        APP_LOG_ERROR(verbosity, "Kernel fatal error: %s: %s\n Round should be finished!\n", cudaGetErrorName(result.cudaError), cudaGetErrorString(result.cudaError));
         return true;
     }
-    else if (result.error != 0)
+
+    if (result.threadsFinished() != cudaConfig.threadsCount())
     {
-        printf("CUDA calculations num errors: %d\n", result.error);
+        APP_LOG_ERROR(verbosity, "Kernel fatal error: Silent kernel crash happened. Expected number of calculations: %u, actual: %u\n",
+            cudaConfig.threadsCount(), result.threadsFinished());
+        return true;
     }
 
-    if (result.value > 0)
+    if (result.hasMatch())
     {
-        auto& all_results = read_results_gpu();
-
-        printf("Matches count: %d\n", result.value);
-
-        for (const auto& result : all_results)
-        {
-            if (result.match == KeeloqLearningType::INVALID)
-            {
-                continue;
-            }
-
-            result.print();
-        }
-
+        APP_LOG_INFO(verbosity, "Matches count: %d\n", result.hasMatch());
         return true;
     }
 
     return false;
 }
 
-size_t BruteforceRound::get_mem_size() const
+size_t BruteforceRound::getMemSize(bool cpu) const
 {
     assert(inited);
-    return
-        encrypted_data.size() * sizeof(EncParcel) +
-        decryptors.size() * sizeof(Decryptor) +
-        block_results.size() * sizeof(SingleResult);
-}
 
-size_t BruteforceRound::num_batches() const
-{
-    assert(inited);
-    if (Type() == BruteforceType::Dictionary)
+    if (cpu)
     {
-        uint8_t non_align = Config().dict_size() % keys_per_batch() == 0 ? 0 : 1;
-        return Config().dict_size() / keys_per_batch() + non_align;
+        return inputsNum * sizeof(EncParcel);
     }
     else
     {
-        uint8_t non_align = Config().brute_size() % keys_per_batch() == 0 ? 0 : 1;
-        return Config().brute_size() / keys_per_batch() + non_align;
+        return kernel_inputs->BytesAllocated();
     }
 }
 
-size_t BruteforceRound::keys_per_batch() const
+size_t BruteforceRound::numBatches() const
 {
     assert(inited);
-    return decryptors.size();
+    if (type() == BruteforceType::Dictionary)
+    {
+        const uint8_t non_align = config().dictSize() % decryptorsPerBatch() == 0 ? 0 : 1;
+        return config().dictSize() / decryptorsPerBatch() + non_align;
+    }
+    else
+    {
+        const uint8_t non_align = config().bruteSize() % decryptorsPerBatch() == 0 ? 0 : 1;
+        return config().bruteSize() / decryptorsPerBatch() + non_align;
+    }
 }
 
-size_t BruteforceRound::results_per_batch() const
+size_t BruteforceRound::decryptorsPerBatch() const
 {
-    assert(inited);
-    return block_results.size();
+    return num_decryptors_per_batch;
 }
 
-void BruteforceRound::Init()
+size_t BruteforceRound::resultsPerBatch() const
+{
+    return decryptorsPerBatch() * inputsNum;
+}
+
+void BruteforceRound::init()
 {
     if (!inited)
     {
-        // allocated once. updated every run on GPU
-        decryptors = std::vector<Decryptor>(num_decryptors_per_batch);
-
-        // allocated once. updated evert run on GPU. copied to CPU only if match found.
-        block_results = std::vector<SingleResult>(encrypted_data.size() * decryptors.size());
-
         alloc();
 
         inited = true;
     }
 }
 
-std::string BruteforceRound::to_string() const
+KernelResult BruteforceRound::launch(const KeeloqLearning::Matrix& learningMatrix, InputsTransform inTransform)
+{
+    if (!kernel_inputs)
+    {
+        assert(kernel_inputs && "Inputs were not constructed!");
+        return KernelResult::NotStarted();
+    }
+
+    kernel_inputs->prepareBatch(learningMatrix, inTransform);
+    return keeloq::kernels::cuda_brute(*this, cudaConfig);
+}
+
+std::string BruteforceRound::toString() const
 {
     assert(inited);
 
-    return str::format<std::string>("Setup:\n"
-        "\tCUDA: Blocks:%u Threads:%u Iterations:%u\n"
-        "\tEncrypted data size:%zd\n"
-        "\tLearning type:%s\n"
-        "\tResults per batch:%zd\n"
-        "\tDecryptors per batch:%zd\n"
-        "\tConfig: %s",
-        CudaBlocks(), CudaThreads(), CudaThreadIterations(),
-        encrypted_data.size(), kernel_inputs.GetLearningMask().to_string().c_str(), results_per_batch(), keys_per_batch(), Config().toString().c_str());
+    return str::format<std::string>(
+        "----------------------------------------\n"
+        "CUDA:\n"
+        "\t- Blocks:%u\n"
+        "\t- Threads:%u\n"
+        "\t- Allocated GPU memory: %-2.1f GB\n"
+        "----------------------------------------\n"
+        "Inputs:\n"
+        "\tCount: %u\n"
+        "\tTransforms:  %s\n"
+        "----------------------------------------\n"
+        "Results per batch:   %8zd\n"
+        "Decryptors per batch:%8zd\n"
+        "Kernel Inputs:       %8s\n"
+        "----------------------------------------\n"
+        "Config: %s\n"
+        "----------------------------------------",
+        cudaConfig.blocks, cudaConfig.threads, (getMemSize(false) / static_cast<float>(1024 * 1024 * 1024)),
+        inputsNum, config().transformsToString().c_str(),
+        resultsPerBatch(), decryptorsPerBatch(), kernel_inputs ? ::toString(kernel_inputs->type()).data() : "NULL",
+        config().toString().c_str());
 }
 
 
+bool BruteforceRound::generateDecryptors(uint64_t batchIdx)
+{
+    if (type() != BruteforceType::Dictionary)
+    {
+        if (batchIdx != 0)
+        {
+            // Make last decryptor from previous batch as first for this batch
+            inputs().NextDecryptor();
+        }
+
+        // Generate decryptors (if available)
+        auto cudaError = GeneratorBruteforce::PrepareDecryptors(inputs(), cudaConfig);
+        if (cudaError != cudaSuccess)
+        {
+            printf("Error: Key generation resulted with error: %s: %s\n", cudaGetErrorName(cudaError), cudaGetErrorString(cudaError));
+            assert(false);
+            return false;
+        }
+    }
+    else
+    {
+        // Write next batch of keys from dictionary
+        inputs().WriteDecryptors(config().dictDecryptors, batchIdx * decryptorsPerBatch(), decryptorsPerBatch());
+    }
+
+    return true;
+}
+
 void BruteforceRound::alloc()
 {
-    //
-    assert(kernel_inputs.encdata == nullptr		&& "Encrypted data already allocated on GPU");
-    assert(kernel_inputs.decryptors == nullptr	&& "Decryptors data already allocated on GPU");
-    assert(kernel_inputs.results == nullptr		&& "Results data already allocated on GPU");
-
     // ALLOCATE ON GPU
-    if (kernel_inputs.encdata == nullptr)
-    {
-        kernel_inputs.encdata = CudaArray<EncParcel>::allocate(encrypted_data);
-    }
-
-    if (kernel_inputs.decryptors == nullptr)
-    {
-        kernel_inputs.decryptors = CudaArray<Decryptor>::allocate(decryptors);
-    }
-
-    if (kernel_inputs.results == nullptr)
-    {
-        kernel_inputs.results = CudaArray<SingleResult>::allocate(block_results);
-    }
+    inputs().AllocateGPU(num_decryptors_per_batch);
 }
 
 void BruteforceRound::free()
 {
-    if (kernel_inputs.encdata != nullptr)
-    {
-        kernel_inputs.encdata->free();
-        kernel_inputs.encdata = nullptr;
-    }
-
-    if (kernel_inputs.decryptors != nullptr)
-    {
-        kernel_inputs.decryptors->free();
-        kernel_inputs.decryptors = nullptr;
-    }
-
-    if (kernel_inputs.results != nullptr)
-    {
-        kernel_inputs.results->free();
-        kernel_inputs.results = nullptr;
-    }
-
-    encrypted_data.clear();
-    decryptors.clear();
-    block_results.clear();
+    inputs().FreeGPU();
 }

@@ -1,73 +1,78 @@
 #pragma once
 
+#include <string>
+#include <vector>
+
 #include "common.h"
 
-#include <vector>
-#include <string>
-
-#include "algorithm/multibase_system.h"
 #include "algorithm/multibase_number.h"
+#include "algorithm/multibase_system.h"
 
 
 using PatternValue = MultibaseNumber;
 using PatternSystem = MultibaseSystem<sizeof(uint64_t)>;
 
 /**
- *  In pattern mode "cylinders" (see multi-base system) are different sizes
- * Alphabet - 8 cylinders with same set of bytes
- * Pattern  - 8 cylinders with different set of bytes
+ * Pattern / alphabet bruteforce description.
+ *
+ * Uses the multi-base "cylinder" abstraction:
+ *  - Alphabet : 8 cylinders share one alphabet of bytes.
+ *  - Pattern  : 8 cylinders each have their own set of bytes.
  */
 struct BruteforcePattern
 {
-    // How many bytes in this pattern - this basically represent bye-length of the bruteforce target
-    // if bruteforce target is 64-bit key - this number should be 8
+    /** Number of bytes (cylinders) in the pattern — matches the target key width. */
     static constexpr uint8_t BytesNumber = PatternSystem::DigitsNumber;
 
     BruteforcePattern() = default;
 
-    //  Create pattern from bytes.
-    // LITTLE ENDIAN. pattern_bytes[0] is lowest byte in pattern. e.g. ( [ { 0x01 }, ... ] will ends as key 0x.....01 )
-    // Pattern string is just for reference
-    BruteforcePattern(std::vector<std::vector<uint8_t>>&& pattern_bytes, const std::string& pattern_string = "N/A");
+    /**
+     * Construct from little-endian per-byte value sets (byte 0 is the lowest byte).
+     * `pattern_string` is kept for debug printing.
+     */
+    BruteforcePattern(std::vector<std::vector<uint8_t>>&& pattern_bytes, const std::string& pattern_string = "");
 
-    //  Special case constructor when patter is the same for every digit in underlying system
-    // However this is not how this class supposed to be constructed by public
-    // user-code should use @BruteforceAlphabet instead in that case
-    BruteforcePattern(const MultibaseDigit& same_bytes);
+    /**
+     * Convenience constructor that uses the same alphabet for every byte.
+     * Prefer BruteforceAlphabet at call sites — this overload exists for internal use.
+     */
+    BruteforcePattern(const MultibaseDigit& same_bytes, const std::string& name = "");
 
 public:
 
-    // Initialize value for this pattern from 64-bit number
+    /** Initialize a pattern value from a raw 64-bit starting key. */
     __host__ __device__ inline PatternValue init(uint64_t begin) const;
 
-    // Roll cylinders, increment @curr by @amount
+    /** Advance `curr` by `amount` steps within the pattern. */
     __host__ __device__ inline PatternValue next(const PatternValue& curr, uint64_t amount) const;
 
-    // how many numbers are in this pattern
+    /** Total count of representable values in this pattern. */
     __host__ __device__ inline size_t size() const { return system.invariants(); }
 
-    // This pattern is fixed size (same as target attacking key size)
-    // according to this pattern each byte can be only a specific value
-    // with this method you can retrieve configuration of that byte
-    __host__ __device__ inline const MultibaseDigit& bytes_variants(uint8_t index) const;
+    /** Per-byte numeral alphabet for a given byte index. */
+    __host__ __device__ inline const MultibaseDigit& bytesVariants(uint8_t index) const;
 
 public:
 
-    __host__ std::string to_string(bool extended = false) const;
+    /** Build a human-readable representation; `extended=true` enumerates every byte's alphabet. */
+    __host__ std::string toString(bool extended = false) const;
 
 public:
-    // Convert possible single-byte pattern string to set of bytes
-    // 0xDA      -> single byte
-    // 0x19-0x2A -> range
-    // *         -> full
-    // 0x91;0x23 -> set of specific bytes
-    static std::vector<uint8_t> ParseBytes(std::string text);
+    /**
+     * Parse the bytes accepted at a single position.
+     * Accepts:
+     *   0xDA       — single byte
+     *   0x19-0x2A  — inclusive range
+     *   *          — any byte
+     *   0x91|0x23  — explicit set
+     */
+    static std::vector<uint8_t> parseBytes(std::string text);
 
-    // tries to parse single byte value like 0xA1 or FF
-    static bool TryParseSingleByte(std::string text, uint8_t& out);
+    /** Try to parse a single byte written as 0xA1 or FF. */
+    static bool tryParseSingleByte(std::string text, uint8_t& out);
 
-    // tries to parse single byte value like 0xA1 or FF
-    static std::vector<uint8_t> TryParseRangeBytes(std::string text);
+    /** Try to parse a byte range written as 0x10-0x1F. */
+    static std::vector<uint8_t> tryParseRangeBytes(std::string text);
 
 protected:
 
@@ -88,8 +93,8 @@ __host__ __device__ inline PatternValue BruteforcePattern::next(const PatternVal
     return system.increment(result, amount);
 }
 
-__host__ __device__ inline const MultibaseDigit& BruteforcePattern::bytes_variants(uint8_t index) const
+__host__ __device__ inline const MultibaseDigit& BruteforcePattern::bytesVariants(uint8_t index) const
 {
     assert(index < BytesNumber && "Invalid byte index, it's bigger that bytes count in this pattern");
-    return system.get_config(index);
+    return system.getConfig(index);
 }

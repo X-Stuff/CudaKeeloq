@@ -1,74 +1,89 @@
 name: Windows
+
 on:
   workflow_dispatch:
   push:
     tags:
-      - test-windows*
       - release-v*
+
+env:
+  CUDA_VERSION: '13.2.0'
+  CUDA_VERSION_MAJOR: '13'
+  CUDA_VERSION_MINOR: '2'
 
 jobs:
   build:
-
-    env:
-      CUDA_VERSION_MAJOR: 12
-      CUDA_VERSION_MINOR: 2
-      CUDA_VERSION_PACTH: 0
-
     runs-on: windows-2022
     permissions:
       contents: write
+
     steps:
-
-      - name: Setup CUDA (manual)
-        env:
-          CUDA_VERSION_STR: "${{env.CUDA_VERSION_MAJOR}}.${{env.CUDA_VERSION_MINOR}}.${{env.CUDA_VERSION_PACTH}}"
-          PKGS_VERSION_STR: "${{env.CUDA_VERSION_MAJOR}}.${{env.CUDA_VERSION_MINOR}}"
-        run: |
-          echo "Downloading CUDA version: ${{env.CUDA_VERSION_STR}}"
-          Invoke-WebRequest -Uri "https://developer.download.nvidia.com/compute/cuda/${{env.CUDA_VERSION_STR}}/network_installers/windows/x86_64/wddm2/CUDAVisualStudioIntegration.exe" -OutFile ${{RUNNER.TEMP}}\cuda-vs-installer.exe
-          Invoke-WebRequest -Uri "https://developer.download.nvidia.com/compute/cuda/${{env.CUDA_VERSION_STR}}/network_installers/windows/x86_64/wddm2/nvcc.exe" -OutFile ${{RUNNER.TEMP}}\cuda-nvcc-installer.exe
-          Invoke-WebRequest -Uri "https://developer.download.nvidia.com/compute/cuda/${{env.CUDA_VERSION_STR}}/network_installers/windows/x86_64/wddm2/cudart.exe" -OutFile ${{RUNNER.TEMP}}\cuda-rt-installer.exe
-
-          echo "Unpacking archives"
-          7z x ${{RUNNER.TEMP}}\cuda-vs-installer.exe extras\visual_studio_integration\MSBuildExtensions -o${{RUNNER.TEMP}}\cuda
-          7z x ${{RUNNER.TEMP}}\cuda-nvcc-installer.exe -o${{RUNNER.TEMP}}\cuda
-          7z x ${{RUNNER.TEMP}}\cuda-rt-installer.exe -o${{RUNNER.TEMP}}\cuda
-
-          echo "Exporting Environment variables for next steps"
-          [Environment]::SetEnvironmentVariable("CUDA_PATH", "${{RUNNER.TEMP}}\cuda")
-
-          Add-Content $env:GITHUB_ENV "CUDA_PATH=$env:CUDA_PATH"
-          Add-Content $env:GITHUB_ENV "CUDA_PATH_V${{env.CUDA_VERSION_MAJOR}}_${{env.CUDA_VERSION_MINOR}}=$env:CUDA_PATH"
-          Add-Content $env:GITHUB_PATH "$env:CUDA_PATH\bin"
-
-      - name: CUDA check
-        run: |
-          echo "CUDA PATH: $env:CUDA_PATH"
-          ${{env.CUDA_PATH}}\bin\nvcc.exe -V
-
       - name: Checkout
-        uses: actions/checkout@v3.3.0
+        uses: actions/checkout@v4
         with:
-          submodules: 'true'
+          submodules: recursive
 
       - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v1.3.1
+        uses: microsoft/setup-msbuild@v2
         with:
-          # vs-version: latest
-          msbuild-architecture: "x64"
+          msbuild-architecture: x64
 
+      - name: Setup CUDA
+        id: cuda-toolkit
+        uses: Jimver/cuda-toolkit@v0.2.35
+        with:
+          cuda: ${{ env.CUDA_VERSION }}
+          use-github-cache: true
 
-      - name: Build Application
-        run: msbuild CudaKeeloq.vcxproj -t:Rebuild -p:Configuration=Release -p:Platform=x64
-
-      - name: Create Artifacts
+      - name: Export CUDA variables
+        shell: pwsh
         run: |
-          mkdir artifacts
-          xcopy x64\Release\CudaKeeloq.exe artifacts\
-          xcopy .\examples artifacts\examples /E /H /I /C
-          Compress-Archive -Path artifacts/* -DestinationPath artifacts/cudakeeloq.zip
+          $cudaPath = "${{ steps.cuda-toolkit.outputs.CUDA_PATH }}"
+          if (-not $cudaPath) {
+            $cudaPath = $env:CUDA_PATH
+          }
+
+          Add-Content $env:GITHUB_ENV "CUDA_PATH=$cudaPath"
+          Add-Content $env:GITHUB_ENV "CUDA_PATH_V${{ env.CUDA_VERSION_MAJOR }}_${{ env.CUDA_VERSION_MINOR }}=$cudaPath"
+          Add-Content $env:GITHUB_PATH "$cudaPath\bin"
+
+      - name: CUDA check
+        shell: pwsh
+        run: |
+          Write-Host "CUDA PATH: $env:CUDA_PATH"
+          nvcc -V
+
+      - name: Build application
+        shell: pwsh
+        run: |
+          msbuild CudaKeeloq.vcxproj `
+            /m `
+            /t:Rebuild `
+            /p:Configuration=Release `
+            /p:Platform=x64
+
+      - name: Create artifact archive
+        shell: pwsh
+        run: |
+          $artifactDir = "artifacts"
+          New-Item -ItemType Directory -Path $artifactDir -Force | Out-Null
+
+          Copy-Item ".build\x64\Release\win\CudaKeeloq.exe" "$artifactDir\CudaKeeloq.exe" -Force
+          Copy-Item "examples" "$artifactDir\examples" -Recurse -Force
+
+          Compress-Archive `
+            -Path "$artifactDir\CudaKeeloq.exe", "$artifactDir\examples" `
+            -DestinationPath "$artifactDir\cudakeeloq-windows-x64.zip" `
+            -Force
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cudakeeloq-windows-x64
+          path: artifacts/cudakeeloq-windows-x64.zip
 
       - name: Create Release
-        uses: ncipollo/release-action@v1.12.0
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: ncipollo/release-action@v1
         with:
-          artifacts: artifacts/cudakeeloq.zip
+          artifacts: artifacts/cudakeeloq-windows-x64.zip

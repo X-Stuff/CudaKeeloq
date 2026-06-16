@@ -3,5 +3,5 @@
 CONTAINER="${CONTAINER:-cudakeeloq}"
 TAG="${TAG:-local}"
 
-docker build . -t $CONTAINER:$TAG
+docker build . -t $CONTAINER:$TAG $@
 

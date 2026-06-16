@@ -1,14 +1,15 @@
 #pragma once
 
-#include "common.h"
-
 #include <type_traits>
+
 #include <cuda_runtime_api.h>
+
+#include "common.h"
 
 
 /**
- *  Something like C# span
- * Memory view
+ * Minimal C#-style span / contiguous memory view over `T*` that works on host and device.
+ * On device, element reads go through __ldca for cache hint behavior.
  */
 template<typename T>
 struct Span
@@ -36,7 +37,7 @@ struct Span
 #endif
     }
 
-    // Number of elements in Span
+    /** Number of elements in the span. */
     __host__ __device__ inline uint32_t num() const { return size; }
 
     // fall back if T is not simple type

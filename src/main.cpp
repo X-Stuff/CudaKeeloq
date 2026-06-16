@@ -1,67 +1,79 @@
+#include <csignal>
+#include <cstdio>
+#include <cstdlib>
+
 #include "common.h"
 
-#include "stdio.h"
+#include "algorithm/keeloq/keeloq_kernel.h"
+#include "algorithm/keeloq/keeloq_encryptor.h"
 
+#include "benchmark/benchmark.h"
+
+#include "bruteforce/bruteforcer.h"
+#include "bruteforce/generators/generator_bruteforce.h"
+
+#include "host/command_line_args.h"
 #include "host/console.h"
 
-#include "algorithm/keeloq/keeloq_kernel.h"
-#include "bruteforce/generators/generator_bruteforce.h"
-#include "bruteforce/bruteforce_round.h"
-
-#include "tests/test_all.h"
 
 CommandLineArgs demoTestCommandlineArgs(int num_gen_input = 3)
 {
-    constexpr uint64_t debugKey =  0xC0FFEE00DEAD6666;
+    constexpr uint64_t EncryptorKey = 0xC0FFEE00DEAD6666;
+    constexpr uint32_t EncryptorSeed = 0x12345678;
+
+    Encryptor encryptor(EncryptorKey, EncryptorSeed);
+
 
 #if _DEBUG
-    uint64_t first = debugKey & 0xFFFFFFFFFFC00000;
+    uint64_t first = encryptor.getKey() & 0xFFFFFFFFFFC00000;
 #else
-    uint64_t first = debugKey & 0xFFFFFFFFF0000000;
+    uint64_t first = encryptor.getKey() & 0xFFFFFFFFF0000000;
 #endif
     uint64_t count = 0xFFFFFFF;
 
-    Decryptor first_decryptor_ptrn(0, tests::keeloq::default_seed);
-    Decryptor first_decryptor_brtf(first, tests::keeloq::default_seed);
+    Decryptor first_decryptor_ptrn = Decryptor::MakeSeed(0, encryptor.getSeed());
 
     CommandLineArgs cmd;
-    cmd.inputs = tests::keeloq::gen_inputs<KeeloqLearningType::Faac>(debugKey, num_gen_input);
-    cmd.alphabets.emplace_back(MultibaseDigit("abcdef"_b));
-    cmd.alphabets.emplace_back(MultibaseDigit( { 0xC0, 0xFF, 0xEE, 0x00, 0xDE, 0xAD, 0x66 }));
+    cmd.inputs.emplace_back(encryptor.click(InputsTransform::None, KeeloqLearning::LearningType::Faac, KeeloqLearning::AlgoType::Normal));
+    cmd.inputs.emplace_back(encryptor.click(InputsTransform::None, KeeloqLearning::LearningType::Faac, KeeloqLearning::AlgoType::Normal));
+    cmd.inputs.emplace_back(encryptor.click(InputsTransform::None, KeeloqLearning::LearningType::Faac, KeeloqLearning::AlgoType::Normal));
 
     // Dictionary
     cmd.brute_configs.emplace_back(BruteforceConfig::GetDictionary({
-        Decryptor(666, tests::keeloq::default_seed),
-        Decryptor(debugKey - 1, tests::keeloq::default_seed),
-        Decryptor(debugKey, tests::keeloq::default_seed),
-        Decryptor(debugKey + 1, tests::keeloq::default_seed)
-    }));
+        Decryptor::MakeSeed(666, 777),
+        Decryptor::MakeSeed(encryptor.getKey() - 1, encryptor.getSeed()),
+        Decryptor::MakeSeed(encryptor.getKey(),     encryptor.getSeed()),
+        Decryptor::MakeSeed(encryptor.getKey() + 1, encryptor.getSeed())
+    }, InputsTransform::None));
 
     // Alphabet
-    cmd.brute_configs.emplace_back(BruteforceConfig::GetAlphabet(first_decryptor_ptrn, cmd.alphabets[1]));
-    cmd.brute_configs.emplace_back(BruteforceConfig::GetAlphabet(first_decryptor_ptrn, cmd.alphabets[0]));
+    cmd.alphabets.emplace_back(MultibaseDigit("abcdef"_b));
+    cmd.alphabets.emplace_back(MultibaseDigit({ 0xC0, 0xFF, 0xEE, 0x00, 0xDE, 0xAD, 0x66 }));
+    cmd.brute_configs.emplace_back(BruteforceConfig::GetAlphabet(first_decryptor_ptrn, InputsTransform::None, cmd.alphabets[1], BruteforceConfig::MaxDecryptorsNum, "Match alphabet"));
+    cmd.brute_configs.emplace_back(BruteforceConfig::GetAlphabet(first_decryptor_ptrn, InputsTransform::None, cmd.alphabets[0], BruteforceConfig::MaxDecryptorsNum, "Wrong alphabet"));
 
     // Seed
-    cmd.brute_configs.emplace_back(BruteforceConfig::GetSeedBruteforce(Decryptor(debugKey, 0)));
+    cmd.brute_configs.emplace_back(BruteforceConfig::GetSeedBruteforce(Decryptor::MakeSeed(encryptor.getKey(), 0), InputsTransform::None));
 
     // Pattern (reversed)
-    cmd.brute_configs.emplace_back(BruteforceConfig::GetPattern(first_decryptor_ptrn, BruteforcePattern(
+    cmd.brute_configs.emplace_back(BruteforceConfig::GetPattern(first_decryptor_ptrn, InputsTransform::RevKey, BruteforcePattern(
         {
-            BruteforcePattern::ParseBytes("c0|c1|c2|c3"),
-            BruteforcePattern::ParseBytes("F0-FF"),
-            BruteforcePattern::ParseBytes("E0-EF"),
-            BruteforcePattern::ParseBytes("00-99"),
+            BruteforcePattern::parseBytes("c0|c1|c2|c3"),
+            BruteforcePattern::parseBytes("F0-FF"),
+            BruteforcePattern::parseBytes("E0-EF"),
+            BruteforcePattern::parseBytes("00-99"),
             { 0xED, 0xDE },
             { 0xDA, 0xAD },
             { 0x11, 0x22, 0x33, 0x44, 0x55, 0x66 },
             { 0x11, 0x22, 0x33, 0x44, 0x55, 0x66 }
-        }, "N/A")));
+        }, "Match custom pattern")));
 
     // Simple
-    cmd.brute_configs.emplace_back(BruteforceConfig::GetBruteforce(first_decryptor_brtf, count));
+    Decryptor first_decryptor_brtf = Decryptor::MakeSeed(first, encryptor.getSeed());
+    cmd.brute_configs.emplace_back(BruteforceConfig::GetBruteforce(first_decryptor_brtf, InputsTransform::None, count));
 
     // Filters
-    cmd.brute_configs.emplace_back(BruteforceConfig::GetBruteforce(first_decryptor_brtf, count, BruteforceFilters
+    cmd.brute_configs.emplace_back(BruteforceConfig::GetBruteforce(first_decryptor_brtf, InputsTransform::None, count, BruteforceFilters
         {
             // Include only
             BruteforceFilters::Flags::All,
@@ -70,147 +82,91 @@ CommandLineArgs demoTestCommandlineArgs(int num_gen_input = 3)
             BruteforceFilters::Flags::BytesIncremental
         }));
 
-    cmd.selected_learning = { }; // ALL
-
     cmd.match_stop = false;
-    cmd.run_bench = false;
-    cmd.run_tests = false;
-
-#if _DEBUG
-    cmd.init_cuda(512, 0, 1);
-#else
-    cmd.init_cuda(4096, 0, 1);
-#endif
+    cmd.run_bench  = false;
 
     return cmd;
 }
 
 void bruteforce(const CommandLineArgs& args)
 {
-    if (args.selected_learning.size() == 0)
+    const size_t numConfigs = args.brute_configs.size();
+    printf("\nTotal bruteforce configs to run: %zd\n", numConfigs);
+
+    Bruteforcer bruteforcer(args.inputs);
+
+    for (size_t configIndex = 0; configIndex < numConfigs; ++configIndex)
     {
-        printf("Bruteforcing without specific learning type (slower)"
-            "(1 KKey/s == %u Kkc (keeloq calcs) per second)\n"
-            "In case of full range there also redundant checks since using _REV learning types ( X-00:11:22 == X_REV-22:11:00 )\n", KeeloqLearningType::LAST);
-    }
+        printf("\n*********************************************[CONFIG %02zd/%02zd]********************************************\n", configIndex + 1, numConfigs);
 
-    for (const auto& config : args.brute_configs)
-    {
-        BruteforceRound attackRound(args.inputs, config, args.selected_learning, args.cuda_blocks, args.cuda_threads, args.cuda_loops);
+        const auto& config = args.brute_configs[configIndex];
+        const auto cudaConfig = config.cudaConfig(args.cudaThreads(), args.cudaBlocks());
 
-        printf("\nallocating...");
-        attackRound.Init();
-
-        printf("\rRunning...    \n%s\n", attackRound.to_string().c_str());
-
-        bool match = false;
-
-        size_t batchesInRound = attackRound.num_batches();
-        size_t keysInBatch = attackRound.keys_per_batch();
-
-        auto roundStartTime = std::chrono::system_clock::now();
-
-        for (size_t batch = 0; !match && batch < batchesInRound; ++batch)
+        auto match = bruteforcer.run(config, cudaConfig);
+        if (match.isValid())
         {
-            auto batchStartTime = std::chrono::high_resolution_clock::now();
+            match.print();
 
-            KeeloqKernelInput& kernelInput = attackRound.Inputs();
-
-            if (attackRound.Type() != BruteforceType::Dictionary)
+            if (args.match_stop)
             {
-                // Generate decryptors (if available)
-                int error = GeneratorBruteforce::PrepareDecryptors(kernelInput, attackRound.CudaBlocks(), attackRound.CudaThreads());
-                if (error)
-                {
-                    printf("Error: Key generation resulted with error: %d", error);
-                    assert(false);
-                    return;
-                }
-
-                // Make previous last generated key be an initial for current generation batch
-                kernelInput.NextDecryptor();
+                break;
             }
-            else
-            {
-                // Write next batch of keys from dictionary
-                kernelInput.WriteDecryptors(config.decryptors, batch * keysInBatch, keysInBatch);
-            }
-
-            // do the bruteforce
-            auto kernelResults = keeloq::kernels::cuda_brute(kernelInput, attackRound.CudaBlocks(), attackRound.CudaThreads());
-            match = attackRound.check_results(kernelResults);
-
-            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
-                std::chrono::high_resolution_clock::now() - batchStartTime);
-
-            if (batch == 0 || match)
-            {
-                console::set_cursor_state(false);
-                printf("\n\n\n");
-            }
-
-            if (!match)
-            {
-                auto kilo_result_per_second = duration.count() == 0 ? 0 : keysInBatch / duration.count();
-                auto progress_percent = (double)(batch + 1) / batchesInRound;
-
-                console_cursor_ret_up(2);
-
-                const Decryptor& last_used_decryptor = kernelInput.GetConfig().last;
-
-                printf("[%c][%zd/%zd]    %" PRIu64 "(ms)/batch Speed: %" PRIu64 " KKeys/s   Last key:0x%" PRIX64 " (%u)         \n",
-                    WAIT_CHAR(batch),
-                    batch, batchesInRound,
-                    duration.count(),
-                    kilo_result_per_second,
-                    last_used_decryptor.man(), last_used_decryptor.seed());
-
-                auto overall = std::chrono::duration_cast<std::chrono::seconds>(
-                    std::chrono::system_clock::now() - roundStartTime);
-
-                console::progress_bar(progress_percent, overall);
-            }
-        }
-
-        if (!match)
-        {
-            printf("\n\nAfter: %zd batches no results was found. Keys checked:%zd\n\n",
-                batchesInRound, batchesInRound * keysInBatch);
-        }
-        else if (args.match_stop)
-        {
-            break;
         }
     }
 }
 
+static void restoreCursor()
+{
+    console::setCursorState(true);
+}
+
+static void signalRestoreCursor(int sig)
+{
+    restoreCursor();
+    std::signal(sig, SIG_DFL);
+    std::raise(sig);
+}
+
 int main(int argc, const char** argv)
 {
-    assert(tests::cuda_check_working());
+    std::atexit(restoreCursor);
+    std::signal(SIGINT,  signalRestoreCursor);
+    std::signal(SIGTERM, signalRestoreCursor);
+    std::signal(SIGABRT, signalRestoreCursor);
+    std::signal(SIGSEGV, signalRestoreCursor);
+    std::signal(SIGILL,  signalRestoreCursor);
+    std::signal(SIGFPE,  signalRestoreCursor);
 
     if (!keeloq::kernels::cuda_is_working())
     {
         printf("Error: This device cannot compute keeloq right. Single encryption and decryption mismatch.\n");
-        assert(false);
         return 1;
     }
 
-    // Be default if no arguments specified - launch demo mode
-    bool demo_mode = argc <= 1;
-    auto args = demo_mode ? demoTestCommandlineArgs() : CommandLineArgs::parse(argc, argv);
-
-    bool had_tests = args.run_bench || args.run_tests;
-
-    if (args.run_tests)
+    if (KeeloqLearning::DecryptedResults::cuda_init() != cudaSuccess)
     {
-        printf("\n...RUNNING TESTS...\n");
-        tests::console::run();
+        printf("Error: Failed to initialize constants for DecryptedResults cache on device.\n");
+        return 1;
+    }
 
-        tests::pattern_generation();
-        tests::alphabet_generation();
-        tests::filters_generation();
+    auto args = CommandLineArgs::parse(argc, argv);
+    const bool demo_mode = args.run_demo;
 
-        printf("\n...TESTS FINISHED...\n");
+    if (args.print_help)
+    {
+        CommandLineArgs::printHelp();
+        return 0;
+    }
+
+    if (args.print_version)
+    {
+        printf("Version: " APP_VERSION_STRING "\n");
+        return 0;
+    }
+
+    if (demo_mode)
+    {
+        args = demoTestCommandlineArgs();
     }
 
     if (args.run_bench)
@@ -218,7 +174,12 @@ int main(int argc, const char** argv)
         benchmark::all(args);
     }
 
-    if (args.can_bruteforce())
+    if (args.has_errors)
+    {
+        return 1;
+    }
+
+    if (args.canBruteforce())
     {
         if (demo_mode)
         {
@@ -228,12 +189,12 @@ int main(int argc, const char** argv)
                    / // / -_)  ' \/ _ \  / /|_/ / _ \/ _  / -_)
                   /____/\__/_/_/_/\___/ /_/  /_/\___/\_,_/\__/
 
-                )");
+                )" "\nPrepared inputs, trying to bruteforce with different modes.\n");
         }
 
         bruteforce(args);
     }
-    else if (!had_tests)
+    else if (!args.run_bench)
     {
         printf("\nNot enough arguments for bruteforce\n");
         return 1;
@@ -242,6 +203,5 @@ int main(int argc, const char** argv)
     // this will free all memory as well
     cudaDeviceReset();
 
-    console::set_cursor_state(true);
     return 0;
 }

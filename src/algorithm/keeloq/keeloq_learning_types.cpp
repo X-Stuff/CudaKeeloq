@@ -1,84 +1,149 @@
-#include "keeloq_learning_types.h"
+#include "algorithm/keeloq/keeloq_learning_types.h"
 
-#include <cstring>
+#include <array>
+#include <string>
 
+#include "bruteforce/bruteforce_config.h"
 
-const char* KeeloqLearningType::LearningNames[] = {
-	"KEELOQ_LEARNING_SIMPLE",
-	"KEELOQ_LEARNING_SIMPLE_REV",
-	"KEELOQ_LEARNING_NORMAL",
-	"KEELOQ_LEARNING_NORMAL_REV",
-	"KEELOQ_LEARNING_SECURE",
-	"KEELOQ_LEARNING_SECURE_REV",
-	"KEELOQ_LEARNING_MAGIC_XOR_TYPE_1",
-	"KEELOQ_LEARNING_MAGIC_XOR_TYPE_1_REV",
-	"KEELOQ_LEARNING_FAAC",
-	"KEELOQ_LEARNING_FAAC_REV",
-	"KEELOQ_LEARNING_MAGIC_SERIAL_TYPE_1",
-	"KEELOQ_LEARNING_MAGIC_SERIAL_TYPE_1_REV",
-	"KEELOQ_LEARNING_MAGIC_SERIAL_TYPE_2",
-	"KEELOQ_LEARNING_MAGIC_SERIAL_TYPE_2_REV",
-	"KEELOQ_LEARNING_MAGIC_SERIAL_TYPE_3",
-	"KEELOQ_LEARNING_MAGIC_SERIAL_TYPE_3_REV",
-	"ALL"
-};
-
-const size_t KeeloqLearningType::LearningNamesCount = sizeof(LearningNames) / sizeof(char*);
-
-
-std::string KeeloqLearningType::to_string(const std::vector<Type>& learning_types)
+namespace KeeloqLearning
 {
-	if (learning_types.size() == 0)
-	{
-		return LearningNames[KeeloqLearningType::LAST];
-	}
 
-	return to_mask(learning_types).to_string();
-}
-
-std::string KeeloqLearningType::Mask::to_string() const
+Matrix::Matrix(const std::initializer_list<LearningItem>& params)
 {
-    if (is_all_enabled())
+    if (params.size() > 0)
     {
-        return LearningNames[KeeloqLearningType::LAST];
-    }
-
-    std::string result;
-    for (auto type = 0; type < KeeloqLearningType::LAST; ++type)
-    {
-        if (values[type])
+        for (const auto& param : params)
         {
-            if (result.size() > 0)
-            {
-                result += ", ";
-            }
-            result += KeeloqLearningType::Name(type);
-        }
-    }
-
-    return result;
-}
-
-KeeloqLearningType::Mask KeeloqLearningType::to_mask(const std::vector<Type>& in_types)
-{
-    KeeloqLearningType::Mask result;
-
-    if (in_types.size() > 0)
-    {
-        for (auto type : in_types)
-        {
-            result.values[type] = true;
+            enable(param.learning, param.algoType);
         }
     }
     else
     {
-        memcpy(result.values, KeeloqLearningType::Mask::All, sizeof(KeeloqLearningType::Mask::All));
+        matrix = kEverything;
     }
-
-    return result;
 }
 
-bool KeeloqLearningType::Mask::is_all_enabled() const
+Matrix::Matrix(const std::vector<LearningType>& types, const std::vector<AlgoType>& algoTypes)
 {
-    return std::memcmp(values, All, sizeof(All)) == 0;
+    if (types.empty() && algoTypes.empty())
+    {
+        matrix = kEverything;
+        return;
+    }
+
+    static constexpr auto allLearningTypes = EveryLearningType{};
+    static constexpr auto allAlgoTypes = EveryAlgoType{};
+
+    const auto& typesToEnable = types.empty() ? std::vector<LearningType>(allLearningTypes.begin(), allLearningTypes.end()) : types;
+    const auto& algoTypesToEnable = algoTypes.empty() ? std::vector<AlgoType>(allAlgoTypes.begin(), allAlgoTypes.end()) : algoTypes;
+
+    for (auto type : typesToEnable)
+    {
+        for (auto algoType : algoTypesToEnable)
+        {
+            enable(type, algoType);
+        }
+    }
+}
+
+std::string Matrix::toString() const
+{
+    char buffer[8196];
+    int at = 0;
+
+    at += snprintf(&buffer[at], sizeof(buffer) - at, "Learning matrix:\n"
+        "           _______________________________________________________________________________\n"
+        "          |  Simple |  Normal |  Secure |   Xor   |   Faac  | Serial1 | Serial2 | Serial3 |\n");
+    at += snprintf(&buffer[at], sizeof(buffer) - at,
+        "__________|_________|_________|_________|_________|_________|_________|_________|_________|\n");
+
+    for (auto algoType : EveryAlgoType{})
+    {
+        at += snprintf(&buffer[at], sizeof(buffer) - at, "%8s: |", KeeloqLearning::name(algoType));
+
+        for (auto learning : EveryLearningType{})
+        {
+            const bool isLearningEnabled = isEnabled(learning, algoType);
+            at += snprintf(&buffer[at], sizeof(buffer) - at, "    %s    |", isLearningEnabled ? "+" : " ");
+        }
+        at += snprintf(&buffer[at], sizeof(buffer) - at, "\n");
+    }
+
+    at += snprintf(&buffer[at], sizeof(buffer) - at,            "¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯\n");
+    at += snprintf(&buffer[at], sizeof(buffer) - at, "Total enabled learnings: %u\n", numEnabled());
+
+    return std::string(buffer);
+}
+
+std::vector<KeeloqLearning::LearningItem> Matrix::asItems() const
+{
+    std::vector<KeeloqLearning::LearningItem> items;
+
+    for (auto algoType : EveryAlgoType{})
+    {
+        for (auto learning : EveryLearningType{})
+        {
+            if (isEnabled(learning, algoType))
+            {
+                items.emplace_back(learning, algoType);
+            }
+        }
+    }
+
+    return items;
+}
+
+const char* name(LearningType type)
+{
+    switch (type)
+    {
+        case LearningType::Simple: return "Simple";
+        case LearningType::Normal: return "Normal";
+        case LearningType::Secure: return "Secure";
+        case LearningType::Xor: return "Xor";
+        case LearningType::Faac: return "Faac";
+        case LearningType::Serial1: return "Serial1";
+        case LearningType::Serial2: return "Serial2";
+        case LearningType::Serial3: return "Serial3";
+        default: return "Unknown";
+    }
+}
+
+const char* name(AlgoType algoType)
+{
+    switch (algoType)
+    {
+    case AlgoType::Normal:    return "Regular";
+    case AlgoType::Inverted:  return "Inverted";
+    default: return "Unknown";
+    }
+}
+
+bool parse(const char* data, LearningType& out)
+{
+    std::string nameStr(data);
+    for (auto& c : nameStr)
+    {
+        c = std::tolower(c);
+    }
+
+    for (int i = 0; i < LearningTypesCount; ++i)
+    {
+        auto type = static_cast<LearningType>(i);
+        std::string typeName(name(type));
+
+        for (auto& c : typeName)
+        {
+            c = std::tolower(c);
+        }
+
+        if (nameStr == typeName || std::to_string(i) == nameStr)
+        {
+            out = type;
+            return true;
+        }
+    }
+    return false;
+}
+
 }

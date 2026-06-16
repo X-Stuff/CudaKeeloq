@@ -1,39 +1,47 @@
-#include "tests/test_alphabet.h"
+#include "doctest/doctest.h"
+
+#include "algorithm/keeloq/keeloq_decryptor.h"
+
+#include "bruteforce/bruteforce_config.h"
+#include "bruteforce/generators/generator_bruteforce.h"
 
 #include "device/cuda_vector.h"
 #include "kernels/kernel_result.h"
-#include "bruteforce/bruteforce_config.h"
-#include "bruteforce/generators/generator_bruteforce.h"
-#include "algorithm/keeloq/keeloq_kernel_input.h"
-#include "algorithm/keeloq/keeloq_decryptor.h"
+#include "kernels/kernel_input_multi_learning.h"
+
+#include "tests/support/keeloq_inputs.h"
 
 
-bool tests::alphabet_generation()
+TEST_CASE("alphabet generator: produces expected decryptor sequence")
 {
-    // Filtered generator test itself
-    constexpr auto NumBlocks = 64;
-    constexpr auto NumThreads = 64;
+    const CudaConfig Cuda = CudaConfig::Tests();
 
-    auto testConfig = BruteforceConfig::GetAlphabet(Decryptor(0,0), "abcd"_b, 0xFFFFFFFF);
+    const auto pattern = "abcd"_b;
 
-    CudaVector<Decryptor> decryptors(NumBlocks * NumThreads);
+    // 4^8 since we have 8 bytes and each byte can be 4 values
+    const auto fullTurn = static_cast<uint32_t>(std::pow(pattern.size(), 8)); // 65536
+    const auto inputsTransform = InputsTransform::None;
 
-    KeeloqKernelInput generatorInputs;
-    generatorInputs.decryptors = decryptors.gpu();
-    generatorInputs.Initialize(testConfig, KeeloqLearningType::full_mask());
+    auto testConfig = BruteforceConfig::GetAlphabet(Decryptor::MakeSeed(0, 0), inputsTransform, pattern, 0xFFFFFFFF);
 
-    for (int i = 0; i < 16; ++i)
+    auto inputs = tests::keeloq::genInputs(0x6161616161616161, inputsTransform);
+
+    KeeloqKernelMultiLearningInput generatorInputs;
+    generatorInputs.Initialize(testConfig, inputs);
+    generatorInputs.AllocateGPU(Cuda.total());
+
+    const auto fullCyclesNum = fullTurn / Cuda.total();
+
+    for (uint32_t i = 0; i < fullCyclesNum; ++i)
     {
-        GeneratorBruteforce::PrepareDecryptors(generatorInputs, NumBlocks, NumThreads);
+        GeneratorBruteforce::PrepareDecryptors(generatorInputs, Cuda);
+        auto decryptors = generatorInputs.decryptors->read();
 
-        decryptors.read();
-
-        assert((decryptors.cpu()[0].man() & 0x0000FFFFFFFFFFFF) == 0x616161616161);
+        CHECK((decryptors[0].man() & 0x000000FFFFFFFFFF) == 0x6161616161);
 
         generatorInputs.NextDecryptor();
     }
 
-    assert(decryptors.cpu()[4095].man() == 0x6464646464646464);
-
-    return true;
+    auto decryptors = generatorInputs.decryptors->read();
+    CHECK(decryptors[Cuda.total() - 1].man() == 0x6464646464646464);
 }
