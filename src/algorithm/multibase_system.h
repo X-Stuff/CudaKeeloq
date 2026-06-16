@@ -45,10 +45,7 @@ struct MultibaseSystem
 	/** Default construction: every digit uses the full 0..255 byte range. */
 	__host__ MultibaseSystem() : MultibaseSystem(MultibaseDigit()) { }
 
-	// It's pretty heavy struct if you want clone it - constructor above
-	// TODO: disable copy
-	// MultibaseSystem(const MultibaseSystem& other) = delete;
-	// MultibaseSystem& operator=(const MultibaseSystem& other) = delete;
+	// Copyable, but heavy to clone (see the constructors above) — prefer passing by reference.
 
 public:
 

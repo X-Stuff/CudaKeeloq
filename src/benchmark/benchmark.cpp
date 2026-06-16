@@ -215,7 +215,7 @@ void benchmark::run(const std::vector<EncParcel>& inputs, const KeeloqLearning::
     }
 }
 
-void benchmark::becnhmarkReal(bool useSingleLearningKernels)
+void benchmark::benchmarkReal(bool useSingleLearningKernels)
 {
 #if _DEBUG
     static constexpr auto ClearMask = 0xFFFFFFFFF8000000;
@@ -346,6 +346,6 @@ void benchmark::all(const CommandLineArgs& /*args*/)
 
     benchmarkXoredAttack(TargetCalculationsNumber);
 
-    becnhmarkReal(true);
-    becnhmarkReal(false);
+    benchmarkReal(true);
+    benchmarkReal(false);
 }

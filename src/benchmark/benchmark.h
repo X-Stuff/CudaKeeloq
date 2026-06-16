@@ -25,8 +25,8 @@ namespace benchmark
     /** Sweep over several block/thread configurations for a single bruteforce config. */
     void run(const std::vector<EncParcel>& inputs, const KeeloqLearning::Matrix& learningMatrix, const BruteforceConfig& benchmarkConfig);
 
-    /** "Real" captures benchmark: runs known keeloq targets (DH, Sommer) and verifies matches. */
-    void becnhmarkReal(bool useSingleLearningKernels);
+    /** "Real" captures benchmark: runs known keeloq targets (FAAC SLH, DH, Sommer) and verifies matches. */
+    void benchmarkReal(bool useSingleLearningKernels);
 
     /** Run benchmark for each learning with simple and alphabet configs */
     void benchmarkEveryLearningAlone(uint32_t TargetCalculationsNumber);
