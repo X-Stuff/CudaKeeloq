@@ -15,6 +15,11 @@ Use this only on systems and captures you are allowed to analyze.
 
 ## Version history
 
+### 0.2.1
+
+* Added `--flipper` (`-l`) to read `--inputs` in the little-endian order shown on
+  the Flipper Zero display (`0x[FIXED_32][HOPPING_32]`).
+
 ### 0.2.0
 
 * Updated the build to CUDA 13.2.
@@ -230,6 +235,10 @@ Capture the same transmitter button three times. The fixed part should match,
 and the decoded counters should increase. Fewer captures are not useful for
 normal operation because they are much more likely to produce false matches.
 
+If you copy the values straight from the Flipper Zero display, pass `--flipper`
+(`-l`). They use little-endian order (`0x[FIXED_32][HOPPING_32]`), which is the
+reverse of the default `--inputs` byte order.
+
 ## Examples
 
 ### Simple bruteforce
@@ -321,6 +330,9 @@ input transform locations.
 * `--benchmark` - run the benchmark suite instead of a bruteforce run.
 * `--demo` - run the built-in demo bruteforce scenario.
 * `--inputs=<i1,i2,i3>` - three captured OTA packets.
+* `--flipper`, `-l` - interpret `--inputs` as the little-endian values shown on
+  the Flipper Zero display (`0x[FIXED_32][HOPPING_32]`) instead of the default OTA
+  byte order. Default: `false`.
 * `--first-match=true|false` - stop when the first match is found. Default:
   `true`.
 

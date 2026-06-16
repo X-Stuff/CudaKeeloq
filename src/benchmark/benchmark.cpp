@@ -234,7 +234,7 @@ void benchmark::benchmarkReal(bool useSingleLearningKernels)
             EncParcel(0xA0A28E16, 0x5FFEEFA4)
         };
 
-        const auto config = BruteforceConfig::GetSeedBruteforce(Decryptor::MakeSeed(man, seed), InputsTransform::All);
+        const auto config = BruteforceConfig::GetSeedBruteforce(Decryptor::MakeSeed(man, 0), InputsTransform::None);
         runRealCase("FAAC SLH", useSingleLearningKernels, inputs, config, KeeloqLearning::LearningType::Faac, man, seed);
     }
 

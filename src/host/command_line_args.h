@@ -22,6 +22,7 @@
 #define ARG_BENCHMARK "benchmark"
 #define ARG_DEMO "demo"
 #define ARG_INPUTS "inputs"
+#define ARG_FLIPPER "flipper"
 #define ARG_BLOCKS "cuda-blocks"
 #define ARG_THREADS "cuda-threads"
 #define ARG_MODE "mode"
@@ -104,7 +105,7 @@ public:
     bool canBruteforce();
 
     /** Populate `inputs` from raw OTA values. */
-    void initInputs(const std::vector<uint64_t>& inp);
+    void initInputs(const std::vector<uint64_t>& inp, bool isLittleEndian);
 
     /** Creates learning matrix from current command line arguments */
     KeeloqLearning::Matrix getLearningMatrix() const { return KeeloqLearning::Matrix(selected_learning, selected_algo_types); }

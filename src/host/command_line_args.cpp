@@ -10,9 +10,9 @@
 //#define CXXOPTS_NO_EXCEPTIONS
 #include "cxxopts/include/cxxopts.hpp"
 
-#define LOG_INFO(fmt, ...) APP_LOG_INFO(verbosity, fmt, ##__VA_ARGS__)
-#define LOG_WARNING(fmt, ...) APP_LOG_WARNING(verbosity, fmt, ##__VA_ARGS__)
-#define LOG_ERROR(fmt, ...) APP_LOG_ERROR(verbosity, fmt, ##__VA_ARGS__); args.has_errors = true;
+#define LOG_INFO(fmt, ...) APP_LOG_INFO(verbosity, fmt "\n", ##__VA_ARGS__)
+#define LOG_WARNING(fmt, ...) APP_LOG_WARNING(verbosity, fmt "\n", ##__VA_ARGS__)
+#define LOG_ERROR(fmt, ...) APP_LOG_ERROR(verbosity, fmt "\n", ##__VA_ARGS__); args.has_errors = true;
 
 namespace
 {
@@ -390,6 +390,9 @@ namespace
             (ARG_INPUTS, "Comma separated uint64 values (it's better to have 3), hopping first: 0x<HOPPING_32><FIXED_32>",
                 cxxopts::value<std::vector<uint64_t>>(), "[k1, k1, k3]")
 
+            ("l," ARG_FLIPPER, "Flag indicates inputs are in little-endian format, e.g. what you see at flipper display.",
+                cxxopts::value<bool>()->default_value("false"), "true|false")
+
             // CUDA Setup
             (ARG_BLOCKS, "How many thread blocks to launch, leave it 0 to calculate best value.",
                 cxxopts::value<uint16_t>()->default_value("0"), "<num>")
@@ -544,7 +547,9 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv, AppVerbosity
     // Inputs
     if (result.count(ARG_INPUTS) > 0)
     {
-        args.initInputs(result[ARG_INPUTS].as<std::vector<uint64_t>>());
+        const bool isLittleEndian = result[ARG_FLIPPER].as<bool>();
+        args.initInputs(result[ARG_INPUTS].as<std::vector<uint64_t>>(), isLittleEndian);
+
         if (args.inputs.size() < 3)
         {
             LOG_WARNING("Your inputs num is too small (%zd), It's almost useless to have less than 3 inputs, you will get to much phantom matches with that!",
@@ -697,7 +702,7 @@ CommandLineArgs CommandLineArgs::parse(int argc, const char** argv, AppVerbosity
     }
     else
     {
-        LOG_INFO("NOTE: Bruteforcing without specific learning selected via --%s is slower!\n", ARG_LTYPE);
+        LOG_INFO("NOTE: Bruteforcing without specific learning selected via --%s is slower!", ARG_LTYPE);
     }
 
 
@@ -715,11 +720,21 @@ bool CommandLineArgs::canBruteforce()
     return inputs.size() > 0 && brute_configs.size() > 0;
 }
 
-void CommandLineArgs::initInputs(const std::vector<uint64_t>& inp)
+void CommandLineArgs::initInputs(const std::vector<uint64_t>& inp, bool isLittleEndian)
 {
     inputs.reserve(inp.size());
     for (uint64_t ota : inp)
     {
-        inputs.push_back(EncParcel(ota));
+        if (isLittleEndian)
+        {
+            uint32_t fix = ota >> 32;
+            uint32_t hop = ota & 0xFFFFFFFF;
+
+            inputs.push_back(EncParcel(fix, hop));
+        }
+        else
+        {
+            inputs.push_back(EncParcel(ota));
+        }
     }
 }
